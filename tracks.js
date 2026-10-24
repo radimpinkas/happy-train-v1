@@ -155,6 +155,7 @@ var grassMat = new THREE.MeshStandardMaterial({
 var grass = new THREE.Mesh(grassGeo, grassMat);
 grass.receiveShadow = true;
 scene.add(grass);
+window.grassMesh = grass;
 
 // Sparkling Turquoise Storybook River Water at z = -85
 function createWaterRippleTexture() {
@@ -184,6 +185,7 @@ river.rotation.x = -Math.PI / 2;
 river.position.set(0, -1.6, -85);
 river.receiveShadow = true;
 scene.add(river);
+window.riverMesh = river;
 
 // ============================================================================
 // HAND-PAINTED RED BRICK VIADUCT TEXTURE & SAFE ELLIPTICAL ARCH GENERATOR
@@ -449,13 +451,13 @@ function addSubwayLine(fromId, toId, unusedA, unusedB, cavernOffsetZ, allowedSur
   var dirA = new THREE.Vector3(-pA.x, 0, -pA.z).normalize();
   var dirB = new THREE.Vector3(-pB.x, 0, -pB.z).normalize();
 
-  var surfA1 = pA.clone().add(dirA.clone().multiplyScalar(38)); // u = 0.15 (Turnout end: (±168, ±168))
-  var surfA2 = pA.clone().add(dirA.clone().multiplyScalar(61)); // u = 0.21 (Portal center: (±152, ±152))
-  var surfA3 = pA.clone().add(dirA.clone().multiplyScalar(84)); // u = 0.27 (Inside dark portal hood: (±136, ±136))
+  var surfA1 = pA.clone().add(dirA.clone().multiplyScalar(38)); // u = 0.16 (Turnout end in front of entry portal)
+  var surfA2 = pA.clone().add(dirA.clone().multiplyScalar(61)); // u ≈ 0.191 (Entry Portal front arch)
+  var surfA3 = pA.clone().add(dirA.clone().multiplyScalar(71)); // u ≈ 0.205 (Inside covered station shell)
 
-  var surfB3 = pB.clone().add(dirB.clone().multiplyScalar(84)); // u = 0.73
-  var surfB2 = pB.clone().add(dirB.clone().multiplyScalar(61)); // u = 0.79 (Exit Portal center: (±152, ±152))
-  var surfB1 = pB.clone().add(dirB.clone().multiplyScalar(38)); // u = 0.85
+  var surfB3 = pB.clone().add(dirB.clone().multiplyScalar(71)); // u ≈ 0.795 (Inside exit covered station shell)
+  var surfB2 = pB.clone().add(dirB.clone().multiplyScalar(61)); // u ≈ 0.809 (Exit Portal front arch)
+  var surfB1 = pB.clone().add(dirB.clone().multiplyScalar(38)); // u = 0.84 (Turnout start in front of exit portal)
 
   var portalSurfaceYA = Math.max(
     pA.y,
@@ -475,67 +477,105 @@ function addSubwayLine(fromId, toId, unusedA, unusedB, cavernOffsetZ, allowedSur
 
   var signX = (pA.x < pB.x) ? 1 : -1;
   var pCavernStart = new THREE.Vector3(-64 * signX, -25.5, cavernOffsetZ);
-  var pCavernMid   = new THREE.Vector3(   0,        -25.5, cavernOffsetZ);
   var pCavernEnd   = new THREE.Vector3( 64 * signX, -25.5, cavernOffsetZ);
 
-  // Build explicit 40-step curve where:
-  // - u in [0.15 .. 0.27] is a 100% straight horizontal line from surfA1 through surfA2 to surfA3!
-  // - u in [0.34 .. 0.66] is a 100% straight horizontal causeway from pCavernStart to pCavernEnd!
-  // - u in [0.73 .. 0.85] is a 100% straight horizontal line from surfB3 through surfB2 to surfB1!
-  var numSteps = 40;
-  var fixedPts = [];
+  // Cubic Bezier control points for smooth horizontal & vertical alignment into the Cavern Portals:
+  // Enters along `dirA` at surfA3 and arrives at `pCavernStart` strictly aligned with the X-axis (`[signX, 0, 0]`)!
+  var downP0 = surfA3.clone();
+  var downP1 = surfA3.clone().add(dirA.clone().multiplyScalar(28.0));
+  downP1.y = portalSurfaceYA - 6.5;
+  var downP2 = new THREE.Vector3(-92 * signX, -25.5, cavernOffsetZ);
+  var downP3 = pCavernStart.clone();
 
-  for (var k = 0; k <= numSteps; k++) {
-    var u = k / numSteps;
+  var upP0 = pCavernEnd.clone();
+  var upP1 = new THREE.Vector3(92 * signX, -25.5, cavernOffsetZ);
+  var upP2 = surfB3.clone().add(dirB.clone().multiplyScalar(28.0));
+  upP2.y = portalSurfaceYB - 6.5;
+  var upP3 = surfB3.clone();
+
+  function evalCubicBezier(p0, p1, p2, p3, t) {
+    var u = 1.0 - t;
+    var b0 = u * u * u;
+    var b1 = 3.0 * u * u * t;
+    var b2 = 3.0 * u * t * t;
+    var b3 = t * t * t;
+    return new THREE.Vector3(
+      b0 * p0.x + b1 * p1.x + b2 * p2.x + b3 * p3.x,
+      b0 * p0.y + b1 * p1.y + b2 * p2.y + b3 * p3.y,
+      b0 * p0.z + b1 * p1.z + b2 * p2.z + b3 * p3.z
+    );
+  }
+
+  // Build active curve strictly from surfA1 (s = 0.0 -> u = 0.16) to surfB1 (s = 1.0 -> u = 0.84)
+  // so that turnouts at u = 0.16 and u = 0.84 connect 100% in front of the Metro Station arches!
+  var rawPts = [];
+  var sSteps = 72;
+  for (var k = 0; k <= sSteps; k++) {
+    var s = k / sSteps;
     var pt = new THREE.Vector3();
-
-    if (k === 0) {
-      pt.copy(pA);
-    } else if (k === numSteps) {
-      pt.copy(pB);
-    } else if (u < 0.15) {
-      var tA0 = u / 0.15;
-      pt.lerpVectors(pA, surfA1, tA0);
-      var minYA0 = window.getTerrainHeight(pt.x, pt.z) + 1.02;
-      pt.y = Math.max(pt.y, minYA0);
-    } else if (u <= 0.275) {
-      // 100% STRAIGHT & LEVEL through the Surface Metro Station Portal!
-      var tA1 = (u - 0.15) / 0.125;
-      pt.lerpVectors(surfA1, surfA3, tA1);
+    if (s <= 0.08) {
+      // Straight & level from turnout (surfA1, 38m) through front arch (surfA2, 61m) into station shell (surfA3, 71m)
+      var tA = s / 0.08;
+      pt.lerpVectors(surfA1, surfA3, tA);
       pt.y = portalSurfaceYA;
-    } else if (u < 0.35) {
-      // Smooth descent inside the enclosed tunnel hood
-      var tDown = (u - 0.275) / 0.075;
-      var sDown = tDown * tDown * (3 - 2 * tDown);
-      pt.lerpVectors(surfA3, pCavernStart, sDown);
-      pt.y = portalSurfaceYA + (-25.5 - portalSurfaceYA) * sDown;
-    } else if (u <= 0.65) {
-      // 100% STRAIGHT & LEVEL across the Underground Stone Arch Viaduct Causeway!
-      var tCav = (u - 0.35) / 0.30;
+    } else if (s < 0.36) {
+      // Smooth Cubic Bezier descent inside enclosed tunnel tube from surfA3 down to pCavernStart
+      var tDown = (s - 0.08) / 0.28;
+      pt.copy(evalCubicBezier(downP0, downP1, downP2, downP3, tDown));
+    } else if (s <= 0.64) {
+      // 100% straight & level across the Underground Stone Arch Viaduct Causeway (x = -64 .. +64)
+      var tCav = (s - 0.36) / 0.28;
       pt.lerpVectors(pCavernStart, pCavernEnd, tCav);
       pt.y = -25.5;
       pt.z = cavernOffsetZ;
-    } else if (u < 0.725) {
-      // Smooth ascent inside the exit enclosed tunnel hood
-      var tUp = (u - 0.65) / 0.075;
-      var sUp = tUp * tUp * (3 - 2 * tUp);
-      pt.lerpVectors(pCavernEnd, surfB3, sUp);
-      pt.y = -25.5 + (portalSurfaceYB - (-25.5)) * sUp;
-    } else if (u <= 0.85) {
-      // 100% STRAIGHT & LEVEL through the Exit Surface Metro Station Portal!
-      var tB1 = (u - 0.725) / 0.125;
-      pt.lerpVectors(surfB3, surfB1, tB1);
-      pt.y = portalSurfaceYB;
+    } else if (s < 0.92) {
+      // Smooth Cubic Bezier ascent inside enclosed tunnel tube from pCavernEnd up to surfB3
+      var tUp = (s - 0.64) / 0.28;
+      pt.copy(evalCubicBezier(upP0, upP1, upP2, upP3, tUp));
     } else {
-      var tB0 = (u - 0.85) / 0.15;
-      pt.lerpVectors(surfB1, pB, tB0);
-      var minYB0 = window.getTerrainHeight(pt.x, pt.z) + 1.02;
-      pt.y = Math.max(pt.y, minYB0);
+      // Straight & level from inside exit station shell (surfB3, 71m) out through front arch (surfB2, 61m) to surfB1 (38m)
+      var tB = (s - 0.92) / 0.08;
+      pt.lerpVectors(surfB3, surfB1, tB);
+      pt.y = portalSurfaceYB;
     }
-    fixedPts.push(pt);
+    rawPts.push(pt);
   }
 
-  var curve = new THREE.CatmullRomCurve3(fixedPts, false);
+  var rawCurve = new THREE.CatmullRomCurve3(rawPts, false);
+  var rawLength = rawCurve.getLength();
+
+  // Map u in [0.16, 0.84] linearly to arc-length s in [0.0, 1.0] on rawCurve
+  var curve = {
+    rawCurve: rawCurve,
+    getLength: function() {
+      return rawLength / 0.68;
+    },
+    getPointAt: function(u) {
+      var s = Math.max(0.0, Math.min(1.0, (u - 0.16) / 0.68));
+      return rawCurve.getPointAt(s);
+    },
+    getTangentAt: function(u) {
+      var s = Math.max(0.0, Math.min(1.0, (u - 0.16) / 0.68));
+      return rawCurve.getTangentAt(s);
+    }
+  };
+
+  // Find exact u coordinates for entry portal arch, cavern start/end portals, and exit portal arch
+  function findClosestU(targetPt, uMin, uMax) {
+    var bestU = (uMin + uMax) * 0.5;
+    var bestD = 999999;
+    for (var i = 0; i <= 120; i++) {
+      var uTest = uMin + (i / 120) * (uMax - uMin);
+      var d = curve.getPointAt(uTest).distanceTo(targetPt);
+      if (d < bestD) { bestD = d; bestU = uTest; }
+    }
+    return bestU;
+  }
+
+  var uPortalEntry = findClosestU(surfA2, 0.16, 0.25);
+  var uCavernStart = findClosestU(pCavernStart, 0.32, 0.46);
+  var uCavernEnd   = findClosestU(pCavernEnd, 0.54, 0.68);
+  var uPortalExit  = findClosestU(surfB2, 0.75, 0.84);
 
   var subEdge = {
     id: 'METRO_' + fromId + '->' + toId,
@@ -549,6 +589,10 @@ function addSubwayLine(fromId, toId, unusedA, unusedB, cavernOffsetZ, allowedSur
     portalDirA: dirA.clone(),
     portalPosB: surfB2.clone(),
     portalDirB: dirB.clone(),
+    uPortalEntry: uPortalEntry,
+    uCavernStart: uCavernStart,
+    uCavernEnd: uCavernEnd,
+    uPortalExit: uPortalExit,
     cavernSignX: signX,
     cavernOffsetZ: cavernOffsetZ,
     station: {
@@ -1231,12 +1275,15 @@ function renderSingleTrackCurve(curve, isMainTrack, e, uStart, uEnd) {
     var horizLen = Math.hypot(tan.x, tan.z) || 0.001;
     var pitch = -Math.atan2(tan.y, horizLen);
 
+    var isSurfaceMetroApproach = e.isSubway && (u <= (e.uPortalEntry || 0.195) + 0.012 || u >= (e.uPortalExit || 0.805) - 0.012);
+    var trackParent = (e.isSubway && !isSurfaceMetroApproach && window.undergroundWorldGroup) ? window.undergroundWorldGroup : scene;
+
     var sl = new THREE.Mesh(slGeo, slMat);
     sl.position.set(p.x, p.y + 0.12, p.z);
     sl.rotation.order = 'YXZ';
     sl.rotation.y = ang;
     sl.rotation.x = pitch;
-    scene.add(sl);
+    trackParent.add(sl);
 
     var px = Math.cos(ang) * 0.92, pz = -Math.sin(ang) * 0.92;
     var r1 = new THREE.Mesh(rlGeo, rlMat);
@@ -1246,7 +1293,7 @@ function renderSingleTrackCurve(curve, isMainTrack, e, uStart, uEnd) {
     var r2 = new THREE.Mesh(rlGeo, rlMat);
     r2.position.set(p.x - px, p.y + 0.28, p.z - pz);
     r2.rotation.order = 'YXZ'; r2.rotation.y = ang; r2.rotation.x = pitch;
-    scene.add(r1, r2);
+    trackParent.add(r1, r2);
 
     if (isMainTrack) {
       var perp = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
@@ -1259,9 +1306,8 @@ function renderSingleTrackCurve(curve, isMainTrack, e, uStart, uEnd) {
       var bal = new THREE.Mesh(new THREE.BoxGeometry(balW, 0.28, 2.3), ballastMat);
       bal.position.set(midTrackX, p.y - 0.16, midTrackZ);
       bal.rotation.order = 'YXZ'; bal.rotation.y = ang; bal.rotation.x = pitch;
-      scene.add(bal);
+      trackParent.add(bal);
 
-      var isSurfaceMetroApproach = e.isSubway && (u <= 0.24 || u >= 0.76);
       if (!e.isSubway || isSurfaceMetroApproach) {
         var isViaductMiddle = isBridgeOrViaduct && (u >= 0.05 && u <= 0.95);
         if (!isViaductMiddle && gapH > 0.20) {
@@ -1410,7 +1456,11 @@ physicalTracksToRender.forEach(function(e) {
 
 window.isPlayerInDarkTunnel = function(edge, t) {
   if (!edge) return false;
-  if (edge.isSubway && t >= 0.20 && t <= 0.80) return true;
+  if (edge.isSubway) {
+    var uEntry = edge.uPortalEntry || 0.195;
+    var uExit  = edge.uPortalExit  || 0.805;
+    return (t >= uEntry && t <= uExit);
+  }
   for (var i = 0; i < window.tunnelZones.length; i++) {
     var tz = window.tunnelZones[i];
     if (edge.id === tz.edgeId && t >= tz.tMin - 0.04 && t <= tz.tMax + 0.04) return true;
@@ -1432,13 +1482,24 @@ window.waterfallTextures = [];
 window.goldMinecarts = [];
 window.undergroundParallaxLayers = [];
 window.cavernFireflies = [];
+window.undergroundWorldGroup = new THREE.Group();
+window.undergroundWorldGroup.visible = false;
+scene.add(window.undergroundWorldGroup);
 
 // Builds a Storybook Arched Metro Station Building on the Surface where the train enters horizontally
-// along the straight diagonal approach (`u = 0.15 .. 0.275`) 61m away from the corner junctions!
+// along the straight diagonal approach (`u = 0.16 .. 0.23`) 61m away from the corner junctions!
 function buildGrandMetroStationPortal(entryPt, intoTunnelDir, stationLabel, themeHexStr, themeColorHex) {
   var g = new THREE.Group();
   g.position.set(entryPt.x, entryPt.y - 0.28, entryPt.z);
   g.rotation.y = Math.atan2(intoTunnelDir.x, intoTunnelDir.z);
+
+  var stationRoofMat = new THREE.MeshStandardMaterial({
+    color: 0xfef3c7,
+    roughness: 0.65,
+    transparent: true,
+    opacity: 1.0
+  });
+  window.tunnelRoofMeshes.push(stationRoofMat);
 
   // 1. Hollow Arched Station Building Shell (Wide 14.0m opening from -7.0 to +7.0 so the train has huge clearance!)
   var stShape = new THREE.Shape();
@@ -1454,32 +1515,37 @@ function buildGrandMetroStationPortal(entryPt, intoTunnelDir, stationLabel, them
 
   var shellGeo = new THREE.ExtrudeGeometry(stShape, { depth: 20.0, bevelEnabled: true, bevelSize: 0.22, bevelThickness: 0.22, curveSegments: 22 });
   shellGeo.translate(0, 0, -4.0);
-  var shellMesh = new THREE.Mesh(
-    shellGeo,
-    new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.65 })
-  );
+  var shellMesh = new THREE.Mesh(shellGeo, stationRoofMat);
   shellMesh.castShadow = true;
   shellMesh.receiveShadow = true;
   g.add(shellMesh);
 
-  // 2. Green Grassy Roof Mound over the back of the Metro Tunnel so it blends into a natural hill!
-  var hillMound = new THREE.Mesh(
-    new THREE.SphereGeometry(12.2, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.55),
-    new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.88 })
-  );
-  hillMound.scale.set(1.12, 0.85, 1.35);
-  hillMound.position.set(0, 2.2, 14.5);
+  // 2. Hollow Outer Grassy Hill Arch wrapping around the back of the Metro Station (100% open inside!)
+  var hillArchShape = new THREE.Shape();
+  hillArchShape.moveTo(-9.5, -1.5);
+  hillArchShape.lineTo(-9.5, 5.2);
+  hillArchShape.absarc(0, 5.2, 9.5, Math.PI, 0, true);
+  hillArchShape.lineTo(9.5, -1.5);
+  hillArchShape.lineTo(14.6, -1.5);
+  hillArchShape.quadraticCurveTo(13.5, 9.8, 0, 15.2);
+  hillArchShape.quadraticCurveTo(-13.5, 9.8, -14.6, -1.5);
+  hillArchShape.closePath();
+
+  var hillArchMat = new THREE.MeshStandardMaterial({
+    color: 0x22c55e,
+    roughness: 0.88,
+    transparent: true,
+    opacity: 1.0,
+    side: THREE.DoubleSide
+  });
+  window.tunnelRoofMeshes.push(hillArchMat);
+
+  var hillArchGeo = new THREE.ExtrudeGeometry(hillArchShape, { depth: 18.0, bevelEnabled: false, curveSegments: 20 });
+  hillArchGeo.translate(0, 0, 2.0);
+  var hillMound = new THREE.Mesh(hillArchGeo, hillArchMat);
   g.add(hillMound);
 
-  // 3. Dark Enclosed Tunnel Portal Curtain at z = +14.8 inside the station
-  var darkPortalDisk = new THREE.Mesh(
-    new THREE.CircleGeometry(7.1, 20),
-    new THREE.MeshBasicMaterial({ color: 0x090414, side: THREE.DoubleSide })
-  );
-  darkPortalDisk.position.set(0, 4.6, 15.2);
-  g.add(darkPortalDisk);
-
-  // 4. Colored Arch Header Band on the Front Entrance (Blue / Green / Purple / Orange)
+  // 3. Colored Arch Header Band on the Front Entrance (Blue / Green / Purple / Orange)
   var headerShape = new THREE.Shape();
   headerShape.absarc(0, 4.9, 7.05, 0, Math.PI, false);
   headerShape.absarc(0, 4.9, 9.3, Math.PI, 0, true);
@@ -1490,15 +1556,15 @@ function buildGrandMetroStationPortal(entryPt, intoTunnelDir, stationLabel, them
   var hArch = new THREE.Mesh(headerGeo, headerMat);
   g.add(hArch);
 
-  // 5. Warm Golden Glowing Interior Vault Ceiling & Side Platforms inside the Metro Station
-  var innerGlowGeo = new THREE.CylinderGeometry(6.8, 6.8, 18.0, 18, 1, true, -Math.PI * 0.5, Math.PI);
+  // 4. Warm Golden Glowing Interior Vault Ceiling & Side Platforms inside the Metro Station
+  var innerGlowGeo = new THREE.CylinderGeometry(6.8, 6.8, 20.0, 18, 1, true, -Math.PI * 0.5, Math.PI);
   var innerGlow = new THREE.Mesh(
     innerGlowGeo,
     new THREE.MeshBasicMaterial({ color: 0xfde68a, side: THREE.DoubleSide })
   );
   innerGlow.rotation.z = Math.PI / 2;
   innerGlow.rotation.y = Math.PI / 2;
-  innerGlow.position.set(0, 4.7, 5.5);
+  innerGlow.position.set(0, 4.7, 6.0);
   g.add(innerGlow);
 
   var platMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.7 });
@@ -1589,37 +1655,40 @@ var sharedCavernStoneTex = createStorybookMossyStoneTex();
 // Paints a 1024x512 Enchanted Underground Cavern Panorama & composites `/public/assets/aistudio/image_82bcd4d4.png`!
 function createEnchantedCavernPanoramaTex(cropMode) {
   var c = document.createElement('canvas');
-  c.width = 1024; c.height = 512;
+  c.width = cropMode === 'panorama' ? 2048 : 1024;
+  c.height = 512;
+  var cw = c.width;
+  var ch = c.height;
   var ctx = c.getContext('2d');
 
   // 1. Rich procedural storybook painting base (instant zero-latency availability)
-  var skyGrad = ctx.createLinearGradient(0, 0, 0, 512);
+  var skyGrad = ctx.createLinearGradient(0, 0, 0, ch);
   skyGrad.addColorStop(0.0, '#1e1b4b');
   skyGrad.addColorStop(0.28, '#3b0764');
   skyGrad.addColorStop(0.58, '#0284c7');
   skyGrad.addColorStop(0.85, '#06b6d4');
   skyGrad.addColorStop(1.0, '#0f172a');
   ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, 1024, 512);
+  ctx.fillRect(0, 0, cw, ch);
 
   // Glowing atmospheric lightbeams & mist clouds
   var radialCenters = [
-    { x: 512, y: 190, r: 290, col: 'rgba(56, 189, 248, 0.55)' },
-    { x: 220, y: 260, r: 240, col: 'rgba(250, 204, 21, 0.42)' },
-    { x: 820, y: 240, r: 250, col: 'rgba(236, 72, 153, 0.45)' },
-    { x: 512, y: 390, r: 280, col: 'rgba(6, 182, 212, 0.65)' }
+    { x: cw * 0.50, y: 190, r: 290, col: 'rgba(56, 189, 248, 0.55)' },
+    { x: cw * 0.21, y: 260, r: 240, col: 'rgba(250, 204, 21, 0.42)' },
+    { x: cw * 0.80, y: 240, r: 250, col: 'rgba(236, 72, 153, 0.45)' },
+    { x: cw * 0.50, y: 390, r: 280, col: 'rgba(6, 182, 212, 0.65)' }
   ];
   radialCenters.forEach(function(rc) {
     var rg = ctx.createRadialGradient(rc.x, rc.y, 10, rc.x, rc.y, rc.r);
     rg.addColorStop(0, rc.col);
     rg.addColorStop(1, 'rgba(15, 23, 42, 0)');
     ctx.fillStyle = rg;
-    ctx.fillRect(0, 0, 1024, 512);
+    ctx.fillRect(0, 0, cw, ch);
   });
 
   // Distant stone arch bridge & waterfalls in the painted vista
   ctx.fillStyle = '#4c1d95';
-  for (var sx = 0; sx < 1024; sx += 36) {
+  for (var sx = 0; sx < cw; sx += 36) {
     var sh = 75 + ((sx * 19) % 95);
     ctx.beginPath();
     ctx.moveTo(sx - 18, 0);
@@ -1633,31 +1702,74 @@ function createEnchantedCavernPanoramaTex(cropMode) {
   tex.wrapS = THREE.ClampToEdgeWrapping;
   tex.wrapT = THREE.ClampToEdgeWrapping;
 
-  // 2. Load the reference illustration `/public/assets/aistudio/image_82bcd4d4.png` and composite
-  //    the upper/distant cavern vistas (excluding the foreground train) with feathered edges!
+  // 2. Load the full panorama `/public/assets/aistudio/panorama1_f97480a3.jpeg` for 'panorama' mode
+  //    (preserving exact aspect ratio on the 185x48m 3D plane without cropping), while keeping
+  //    `image_82bcd4d4.png` for the existing side cards.
+  var primaryPath = cropMode === 'panorama'
+    ? 'public/assets/aistudio/panorama1_f97480a3.jpeg'
+    : 'public/assets/aistudio/image_82bcd4d4.png';
+  var fallbackPath = cropMode === 'panorama'
+    ? 'assets/aistudio/panorama1_f97480a3.jpeg'
+    : 'assets/aistudio/image_82bcd4d4.png';
+
   var refImg = new Image();
   refImg.crossOrigin = 'anonymous';
   refImg.onload = function() {
     var iw = refImg.width;
     var ih = refImg.height;
     if (cropMode === 'panorama') {
-      // Draw the rich upper cavern vista (stalactites, distant waterfalls, stone arch bridge, blue/orange giant mushrooms, right grotto)
-      // Top-right & center-top region (`x: 0.24..1.00, y: 0.00..0.60`) has ZERO train and pure storybook cavern scenery!
       ctx.save();
-      ctx.drawImage(refImg, iw * 0.24, 0, iw * 0.76, ih * 0.58, 0, 0, 1024, 512);
-      // Softly feather the bottom & side edges so it blends seamlessly into the 3D turquoise river & cavern walls
-      var vig = ctx.createLinearGradient(0, 390, 0, 512);
+      ctx.clearRect(0, 0, cw, ch);
+
+      // Compute exact undistorted width on the 185x48m 3D plane so the 1456x816 image has 1:1 proportions
+      var planeAspect = 185.0 / 48.0;
+      var imgAspect = iw / Math.max(1, ih);
+      var drawW = Math.round(cw * (imgAspect / planeAspect));
+      var drawX = Math.round((cw - drawW) * 0.5);
+
+      // Fill outer side wings with horizontally mirrored extensions so edges never cut off near tunnel portals
+      ctx.save();
+      ctx.translate(drawX, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(refImg, 0, 0, iw, ih, 0, 0, drawW, ch);
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(drawX + drawW * 2, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(refImg, 0, 0, iw, ih, 0, 0, drawW, ch);
+      ctx.restore();
+
+      // Draw the complete, uncropped panorama image in the center with exact aspect ratio
+      ctx.drawImage(refImg, 0, 0, iw, ih, drawX, 0, drawW, ch);
+
+      // Softly darken far outer left/right edges into cavern fog (#140b29) and blend bottom edge into the river
+      var leftEdgeGrad = ctx.createLinearGradient(0, 0, drawX + 40, 0);
+      leftEdgeGrad.addColorStop(0.0, 'rgba(20, 11, 41, 0.92)');
+      leftEdgeGrad.addColorStop(0.65, 'rgba(20, 11, 41, 0.35)');
+      leftEdgeGrad.addColorStop(1.0, 'rgba(20, 11, 41, 0.0)');
+      ctx.fillStyle = leftEdgeGrad;
+      ctx.fillRect(0, 0, drawX + 40, ch);
+
+      var rightEdgeGrad = ctx.createLinearGradient(drawX + drawW - 40, 0, cw, 0);
+      rightEdgeGrad.addColorStop(0.0, 'rgba(20, 11, 41, 0.0)');
+      rightEdgeGrad.addColorStop(0.35, 'rgba(20, 11, 41, 0.35)');
+      rightEdgeGrad.addColorStop(1.0, 'rgba(20, 11, 41, 0.92)');
+      ctx.fillStyle = rightEdgeGrad;
+      ctx.fillRect(drawX + drawW - 40, 0, cw - (drawX + drawW - 40), ch);
+
+      var vig = ctx.createLinearGradient(0, ch - 80, 0, ch);
       vig.addColorStop(0, 'rgba(6, 182, 212, 0)');
       vig.addColorStop(1, '#083344');
       ctx.fillStyle = vig;
-      ctx.fillRect(0, 390, 1024, 122);
+      ctx.fillRect(0, ch - 80, cw, 80);
       ctx.restore();
     } else if (cropMode === 'left_mine_grotto') {
-      ctx.clearRect(0, 0, 1024, 512);
+      ctx.clearRect(0, 0, cw, ch);
       // Bottom-left gnome gold-mining terrace (`x: 0.00..0.28, y: 0.46..0.98`)
       ctx.drawImage(refImg, 0, ih * 0.46, iw * 0.28, ih * 0.52, 60, 20, 904, 472);
     } else if (cropMode === 'right_crystal_grotto') {
-      ctx.clearRect(0, 0, 1024, 512);
+      ctx.clearRect(0, 0, cw, ch);
       // Mid-right crystal cavern grotto & gnomes (`x: 0.66..1.00, y: 0.24..0.78`)
       ctx.drawImage(refImg, iw * 0.66, ih * 0.24, iw * 0.34, ih * 0.54, 40, 20, 944, 472);
     }
@@ -1665,10 +1777,10 @@ function createEnchantedCavernPanoramaTex(cropMode) {
   };
   refImg.onerror = function() {
     if (refImg.src.indexOf('public/') !== -1) {
-      refImg.src = 'assets/aistudio/image_82bcd4d4.png';
+      refImg.src = fallbackPath;
     }
   };
-  refImg.src = 'public/assets/aistudio/image_82bcd4d4.png';
+  refImg.src = primaryPath;
 
   return tex;
 }
@@ -1994,7 +2106,7 @@ function createColorChangingMushroom(x, y, z, scale, phaseOffset) {
     g.add(spot);
   }
 
-  scene.add(g);
+  window.undergroundWorldGroup.add(g);
   window.magicMushrooms.push({
     group: g,
     capMat: capMat,
@@ -2036,7 +2148,7 @@ function createCrystalCluster(x, y, z, colorHex, scale) {
     g.add(spire);
   });
 
-  scene.add(g);
+  window.undergroundWorldGroup.add(g);
   return g;
 }
 
@@ -2079,7 +2191,7 @@ function createGoldMinecart(x, y, z, rotY) {
     g.add(gem);
   }
 
-  scene.add(g);
+  window.undergroundWorldGroup.add(g);
   return g;
 }
 
@@ -2163,56 +2275,58 @@ function buildUndergroundStoneArchCauseway(cz) {
     });
   });
 
-  scene.add(g);
+  window.undergroundWorldGroup.add(g);
 }
 
-// Builds a Warmly Lit Stone Brick Underground Tunnel Portal with Hanging Golden Lanterns (`image_82bcd4d4.png` top-left & right!)
+// Builds a Open Hollow Stone Brick Underground Tunnel Portal with Hanging Golden Lanterns
+// (No protruding cylinder or back disk blocking the track!)
 function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
   var g = new THREE.Group();
   g.position.set(x, y, z);
   g.rotation.y = rotY;
 
-  var warmTube = new THREE.Mesh(
-    new THREE.CylinderGeometry(7.0, 7.0, 20.0, 20, 1, true, -Math.PI * 0.5, Math.PI),
-    new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide })
-  );
-  warmTube.rotation.z = Math.PI / 2;
-  warmTube.rotation.y = Math.PI / 2;
-  warmTube.position.set(0, 4.2, -9.5);
-  g.add(warmTube);
-
   var bulbMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
-  [-2.5, -7.5, -12.5].forEach(function(lz) {
-    var lamp = new THREE.Mesh(new THREE.SphereGeometry(0.62, 10, 10), bulbMat);
-    lamp.position.set(0, 9.8, lz);
-    g.add(lamp);
-  });
+  var stoneMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.78 });
+  var trimCol = [0x94a3b8, 0xcbd5e1, 0x78716c, 0xf59e0b];
 
   var archShape = new THREE.Shape();
-  archShape.moveTo(-7.0, -1.0);
-  archShape.lineTo(-7.0, 4.4);
-  archShape.absarc(0, 4.4, 7.0, Math.PI, 0, true);
-  archShape.lineTo(7.0, -1.0);
-  archShape.lineTo(10.5, -1.0);
-  archShape.lineTo(10.5, 5.0);
-  archShape.absarc(0, 5.0, 10.5, 0, Math.PI, false);
-  archShape.lineTo(-10.5, -1.0);
+  archShape.moveTo(-7.6, -1.0);
+  archShape.lineTo(-7.6, 4.4);
+  archShape.absarc(0, 4.4, 7.6, Math.PI, 0, true);
+  archShape.lineTo(7.6, -1.0);
+  archShape.lineTo(10.8, -1.0);
+  archShape.lineTo(10.8, 5.0);
+  archShape.absarc(0, 5.0, 10.8, 0, Math.PI, false);
+  archShape.lineTo(-10.8, -1.0);
   archShape.closePath();
 
-  var archGeo = new THREE.ExtrudeGeometry(archShape, { depth: 4.2, bevelEnabled: true, bevelSize: 0.25, bevelThickness: 0.25, curveSegments: 22 });
-  archGeo.translate(0, 0, -2.1);
-  var archMesh = new THREE.Mesh(archGeo, new THREE.MeshStandardMaterial({ map: sharedCavernStoneTex, roughness: 0.78 }));
+  var archGeo = new THREE.ExtrudeGeometry(archShape, { depth: 3.4, bevelEnabled: true, bevelSize: 0.22, bevelThickness: 0.22, curveSegments: 22 });
+  archGeo.translate(0, 0, -1.7);
+  var archMesh = new THREE.Mesh(archGeo, stoneMat);
   g.add(archMesh);
 
-  // Hanging Golden Lanterns flanking the stone tunnel portal (`image_82bcd4d4.png` top-left!)
+  for (var i = 0; i <= 12; i++) {
+    var ang = (i / 12) * Math.PI;
+    var vx = Math.cos(ang) * 8.4;
+    var vy = 4.4 + Math.sin(ang) * 8.4;
+    var voussoir = new THREE.Mesh(
+      new THREE.BoxGeometry(1.5, 1.2, 3.9),
+      new THREE.MeshStandardMaterial({ color: trimCol[i % trimCol.length], roughness: 0.75 })
+    );
+    voussoir.position.set(vx, vy, 0);
+    voussoir.rotation.z = ang - Math.PI / 2;
+    g.add(voussoir);
+  }
+
+  // Hanging Golden Lanterns flanking the stone tunnel portal
   [-6.2, 0, 6.2].forEach(function(lx, li) {
-    var ly = li === 1 ? 12.2 : 8.6;
+    var ly = li === 1 ? 12.6 : 8.8;
     var outerLamp = new THREE.Mesh(new THREE.SphereGeometry(0.75, 12, 12), bulbMat);
     outerLamp.position.set(lx, ly, 1.8);
     g.add(outerLamp);
   });
 
-  scene.add(g);
+  window.undergroundWorldGroup.add(g);
 }
 
 // Build the 4 Surface Metro Station Portals & Rich 2.5D Illustrated + 3D Spatial Underground World!
@@ -2228,13 +2342,69 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
     buildGrandMetroStationPortal(mc.pos, mc.dir, mc.label, mc.hexStr, mc.col);
   });
 
-  // 2. Render the Metro Track Curves (Straight surface approach [0.15..0.26],
-  //    Underground Stone Arch Viaduct causeway [0.33..0.67], and Exit straight approach [0.74..0.85])!
+  // 2. Build Hollow Stone-Arch Tunnel Tubes with Warm Lanterns along the descending/ascending Metro Ramps
+  //    (Registered in `window.tunnelRoofMeshes` so the roof softly becomes semi-transparent when Toby is inside!)
+  var rampTunnelShape = new THREE.Shape();
+  rampTunnelShape.moveTo(-7.4, -1.2);
+  rampTunnelShape.lineTo(-7.4, 4.4);
+  rampTunnelShape.absarc(0, 4.4, 7.4, Math.PI, 0, true);
+  rampTunnelShape.lineTo(7.4, -1.2);
+  rampTunnelShape.lineTo(8.8, -1.2);
+  rampTunnelShape.lineTo(8.8, 4.6);
+  rampTunnelShape.absarc(0, 4.6, 8.8, 0, Math.PI, false);
+  rampTunnelShape.lineTo(-8.8, -1.2);
+  rampTunnelShape.closePath();
+
+  var rampRingGeo = new THREE.ExtrudeGeometry(rampTunnelShape, { depth: 8.6, bevelEnabled: false, curveSegments: 16 });
+  rampRingGeo.translate(0, 0, -4.3);
+  var rampStoneMat = new THREE.MeshStandardMaterial({
+    color: 0x475569,
+    emissive: 0x1e1b4b,
+    emissiveIntensity: 0.35,
+    roughness: 0.85,
+    transparent: true,
+    opacity: 1.0,
+    side: THREE.DoubleSide
+  });
+  window.tunnelRoofMeshes.push(rampStoneMat);
+  var rampLampMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+
+  function buildSubwayRampTunnelTube(se, uStart, uEnd) {
+    var ringSteps = 22;
+    for (var ri = 0; ri < ringSteps; ri++) {
+      var uMid = uStart + ((ri + 0.5) / ringSteps) * (uEnd - uStart);
+      var pt = se.curve.getPointAt(uMid);
+      var tan = se.curve.getTangentAt(uMid).normalize();
+      var angY = Math.atan2(tan.x, tan.z);
+      var horizLen = Math.hypot(tan.x, tan.z) || 0.001;
+      var pitchX = -Math.atan2(tan.y, horizLen);
+
+      var rGroup = new THREE.Group();
+      rGroup.position.copy(pt);
+      rGroup.rotation.order = 'YXZ';
+      rGroup.rotation.y = angY;
+      rGroup.rotation.x = pitchX;
+
+      var wallMesh = new THREE.Mesh(rampRingGeo, rampStoneMat);
+      rGroup.add(wallMesh);
+
+      if (ri % 3 === 1) {
+        [-6.2, 6.2].forEach(function(lx) {
+          var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 8), rampLampMat);
+          bulb.position.set(lx, 4.8, 0);
+          rGroup.add(bulb);
+        });
+      }
+      window.undergroundWorldGroup.add(rGroup);
+    }
+  }
+
+  // Render full continuous Metro Track Curves [0.16 .. 0.84] & Hollow Ramp Tunnel Tubes!
   subwayEdges.forEach(function(se, idx) {
     if (idx % 2 === 0) {
-      renderSingleTrackCurve(se.curve, true, se, 0.15, 0.26);
-      renderSingleTrackCurve(se.curve, true, se, 0.33, 0.67);
-      renderSingleTrackCurve(se.curve, true, se, 0.74, 0.85);
+      renderSingleTrackCurve(se.curve, true, se, 0.16, 0.84);
+      buildSubwayRampTunnelTube(se, se.uPortalEntry + 0.022, se.uCavernStart - 0.008);
+      buildSubwayRampTunnelTube(se, se.uCavernEnd + 0.008, se.uPortalExit - 0.022);
     }
   });
 
@@ -2246,68 +2416,29 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
   var lanternGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
 
   // ==========================================================================
-  // LAYER 1: MULTI-PLANE ILLUSTRATED PARALLAX BACKDROP & GROTTO LAYERS
-  // (Uses `/public/assets/aistudio/image_82bcd4d4.png` + high-res painted canvases
-  //  that shift smoothly in 3D parallax as Toby drives across the cavern!)
+  // LAYER 1: FAR PANORAMIC CAVERN BACKDROP (`panorama1_f97480a3.jpeg` ONLY)
+  // Positioned deep underground (`y = -21.5`, top edge at `y = -8.5m`) and spanning
+  // `x = -61 .. +61` strictly between the cavern portals so ramps never cross it!
   // ==========================================================================
   var panoramaTex = createEnchantedCavernPanoramaTex('panorama');
-  var leftGrottoTex = createEnchantedCavernPanoramaTex('left_mine_grotto');
-  var rightGrottoTex = createEnchantedCavernPanoramaTex('right_crystal_grotto');
 
   var panoramaMat = new THREE.MeshBasicMaterial({
     map: panoramaTex,
     side: THREE.DoubleSide,
     transparent: true,
-    opacity: 0.96
-  });
-  var leftGrottoMat = new THREE.MeshBasicMaterial({
-    map: leftGrottoTex,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.92,
-    depthWrite: false
-  });
-  var rightGrottoMat = new THREE.MeshBasicMaterial({
-    map: rightGrottoTex,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.92,
-    depthWrite: false
+    opacity: 0.98
   });
 
-  // Place Parallax Illustrated Layers on BOTH sides of the Cavern (`z = -56` for Line 1-3 and `z = +56` for Line 2-4)
+  // Place Panoramic Cavern Backdrop on BOTH sides of the Cavern (`z = -48` for Line 1-3 and `z = +48` for Line 2-4)
   [-1, 1].forEach(function(zSign) {
-    // 1A. Far Panoramic Cavern Cyclorama (`z = ±58`, `y = -17.5`)
-    var bgPanorama = new THREE.Mesh(new THREE.PlaneGeometry(185, 48), panoramaMat);
-    bgPanorama.position.set(0, -17.5, zSign * 58.0);
+    var bgPanorama = new THREE.Mesh(new THREE.PlaneGeometry(122, 26), panoramaMat);
+    bgPanorama.position.set(0, -21.5, zSign * 48.0);
     if (zSign > 0) bgPanorama.rotation.y = Math.PI;
-    scene.add(bgPanorama);
+    window.undergroundWorldGroup.add(bgPanorama);
     window.undergroundParallaxLayers.push({
       mesh: bgPanorama,
       baseX: 0,
-      parallaxFactor: 0.28
-    });
-
-    // 1B. Midground Left Gold-Mine Grotto Layer (`x = -46`, `z = ±36`)
-    var leftCard = new THREE.Mesh(new THREE.PlaneGeometry(46, 26), leftGrottoMat);
-    leftCard.position.set(-46, -22.5, zSign * 36.0);
-    if (zSign > 0) leftCard.rotation.y = Math.PI;
-    scene.add(leftCard);
-    window.undergroundParallaxLayers.push({
-      mesh: leftCard,
-      baseX: -46,
-      parallaxFactor: 0.16
-    });
-
-    // 1C. Midground Right Crystal & Gnome Grotto Layer (`x = +46`, `z = ±36`)
-    var rightCard = new THREE.Mesh(new THREE.PlaneGeometry(46, 26), rightGrottoMat);
-    rightCard.position.set(46, -22.5, zSign * 36.0);
-    if (zSign > 0) rightCard.rotation.y = Math.PI;
-    scene.add(rightCard);
-    window.undergroundParallaxLayers.push({
-      mesh: rightCard,
-      baseX: 46,
-      parallaxFactor: 0.16
+      parallaxFactor: 0.14
     });
   });
 
@@ -2321,7 +2452,7 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
   );
   ugFloor.rotation.x = -Math.PI / 2;
   ugFloor.position.set(0, -36.0, 0);
-  scene.add(ugFloor);
+  window.undergroundWorldGroup.add(ugFloor);
 
   // Shimmering Turquoise River with painted cyan/emerald water bands
   var riverCanvas = document.createElement('canvas');
@@ -2350,20 +2481,20 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
   );
   ugRiver.rotation.x = -Math.PI / 2;
   ugRiver.position.set(0, -35.4, 0);
-  scene.add(ugRiver);
+  window.undergroundWorldGroup.add(ugRiver);
 
-  // Rich Fairy-Tale Point Lights illuminating the Underground Diorama
+  // Rich Fairy-Tale Point Lights illuminating the Underground Diorama (balanced intensity so colors stay vivid)
   var ugLights = [
-    { x:   0, y: -16, z: -24, col: 0x38bdf8, int: 3.8, dist: 190 },
-    { x: -46, y: -18, z:   0, col: 0xfacc15, int: 3.6, dist: 165 },
-    { x:  46, y: -18, z:   0, col: 0xf472b6, int: 3.6, dist: 165 },
-    { x:   0, y: -20, z:  24, col: 0x22d3ee, int: 3.5, dist: 175 },
-    { x:   0, y: -12, z:   0, col: 0xfef08a, int: 3.0, dist: 190 }
+    { x:   0, y: -16, z: -24, col: 0x38bdf8, int: 1.15, dist: 110 },
+    { x: -46, y: -18, z:   0, col: 0xfacc15, int: 1.05, dist: 95 },
+    { x:  46, y: -18, z:   0, col: 0xf472b6, int: 1.05, dist: 95 },
+    { x:   0, y: -20, z:  24, col: 0x22d3ee, int: 1.15, dist: 110 },
+    { x:   0, y: -12, z:   0, col: 0xfef08a, int: 0.90, dist: 110 }
   ];
   ugLights.forEach(function(ul) {
     var pl = new THREE.PointLight(ul.col, ul.int, ul.dist);
     pl.position.set(ul.x, ul.y, ul.z);
-    scene.add(pl);
+    window.undergroundWorldGroup.add(pl);
   });
 
   // Build the 5-Arch Carved Mossy Stone Viaduct Causeways & Tunnel Portals for both Metro Tracks!
@@ -2373,28 +2504,23 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
     buildUndergroundCavernTunnelPortal( 64, -25.8, cz, -Math.PI / 2);
   });
 
-  // Sculpted Cavern Ceiling with Stalactites, Hanging Green Vines & Golden Hanging Lanterns (`y = -6.5`)
-  for (var cx = -72; cx <= 72; cx += 16) {
-    for (var cz2 = -42; cz2 <= 42; cz2 += 21) {
-      var roofRock = new THREE.Mesh(new THREE.DodecahedronGeometry(12.0, 1), cavernRockMat);
-      roofRock.scale.set(1.4, 0.52, 1.4);
-      roofRock.position.set(cx, -5.8, cz2);
-      scene.add(roofRock);
-
-      var stal = new THREE.Mesh(new THREE.ConeGeometry(2.1, 7.2, 8), cavernRockMat);
+  // Deep Underground Cavern Stalactites & Hanging Lanterns (`y = -11.5`, well below the surface terrain!)
+  for (var cx = -56; cx <= 56; cx += 16) {
+    for (var cz2 = -36; cz2 <= 36; cz2 += 24) {
+      var stal = new THREE.Mesh(new THREE.ConeGeometry(1.8, 5.5, 8), cavernRockMat);
       stal.rotation.x = Math.PI;
-      stal.position.set(cx + 3, -10.2, cz2);
-      scene.add(stal);
+      stal.position.set(cx + 2, -11.5, cz2);
+      window.undergroundWorldGroup.add(stal);
 
       if ((Math.abs(cx) + Math.abs(cz2)) % 32 === 0) {
-        var vine = new THREE.Mesh(new THREE.ConeGeometry(1.4, 4.5, 8), mossMat);
+        var vine = new THREE.Mesh(new THREE.ConeGeometry(1.2, 3.8, 8), mossMat);
         vine.rotation.x = Math.PI;
-        vine.position.set(cx - 2, -9.2, cz2 + 2);
-        var chain = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 4.2, 6), woodBeamMat);
-        chain.position.set(cx, -10.5, cz2);
-        var lantern = new THREE.Mesh(new THREE.SphereGeometry(0.75, 10, 10), lanternGlowMat);
-        lantern.position.set(cx, -13.0, cz2);
-        scene.add(vine, chain, lantern);
+        vine.position.set(cx - 2, -11.2, cz2 + 2);
+        var chain = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.6, 6), woodBeamMat);
+        chain.position.set(cx, -11.8, cz2);
+        var lantern = new THREE.Mesh(new THREE.SphereGeometry(0.68, 10, 10), lanternGlowMat);
+        lantern.position.set(cx, -13.8, cz2);
+        window.undergroundWorldGroup.add(vine, chain, lantern);
       }
     }
   }
@@ -2431,52 +2557,42 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
   var waterSheetMat = new THREE.MeshBasicMaterial({ map: wfTex, transparent: true, opacity: 0.94, side: THREE.DoubleSide });
   var foamMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.92 });
 
-  // Build Multi-Tiered Waterfalls + Upper Stone Arch Bridge on both sides (`z = -40` and `z = +40`)
+  // Build Slender, Translucent Waterfalls on the outer flanks (`x = ±32`, `z = ±48`)
+  // WITHOUT opaque backing cylinders so `bgPanorama` remains completely unobstructed!
   [
-    { x:   0, z: -40, ang: 0,        sc: 1.15 },
-    { x: -26, z: -44, ang: 0.18,     sc: 0.82 },
-    { x:  26, z: -44, ang: -0.18,    sc: 0.82 },
-    { x:   0, z:  40, ang: Math.PI,  sc: 1.15 },
-    { x: -26, z:  44, ang: Math.PI - 0.18, sc: 0.82 },
-    { x:  26, z:  44, ang: Math.PI + 0.18, sc: 0.82 }
+    { x: -32, z: -48, ang: 0.12,          sc: 0.65 },
+    { x:  32, z: -48, ang: -0.12,         sc: 0.65 },
+    { x: -32, z:  48, ang: Math.PI - 0.12, sc: 0.65 },
+    { x:  32, z:  48, ang: Math.PI + 0.12, sc: 0.65 }
   ].forEach(function(wl, wIdx) {
     var wfG = new THREE.Group();
     wfG.position.set(wl.x, -35.2, wl.z);
     wfG.rotation.y = wl.ang;
     wfG.scale.set(wl.sc, wl.sc, wl.sc);
 
-    [-13, 0, 13].forEach(function(cx, ci) {
-      var cliffH = ci === 1 ? 25.0 : 27.5;
-      var cliff = new THREE.Mesh(new THREE.CylinderGeometry(8.0, 12.0, cliffH, 12), cavernRockMat);
-      cliff.position.set(cx, cliffH * 0.5, -4.5);
-      var mossCap = new THREE.Mesh(new THREE.CylinderGeometry(8.5, 8.5, 1.2, 12), mossMat);
-      mossCap.position.set(cx, cliffH, -4.5);
-      wfG.add(cliff, mossCap);
-    });
-
-    var upperStream = new THREE.Mesh(new THREE.CylinderGeometry(7.2, 9.0, 13.5, 18, 1, true, -Math.PI * 0.38, Math.PI * 0.76), waterSheetMat);
-    upperStream.position.set(0, 20.5, -1.5);
-    var midPool = new THREE.Mesh(new THREE.CylinderGeometry(10.2, 11.2, 1.6, 16), foamMat);
-    midPool.position.set(0, 13.5, 1.2);
-    var lowerStream = new THREE.Mesh(new THREE.CylinderGeometry(9.0, 11.4, 13.5, 18, 1, true, -Math.PI * 0.40, Math.PI * 0.80), waterSheetMat);
-    lowerStream.position.set(0, 6.8, 0.5);
-    var bottomPool = new THREE.Mesh(new THREE.CylinderGeometry(13.8, 13.8, 0.5, 24), foamMat);
-    bottomPool.position.set(0, 0.4, 4.5);
+    var upperStream = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.8, 13.5, 16, 1, true, -Math.PI * 0.35, Math.PI * 0.70), waterSheetMat);
+    upperStream.position.set(0, 20.5, -0.5);
+    var midPool = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.8, 0.9, 14), foamMat);
+    midPool.position.set(0, 13.5, 0.4);
+    var lowerStream = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 3.6, 13.5, 16, 1, true, -Math.PI * 0.38, Math.PI * 0.76), waterSheetMat);
+    lowerStream.position.set(0, 6.8, 0.2);
+    var bottomPool = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.2, 0.4, 20), foamMat);
+    bottomPool.position.set(0, 0.4, 1.5);
     wfG.add(upperStream, midPool, lowerStream, bottomPool);
 
     var drops = [];
-    for (var di = 0; di < 24; di++) {
-      var dMesh = new THREE.Mesh(new THREE.SphereGeometry(0.55 + (di % 3) * 0.22, 8, 8), foamMat);
+    for (var di = 0; di < 14; di++) {
+      var dMesh = new THREE.Mesh(new THREE.SphereGeometry(0.38 + (di % 3) * 0.14, 8, 8), foamMat);
       wfG.add(dMesh);
       drops.push({
         mesh: dMesh,
-        progress: di / 24,
-        xOff: ((di * 7) % 15 - 7) * 0.92,
+        progress: di / 14,
+        xOff: ((di * 7) % 9 - 4) * 0.55,
         speed: 0.016 + (di % 4) * 0.004
       });
     }
 
-    scene.add(wfG);
+    window.undergroundWorldGroup.add(wfG);
     window.undergroundWaterfalls.push({ group: wfG, drops: drops, pool: bottomPool, phase: wIdx * 1.1 });
   });
 
@@ -2504,7 +2620,7 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
     fbG.add(bridgeGnome);
     window.subwayGnomes.push({ mesh: bridgeGnome, baseY: 4.4, phase: bz * 0.2 });
 
-    scene.add(fbG);
+    window.undergroundWorldGroup.add(fbG);
   });
 
   // ==========================================================================
@@ -2522,7 +2638,7 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
       rockTerr.position.set(lx, terrY - 4.0, sideZ);
       var woodFloor = new THREE.Mesh(new THREE.BoxGeometry(16.5, 0.65, 12.5), woodBeamMat);
       woodFloor.position.set(lx, terrY, sideZ);
-      scene.add(rockTerr, woodFloor);
+      window.undergroundWorldGroup.add(rockTerr, woodFloor);
 
       var postL = new THREE.Mesh(new THREE.BoxGeometry(0.95, 8.8, 0.95), woodBeamMat);
       postL.position.set(lx - 5.6, terrY + 4.4, sideZ - 3.5);
@@ -2532,7 +2648,7 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
       topBeam.position.set(lx, terrY + 8.6, sideZ - 3.5);
       var mineLamp = new THREE.Mesh(new THREE.SphereGeometry(0.68, 10, 10), lanternGlowMat);
       mineLamp.position.set(lx, terrY + 7.4, sideZ - 3.5);
-      scene.add(postL, postR, topBeam, mineLamp);
+      window.undergroundWorldGroup.add(postL, postR, topBeam, mineLamp);
 
       // Sparkling Pile of Gold Nuggets & Diamonds
       for (var gn = 0; gn < 18; gn++) {
@@ -2542,11 +2658,11 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
           terrY + 0.65 + Math.floor(gn / 4) * 0.55,
           sideZ - 1.5 + ((gn * 3) % 3) * 1.1
         );
-        scene.add(nug);
+        window.undergroundWorldGroup.add(nug);
       }
       createCrystalCluster(lx + 4.6, terrY + 0.3, sideZ + 2.0, lIdx === 0 ? 0xa855f7 : 0x38bdf8, 1.55);
 
-      // 3D Animated Gnome + Painted 2.5D Cutout Gnome Companion
+      // 3D Animated Gnome in the foreground
       var minerGnome = createDetailedGnome(
         hatPalette[(sIdx * 2 + lIdx) % hatPalette.length],
         coatPalette[(sIdx * 2 + lIdx + 1) % coatPalette.length],
@@ -2556,13 +2672,8 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
       );
       minerGnome.position.set(lx + 1.4, terrY + 0.3, sideZ + 1.8);
       minerGnome.lookAt(lx, terrY + 1.5, 0);
-      scene.add(minerGnome);
+      window.undergroundWorldGroup.add(minerGnome);
       window.subwayGnomes.push({ mesh: minerGnome, baseY: terrY + 0.3, phase: (sIdx * 3 + lIdx) * 0.9 });
-
-      var spriteGnome = createStorybookPaintedSpritePlane(lIdx === 0 ? 'gnome_miner_gold' : 'gnome_cart_pusher', 7.5, 7.5);
-      spriteGnome.position.set(lx - 4.2, terrY + 3.8, sideZ + (sideZ < 0 ? 3.5 : -3.5));
-      if (sideZ < 0) spriteGnome.rotation.y = 0; else spriteGnome.rotation.y = Math.PI;
-      scene.add(spriteGnome);
 
       // Animated Gold-Filled Wooden Minecart rolling on miniature wooden rails!
       var cartPos = new THREE.Vector3(lx - 1.2, terrY + 0.35, sideZ + (sideZ < 0 ? 4.4 : -4.4));
@@ -2582,7 +2693,7 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
       rockTerr.position.set(rx, terrY - 4.0, sideZ);
       var mossFloor = new THREE.Mesh(new THREE.CylinderGeometry(12.6, 12.6, 0.85, 12), mossMat);
       mossFloor.position.set(rx, terrY, sideZ);
-      scene.add(rockTerr, mossFloor);
+      window.undergroundWorldGroup.add(rockTerr, mossFloor);
 
       var mushOffsets = [
         { dx: -4.4, dz: -2.6, sc: 1.95, ph: 0.0 },
@@ -2604,7 +2715,7 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
       var mushSprite = createStorybookPaintedSpritePlane('mushroom_cluster_glow', 9.5, 9.5);
       mushSprite.position.set(rx + 2.5, terrY + 4.6, sideZ + (sideZ < 0 ? 3.8 : -3.8));
       if (sideZ > 0) mushSprite.rotation.y = Math.PI;
-      scene.add(mushSprite);
+      window.undergroundWorldGroup.add(mushSprite);
 
       createCrystalCluster(rx - 5.4, terrY + 0.3, sideZ + 1.5, rIdx === 0 ? 0xf472b6 : 0x4ade80, 1.6);
       createCrystalCluster(rx + 1.2, terrY + 0.3, sideZ - 4.2, 0x38bdf8, 1.45);
@@ -2618,7 +2729,7 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
       );
       mushGnome.position.set(rx - 1.0, terrY + 0.35, sideZ);
       mushGnome.lookAt(rx - 8, terrY + 1.5, 0);
-      scene.add(mushGnome);
+      window.undergroundWorldGroup.add(mushGnome);
       window.subwayGnomes.push({ mesh: mushGnome, baseY: terrY + 0.35, phase: (sIdx * 4 + rIdx) * 1.1 });
 
       // Diamond-filled wooden minecart on the right terrace too (`image_82bcd4d4.png` bottom-right!)
@@ -2633,27 +2744,30 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
     });
   });
 
-  // Central Causeway Ledges (`z = 0`) between the two Metro Viaducts: Gnomes, Crystals & Rainbow Mushrooms right beside the train!
-  [-42, -20, 20, 42].forEach(function(cx, cIdx) {
-    var centerLedge = new THREE.Mesh(new THREE.CylinderGeometry(6.0, 7.6, 9.2, 12), cavernRockMat);
-    centerLedge.position.set(cx, -30.5, 0);
-    var centerMoss = new THREE.Mesh(new THREE.CylinderGeometry(6.2, 6.2, 0.75, 12), mossMat);
-    centerMoss.position.set(cx, -26.0, 0);
-    scene.add(centerLedge, centerMoss);
+  // Foreground Causeway Ledges (`z = ±16.5`, behind each Metro Viaduct so the center camera path is unobstructed!)
+  [-16.5, 16.5].forEach(function(ledgeZ, sideIdx) {
+    [-38, 0, 38].forEach(function(cx, cIdx) {
+      var centerLedge = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 6.8, 8.8, 12), cavernRockMat);
+      centerLedge.position.set(cx, -30.8, ledgeZ);
+      var centerMoss = new THREE.Mesh(new THREE.CylinderGeometry(5.4, 5.4, 0.70, 12), mossMat);
+      centerMoss.position.set(cx, -26.4, ledgeZ);
+      window.undergroundWorldGroup.add(centerLedge, centerMoss);
 
-    createColorChangingMushroom(cx + 2.4, -25.8, 0, 1.68, cIdx * 1.7);
-    createCrystalCluster(cx - 2.4, -25.7, 0, [0x38bdf8, 0xf472b6, 0xfacc15, 0x4ade80][cIdx % 4], 1.38);
+      createColorChangingMushroom(cx + 2.1, -26.2, ledgeZ, 1.45, cIdx * 1.7 + sideIdx);
+      createCrystalCluster(cx - 2.1, -26.1, ledgeZ, [0x38bdf8, 0xf472b6, 0xfacc15, 0x4ade80][(cIdx + sideIdx) % 4], 1.25);
 
-    var centerGnome = createDetailedGnome(
-      hatPalette[cIdx % hatPalette.length],
-      coatPalette[(cIdx + 2) % coatPalette.length],
-      true,
-      true,
-      1.58
-    );
-    centerGnome.position.set(cx, -25.6, 0);
-    scene.add(centerGnome);
-    window.subwayGnomes.push({ mesh: centerGnome, baseY: -25.6, phase: cIdx * 1.3 });
+      var centerGnome = createDetailedGnome(
+        hatPalette[(cIdx + sideIdx) % hatPalette.length],
+        coatPalette[(cIdx + sideIdx + 2) % coatPalette.length],
+        true,
+        true,
+        1.52
+      );
+      centerGnome.position.set(cx, -26.0, ledgeZ);
+      centerGnome.lookAt(cx, -25.0, 0);
+      window.undergroundWorldGroup.add(centerGnome);
+      window.subwayGnomes.push({ mesh: centerGnome, baseY: -26.0, phase: (cIdx + sideIdx * 2) * 1.3 });
+    });
   });
 
   // ==========================================================================
@@ -2668,10 +2782,10 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
     });
     var spMesh = new THREE.Mesh(new THREE.SphereGeometry(0.24 + (fi % 3) * 0.10, 8, 8), spMat);
     var bx = (Math.random() - 0.5) * 135;
-    var by = -33.0 + Math.random() * 23.0;
+    var by = -33.0 + Math.random() * 19.0;
     var bz2 = (Math.random() - 0.5) * 76;
     spMesh.position.set(bx, by, bz2);
-    scene.add(spMesh);
+    window.undergroundWorldGroup.add(spMesh);
     window.cavernFireflies.push({
       mesh: spMesh,
       baseX: bx,

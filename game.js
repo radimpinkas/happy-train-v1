@@ -161,7 +161,9 @@ function updateClockAndLighting(dt) {
   document.getElementById('time-phase-label').textContent = phaseIcon + ' ' + hr + ':' + padMin + ' ' + phaseName;
 
   var inDarkTunnel = window.isPlayerInDarkTunnel ? window.isPlayerInDarkTunnel(pState.edge, pState.t) : false;
-  var isUndergroundMetro = Boolean(pState.edge.isSubway && pState.t >= 0.28 && pState.t <= 0.72);
+  var uSubEntry = (pState.edge && pState.edge.uPortalEntry) ? pState.edge.uPortalEntry : 0.195;
+  var uSubExit  = (pState.edge && pState.edge.uPortalExit)  ? pState.edge.uPortalExit  : 0.805;
+  var isUndergroundMetro = Boolean(pState.edge.isSubway && pState.t >= uSubEntry && pState.t <= uSubExit);
 
   if (isUndergroundMetro && !pState.inSubway) {
     pState.inSubway = true;
@@ -179,8 +181,18 @@ function updateClockAndLighting(dt) {
     pState.inTunnel = false;
   }
 
+  if (window.undergroundWorldGroup) {
+    window.undergroundWorldGroup.visible = isUndergroundMetro;
+  }
+  var hideSurfaceGround = Boolean(pState.edge.isSubway && pState.t >= uSubEntry + 0.015 && pState.t <= uSubExit - 0.015);
+  if (window.grassMesh) window.grassMesh.visible = !hideSurfaceGround;
+  if (window.riverMesh) window.riverMesh.visible = !hideSurfaceGround;
+
   if (window.tunnelRoofMeshes) {
-    var targetRoofOpacity = inDarkTunnel ? 0.16 : 1.0;
+    var uCavS = (pState.edge && pState.edge.uCavernStart) ? pState.edge.uCavernStart : 0.36;
+    var uCavE = (pState.edge && pState.edge.uCavernEnd)   ? pState.edge.uCavernEnd   : 0.64;
+    var inSubwayRamp = Boolean(pState.edge.isSubway && isUndergroundMetro && (pState.t < uCavS || pState.t > uCavE));
+    var targetRoofOpacity = (inDarkTunnel && !pState.edge.isSubway) ? 0.16 : (inSubwayRamp ? 0.22 : 1.0);
     window.tunnelRoofMeshes.forEach(function(rm) {
       rm.opacity += (targetRoofOpacity - rm.opacity) * 0.18;
       rm.depthWrite = rm.opacity > 0.85;
@@ -190,19 +202,19 @@ function updateClockAndLighting(dt) {
   var beamMesh = playerLoco.userData.beam;
 
   if (isUndergroundMetro) {
-    // Rich Fairy-Tale Cavern Illumination so the waterfall, gnomes, gold minecarts & rainbow mushrooms shine!
-    scene.background.lerp(metroSkyColor, 0.16);
-    if (scene.fog) scene.fog.color.lerp(metroSkyColor, 0.16);
-    hemiLight.color.lerp(colHemiCavernSky, 0.16);
-    hemiLight.groundColor.lerp(colHemiCavernGnd, 0.16);
-    sunLight.color.lerp(colSunCavern, 0.16);
-    storybookFillLight.color.lerp(colFillCavern, 0.16);
-    hemiLight.intensity += (0.88 - hemiLight.intensity) * 0.16;
-    sunLight.intensity += (0.62 - sunLight.intensity) * 0.16;
-    storybookFillLight.intensity += (0.48 - storybookFillLight.intensity) * 0.16;
+    // Balanced Fairy-Tale Cavern & Subway Tunnel Illumination (no harsh black drop or white over-exposure)
+    scene.background.lerp(metroSkyColor, 0.14);
+    if (scene.fog) scene.fog.color.lerp(metroSkyColor, 0.14);
+    hemiLight.color.lerp(colHemiCavernSky, 0.14);
+    hemiLight.groundColor.lerp(colHemiCavernGnd, 0.14);
+    sunLight.color.lerp(colSunCavern, 0.14);
+    storybookFillLight.color.lerp(colFillCavern, 0.14);
+    hemiLight.intensity += (0.72 - hemiLight.intensity) * 0.14;
+    sunLight.intensity += (0.50 - sunLight.intensity) * 0.14;
+    storybookFillLight.intensity += (0.35 - storybookFillLight.intensity) * 0.14;
     beamMesh.visible = true;
-    beamMesh.material.opacity = 0.78;
-    trainHeadLight.intensity = 4.6;
+    beamMesh.material.opacity = 0.72;
+    trainHeadLight.intensity = 2.4;
   } else if (inDarkTunnel) {
     scene.background.lerp(tunnelDarkColor, 0.22);
     if (scene.fog) scene.fog.color.lerp(tunnelDarkColor, 0.22);
@@ -538,8 +550,9 @@ function animate() {
 
   // 2A-2. Animate Multi-Plane Illustrated Parallax Layers & Bioluminescent Cavern Spores!
   if (window.undergroundParallaxLayers) {
+    var clampedTrainX = Math.max(-56, Math.min(56, playerLoco.position.x));
     window.undergroundParallaxLayers.forEach(function(pl) {
-      pl.mesh.position.x = pl.baseX + playerLoco.position.x * pl.parallaxFactor;
+      pl.mesh.position.x = pl.baseX + clampedTrainX * pl.parallaxFactor;
     });
   }
   if (window.cavernFireflies) {
@@ -1005,7 +1018,9 @@ function animate() {
   var activeStationCfg = pState.edge.isTurnout ? (pState.edge.targetEdge.station || pState.edge.sourceEdge.station) : stCfg;
   var isHeroViaduct = activeStationCfg && activeStationCfg.type === 'hero_viaduct';
   var inDarkTunnelCam = window.isPlayerInDarkTunnel ? window.isPlayerInDarkTunnel(pState.edge, pState.t) : false;
-  var inMetroCavernCam = Boolean(pState.edge.isSubway && pState.t >= 0.28 && pState.t <= 0.72);
+  var uCavStart = (pState.edge && pState.edge.uCavernStart) ? pState.edge.uCavernStart : 0.39;
+  var uCavEnd   = (pState.edge && pState.edge.uCavernEnd)   ? pState.edge.uCavernEnd   : 0.61;
+  var inMetroCavernCam = Boolean(pState.edge.isSubway && pState.t >= uCavStart && pState.t <= uCavEnd);
   if (pState.faceCamTimer > 0) pState.faceCamTimer--;
 
   var desiredCam;
@@ -1013,19 +1028,42 @@ function animate() {
   var camLerpSpeed = 0.075;
 
   if (inMetroCavernCam) {
-    // 2.5D Fairy-Tale Underground Diorama Camera (Modeled after `image_82bcd4d4.png`!):
-    // Side-view framing across the 5-arch mossy stone viaduct causeway showing the train,
-    // the multi-plane illustrated cavern backdrop, the 3 cascading turquoise waterfalls,
-    // the wooden gold mine & minecarts on the left, and the bioluminescent mushroom forest on the right!
-    var viewSideZ = (pState.edge.cavernOffsetZ || -8.0) < 0 ? 32.0 : -32.0;
-    var lookBackZ = (pState.edge.cavernOffsetZ || -8.0) < 0 ? -22.0 : 22.0;
-    desiredCam = new THREE.Vector3(pos.x * 0.46, -16.8, viewSideZ);
-    desiredLook = new THREE.Vector3(pos.x * 0.34, -26.2, lookBackZ);
-    camLerpSpeed = 0.14;
+    // 2.5D Fairy-Tale Underground Diorama Camera:
+    // Tracks `pos.x` 1:1 so Toby NEVER drives out of the camera frame, positioned on the
+    // unobstructed near side of the active viaduct (`z = ±6.2`) looking across Toby toward the panorama!
+    var cz = pState.edge.cavernOffsetZ || -8.0;
+    var viewSideZ = cz < 0 ? 6.2 : -6.2;
+    var lookBackZ = cz < 0 ? -26.0 : 26.0;
+    desiredCam = new THREE.Vector3(pos.x, -19.2, viewSideZ);
+    desiredLook = new THREE.Vector3(pos.x, -24.8, lookBackZ);
+    camLerpSpeed = 0.18;
+  } else if (pState.edge.isSubway && inDarkTunnelCam) {
+    // Smooth 2.5D Elevated Follow Camera along the descending/ascending Subway Tunnel Ramp:
+    // Looks through the semi-transparent tunnel roof at Toby and his wagons (never inside the yellow wagon!),
+    // smoothly gliding from the surface 2.5D angle into the underground cavern diorama view!
+    var czRamp = pState.edge.cavernOffsetZ || -8.0;
+    var rampSideOffset = czRamp < 0 ? 22.0 : -22.0;
+    desiredCam = new THREE.Vector3(
+      pos.x - tan.x * 18.0,
+      Math.max(-18.5, pos.y + 14.5),
+      pos.z + rampSideOffset
+    );
+    desiredLook = new THREE.Vector3(
+      pos.x + tan.x * 6.0,
+      pos.y + 1.2,
+      pos.z
+    );
+    camLerpSpeed = 0.16;
   } else if (inDarkTunnelCam) {
-    desiredCam = pos.clone().sub(tan.clone().multiplyScalar(13.5)).add(new THREE.Vector3(0, 3.8, 0));
-    desiredLook = pos.clone().add(tan.clone().multiplyScalar(15.0)).add(new THREE.Vector3(0, 1.8, 0));
-    camLerpSpeed = 0.22;
+    // Surface Mountain Tunnel Camera: elevated 2.5D view looking through the semi-transparent hill roof!
+    desiredCam = pos.clone()
+      .sub(tan.clone().multiplyScalar(36))
+      .add(perpVec.clone().multiplyScalar(24))
+      .add(new THREE.Vector3(0, 24, 0));
+    desiredLook = pos.clone()
+      .add(tan.clone().multiplyScalar(10))
+      .add(new THREE.Vector3(0, 2.0, 0));
+    camLerpSpeed = 0.14;
   } else if (isHeroViaduct) {
     desiredCam = new THREE.Vector3(pos.x * 0.45 - 8, 38.0, -36);
     desiredLook = new THREE.Vector3(pos.x * 0.45 - 6, 6.5, -162);
