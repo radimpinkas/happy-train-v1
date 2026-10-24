@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 640" width="512" height="640">
+  <defs>
+    <linearGradient id="pineGrad1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="45%" stop-color="#047857"/>
+      <stop offset="100%" stop-color="#064e3b"/>
+    </linearGradient>
+    <linearGradient id="pineGrad2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="50%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#065f46"/>
+    </linearGradient>
+    <linearGradient id="trunkGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#92400e"/>
+      <stop offset="50%" stop-color="#78350f"/>
+      <stop offset="100%" stop-color="#451a03"/>
+    </linearGradient>
+  </defs>
+  <!-- Trunk -->
+  <path d="M232,625 L240,470 L272,470 L280,625 Z" fill="url(#trunkGrad)" stroke="#1e293b" stroke-width="8" stroke-linejoin="round"/>
+  <!-- Bottom Tier -->
+  <path d="M256,310 C210,380 120,460 56,505 C115,515 160,500 190,485 C165,520 130,545 96,555 C175,565 225,540 256,525 C287,540 337,565 416,555 C382,545 347,520 322,485 C352,500 397,515 456,505 C392,460 302,380 256,310 Z" fill="url(#pineGrad1)" stroke="#052e16" stroke-width="8" stroke-linejoin="round"/>
+  <!-- Middle Tier -->
+  <path d="M256,175 C215,245 140,320 82,365 C135,372 175,358 202,345 C180,375 150,398 118,408 C185,418 228,395 256,382 C284,395 327,418 394,408 C362,398 332,375 310,345 C337,358 377,372 430,365 C372,320 297,245 256,175 Z" fill="url(#pineGrad2)" stroke="#052e16" stroke-width="8" stroke-linejoin="round"/>
+  <!-- Top Tier -->
+  <path d="M256,32 C225,105 170,180 122,222 C165,228 198,216 218,204 C200,230 176,248 150,256 C202,265 234,248 256,236 C278,248 310,265 362,256 C336,248 312,230 294,204 C314,216 347,228 390,222 C342,180 287,105 256,32 Z" fill="url(#pineGrad2)" stroke="#052e16" stroke-width="8" stroke-linejoin="round"/>
+</svg>

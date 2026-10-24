@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#c2410c"/>
+  <!-- Mortar lines & warm shaded bricks matching reference viaduct -->
+  <g stroke="#7c2d12" stroke-width="6">
+    <line x1="0" y1="64" x2="512" y2="64"/>
+    <line x1="0" y1="128" x2="512" y2="128"/>
+    <line x1="0" y1="192" x2="512" y2="192"/>
+    <line x1="0" y1="256" x2="512" y2="256"/>
+    <line x1="0" y1="320" x2="512" y2="320"/>
+    <line x1="0" y1="384" x2="512" y2="384"/>
+    <line x1="0" y1="448" x2="512" y2="448"/>
+  </g>
+  <g fill="#ea580c" stroke="#7c2d12" stroke-width="5">
+    <rect x="8" y="8" width="112" height="48" rx="6"/>
+    <rect x="136" y="8" width="112" height="48" rx="6" fill="#d97706"/>
+    <rect x="264" y="8" width="112" height="48" rx="6"/>
+    <rect x="392" y="8" width="112" height="48" rx="6" fill="#b45309"/>
+    <rect x="68" y="72" width="112" height="48" rx="6" fill="#f97316"/>
+    <rect x="196" y="72" width="112" height="48" rx="6"/>
+    <rect x="324" y="72" width="112" height="48" rx="6" fill="#d97706"/>
+    <rect x="8" y="136" width="112" height="48" rx="6" fill="#b45309"/>
+    <rect x="136" y="136" width="112" height="48" rx="6" fill="#ea580c"/>
+    <rect x="264" y="136" width="112" height="48" rx="6" fill="#f97316"/>
+    <rect x="392" y="136" width="112" height="48" rx="6"/>
+  </g>
+</svg>

@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512" width="1024" height="512">
+  <defs>
+    <linearGradient id="glassBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#bae6fd"/>
+      <stop offset="50%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="wallWarm" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fef3c7"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+    <linearGradient id="wallCool" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+  </defs>
+  <!-- Playful tilted cartoon city skyscrapers matching reference backdrop -->
+  <g stroke="#1e293b" stroke-width="5" stroke-linejoin="round">
+    <!-- Left angled tower -->
+    <g transform="translate(90, 120) rotate(-10)">
+      <polygon points="0,380 0,30 85,0 115,380" fill="url(#wallWarm)"/>
+      <polygon points="15,360 15,42 75,18 98,360" fill="url(#glassBlue)"/>
+      <line x1="45" y1="30" x2="55" y2="360" stroke="#e0f2fe" stroke-width="4"/>
+      <line x1="68" y1="22" x2="80" y2="360" stroke="#0369a1" stroke-width="3"/>
+    </g>
+    <!-- Second tower -->
+    <g transform="translate(195, 70) rotate(-6)">
+      <polygon points="0,420 0,20 96,0 120,420" fill="url(#wallCool)"/>
+      <polygon points="14,400 14,32 82,16 102,400" fill="url(#glassBlue)"/>
+      <line x1="40" y1="26" x2="48" y2="400" stroke="#e0f2fe" stroke-width="4"/>
+      <line x1="68" y1="20" x2="76" y2="400" stroke="#0369a1" stroke-width="3"/>
+    </g>
+    <!-- Center tall spire tower -->
+    <g transform="translate(335, 35) rotate(-3)">
+      <polygon points="0,450 8,0 104,14 118,450" fill="url(#wallWarm)"/>
+      <polygon points="18,430 22,18 90,28 100,430" fill="url(#glassBlue)"/>
+      <line x1="54" y1="22" x2="58" y2="430" stroke="#e0f2fe" stroke-width="5"/>
+    </g>
+    <!-- Center-right tower -->
+    <g transform="translate(475, 55) rotate(3)">
+      <polygon points="0,430 12,10 110,0 122,430" fill="url(#wallCool)"/>
+      <polygon points="18,410 26,24 96,16 104,410" fill="url(#glassBlue)"/>
+      <line x1="56" y1="20" x2="58" y2="410" stroke="#e0f2fe" stroke-width="4"/>
+      <line x1="80" y1="18" x2="82" y2="410" stroke="#0369a1" stroke-width="3"/>
+    </g>
+    <!-- Right leaning tower 1 -->
+    <g transform="translate(635, 80) rotate(7)">
+      <polygon points="0,410 14,0 105,22 115,410" fill="url(#wallWarm)"/>
+      <polygon points="16,390 26,18 92,34 98,390" fill="url(#glassBlue)"/>
+      <line x1="58" y1="26" x2="58" y2="390" stroke="#e0f2fe" stroke-width="4"/>
+    </g>
+    <!-- Right leaning tower 2 -->
+    <g transform="translate(780, 115) rotate(12)">
+      <polygon points="0,390 18,0 102,28 112,390" fill="url(#wallCool)"/>
+      <polygon points="16,370 30,18 88,38 94,370" fill="url(#glassBlue)"/>
+      <line x1="58" y1="28" x2="54" y2="370" stroke="#e0f2fe" stroke-width="4"/>
+    </g>
+  </g>
+</svg>
