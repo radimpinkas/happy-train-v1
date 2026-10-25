@@ -1,7 +1,7 @@
 // ============================================================================
-// MODULE 1: AUDIO.JS (Natural Character Voice Pack Engine with Conversational
-// Turn-Taking Queue, Automatic SpeechSynthesis Fallback, Authentic Steam
-// Locomotive Whistle, Glossy Chimney Bubbles & Personalization State)
+// MODULE 1: AUDIO.JS (Web Audio API Voice Pack Engine, Conversational Turn-Taking
+// Queue, Authentic Steam Locomotive Whistle, Glossy Chimney Bubbles, Prague Metro
+// Emblem Renderer & Personalization State)
 // ============================================================================
 
 // --- PERSONALIZATION SETTINGS (Child Name, Train Name, Voice Addressing) ---
@@ -148,6 +148,126 @@ window.formatPersonalizedText = function(role, rawText) {
 };
 
 // ============================================================================
+// OFFICIAL PRAGUE METRO SYMBOL (ZNAK PRAŽSKÉHO METRA) VECTOR RENDERER
+// Used on both Railway Junction Direction Signposts AND the 4 Metro Entrances!
+// ============================================================================
+window.drawPragueMetroSymbol = function(ctx, cx, cy, r, primaryColor) {
+  ctx.save();
+
+  // 1. Crisp white circular/emblem background plate
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r - 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Classic Prague Metro Tricolor Header Strip (Linka A Green, Linka B Yellow, Linka C Red)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r - 5, 0, Math.PI * 2);
+  ctx.clip();
+
+  var barY = cy - r * 0.78;
+  var barH = r * 0.22;
+  ctx.fillStyle = '#00a651'; // Line A Green
+  ctx.fillRect(cx - r, barY, (r * 2) / 3, barH);
+  ctx.fillStyle = '#facc15'; // Line B Yellow
+  ctx.fillRect(cx - r + (r * 2) / 3, barY, (r * 2) / 3, barH);
+  ctx.fillStyle = '#d9261c'; // Line C Red
+  ctx.fillRect(cx - r + (r * 4) / 3, barY, (r * 2) / 3, barH);
+  ctx.restore();
+
+  // 3. Exact Official Geometry of the Prague Metro Symbol (Jiří Rathouský "Vrána" Winged M + Downward Arrow)
+  //    Original viewBox: 320.2 x 160.8, centered at (160.1, 80.4)
+  var targetW = r * 1.56;
+  var scale = targetW / 320.2;
+  var ox = cx - 160.1 * scale;
+  var oy = cy - 80.4 * scale + r * 0.14;
+
+  var polygons = [
+    // Bottom downward arrow triangle
+    [[96.94, 97.69], [222.5, 98.17], [159.5, 160.8]],
+    // Central letter M
+    [
+      [159.9, 36.94], [194.4, 0.75], [222.8, 0.85], [222.5, 90.71],
+      [197.0, 90.61], [197.2, 35.0], [159.8, 72.84], [122.6, 34.72],
+      [122.4, 90.33], [96.98, 90.23], [97.33, 0.38], [125.7, 0.49]
+    ],
+    // Upper-left wing trapezoid
+    [[0, 0], [89.86, 0.35], [89.71, 38.96], [38.46, 38.76]],
+    // Lower-left wing triangle
+    [[45.89, 46.24], [89.69, 46.41], [89.5, 90.21]],
+    // Upper-right wing trapezoid
+    [[320.2, 1.23], [230.3, 0.89], [230.1, 39.5], [281.5, 39.7]],
+    // Lower-right wing triangle
+    [[274.0, 47.12], [230.1, 46.95], [229.9, 90.82]]
+  ];
+
+  ctx.fillStyle = primaryColor || '#d9261c';
+  for (var p = 0; p < polygons.length; p++) {
+    var poly = polygons[p];
+    ctx.beginPath();
+    for (var i = 0; i < poly.length; i++) {
+      var px = ox + poly[i][0] * scale;
+      var py = oy + poly[i][1] * scale;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // 4. Crisp outer ring border
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = Math.max(3, r * 0.07);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r - 4, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.restore();
+};
+
+// Creates the Large Prague Metro Entrance Emblem Canvas & 3D Sprite for the 4 Metro Station Portals!
+window.createPragueMetroEntranceCanvas = function(accentColor) {
+  var c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 512;
+  var ctx = c.getContext('2d');
+
+  // Outer golden-rimmed dark station emblem shield
+  ctx.fillStyle = '#0f172a';
+  ctx.strokeStyle = '#facc15';
+  ctx.lineWidth = 18;
+  ctx.beginPath();
+  ctx.arc(256, 256, 236, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Inner colored station line ring
+  ctx.strokeStyle = accentColor || '#d9261c';
+  ctx.lineWidth = 12;
+  ctx.beginPath();
+  ctx.arc(256, 256, 214, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Giant Official Prague Metro Symbol inside the emblem
+  window.drawPragueMetroSymbol(ctx, 256, 256, 198, '#d9261c');
+  return c;
+};
+
+window.createPragueMetroEntranceSign = function(themeHexStr) {
+  var c = window.createPragueMetroEntranceCanvas(themeHexStr || '#d9261c');
+  var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new window.THREE.CanvasTexture(c);
+  var sp = new window.THREE.Sprite(
+    new window.THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true })
+  );
+  sp.scale.set(11.5, 11.5, 1);
+  if (window.allSurfaceSigns) {
+    window.allSurfaceSigns.push(sp);
+  }
+  return sp;
+};
+
+// ============================================================================
 // BACKGROUND MUSIC PLAYER (Suno MP3)
 // ============================================================================
 var sunoCandidateFiles = [
@@ -200,6 +320,7 @@ window.toggleMusic = function() {
 };
 
 window.nextMusicTrack = function() {
+  initAudio();
   currentSongIndex = (currentSongIndex + 1) % sunoCandidateFiles.length;
   if (!isMusicPlaying) window.toggleMusic();
   else playCurrentCandidate();
@@ -212,8 +333,10 @@ window.changeMusicVolume = function(val) {
 };
 
 // ============================================================================
-// NATURAL CHARACTER VOICE PACK (20 Authentic Studio WAV Files in /voices/
-// + Automatic Multi-Voice SpeechSynthesis / Cloud TTS Fallback for GitHub Pages)
+// NATURAL CHARACTER VOICE PACK (20 Authentic Studio WAV Files in /voices/)
+// Played directly through Web Audio API (`audioCtx.destination` — the exact same
+// hardware output channel as `playTrainHorn`!) with automatic SpeechSynthesis
+// fallback if `/voices/` files are not yet uploaded to GitHub Pages.
 // ============================================================================
 window.VOICE_PACK = {
   // --- STORYTELLER (Achernar) ---
@@ -383,6 +506,147 @@ window.VOICE_PACK = {
   }
 };
 
+// ============================================================================
+// WEB AUDIO CONTEXT & DIRECT PCM WAV BUFFER DECODER
+// Uses the exact same `audioCtx` output channel as `playTrainHorn` so voices
+// are 100% guaranteed audible in Gemini AI Studio and Smart TV browsers!
+// ============================================================================
+var audioCtx = null;
+var hasUserGesture = false;
+var rawWavArrayBuffers = {};
+var decodedVoiceBuffers = {};
+var loadingVoicePromises = {};
+
+window.initAudio = function() {
+  hasUserGesture = true;
+  if (!audioCtx) {
+    var CtxClass = window.AudioContext || window.webkitAudioContext;
+    if (CtxClass) audioCtx = new CtxClass();
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+};
+
+// Synchronous RIFF WAVE 16-bit PCM parser -> Web Audio API `AudioBuffer`
+function parsePcm16WavToAudioBuffer(ctx, arrayBuffer) {
+  if (!ctx || !arrayBuffer || arrayBuffer.byteLength < 44) return null;
+  try {
+    var view = new DataView(arrayBuffer);
+    var r0 = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
+    var w0 = String.fromCharCode(view.getUint8(8), view.getUint8(9), view.getUint8(10), view.getUint8(11));
+    if (r0 !== 'RIFF' || w0 !== 'WAVE') return null;
+
+    var offset = 12;
+    var numChannels = 1;
+    var sampleRate = 24000;
+    var bitsPerSample = 16;
+    var dataOffset = -1;
+    var dataLength = 0;
+
+    while (offset + 8 <= view.byteLength) {
+      var chunkId = String.fromCharCode(
+        view.getUint8(offset),
+        view.getUint8(offset + 1),
+        view.getUint8(offset + 2),
+        view.getUint8(offset + 3)
+      );
+      var chunkSize = view.getUint32(offset + 4, true);
+      if (chunkId === 'fmt ') {
+        numChannels = view.getUint16(offset + 10, true) || 1;
+        sampleRate = view.getUint32(offset + 12, true) || 24000;
+        bitsPerSample = view.getUint16(offset + 22, true) || 16;
+      } else if (chunkId === 'data') {
+        dataOffset = offset + 8;
+        dataLength = Math.min(chunkSize, view.byteLength - dataOffset);
+        break;
+      }
+      offset += 8 + chunkSize + (chunkSize % 2);
+    }
+
+    if (dataOffset < 0 || bitsPerSample !== 16) return null;
+    var totalSamples = Math.floor(dataLength / (2 * numChannels));
+    if (totalSamples <= 0) return null;
+
+    var audioBuf = ctx.createBuffer(numChannels, totalSamples, sampleRate);
+    for (var ch = 0; ch < numChannels; ch++) {
+      var chData = audioBuf.getChannelData(ch);
+      for (var i = 0; i < totalSamples; i++) {
+        var sampleIdx = dataOffset + (i * numChannels + ch) * 2;
+        var int16 = view.getInt16(sampleIdx, true);
+        chData[i] = int16 / 32768.0;
+      }
+    }
+    return audioBuf;
+  } catch (e) {
+    return null;
+  }
+}
+
+function fetchVoiceWavBuffer(clipKey) {
+  if (decodedVoiceBuffers[clipKey] && audioCtx) {
+    return Promise.resolve(decodedVoiceBuffers[clipKey]);
+  }
+  if (rawWavArrayBuffers[clipKey] && audioCtx) {
+    var syncBuf = parsePcm16WavToAudioBuffer(audioCtx, rawWavArrayBuffers[clipKey]);
+    if (syncBuf) {
+      decodedVoiceBuffers[clipKey] = syncBuf;
+      return Promise.resolve(syncBuf);
+    }
+  }
+  if (loadingVoicePromises[clipKey]) {
+    return loadingVoicePromises[clipKey];
+  }
+
+  var entry = window.VOICE_PACK[clipKey];
+  if (!entry) return Promise.reject(new Error('Unknown clipKey'));
+
+  var candidateUrls = [
+    entry.file,
+    '/' + entry.file.replace(/^\//, ''),
+    'public/' + entry.file.replace(/^\//, '')
+  ];
+
+  function tryFetchIdx(idx) {
+    if (idx >= candidateUrls.length) {
+      return Promise.reject(new Error('Voice WAV not found'));
+    }
+    return fetch(candidateUrls[idx]).then(function(resp) {
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      return resp.arrayBuffer();
+    }).then(function(arrBuf) {
+      if (!arrBuf || arrBuf.byteLength < 100) throw new Error('Empty WAV');
+      rawWavArrayBuffers[clipKey] = arrBuf;
+      if (audioCtx) {
+        var pcmBuf = parsePcm16WavToAudioBuffer(audioCtx, arrBuf);
+        if (pcmBuf) {
+          decodedVoiceBuffers[clipKey] = pcmBuf;
+          return pcmBuf;
+        }
+      }
+      return null;
+    }).catch(function() {
+      return tryFetchIdx(idx + 1);
+    });
+  }
+
+  loadingVoicePromises[clipKey] = tryFetchIdx(0).catch(function(err) {
+    delete loadingVoicePromises[clipKey];
+    throw err;
+  });
+  return loadingVoicePromises[clipKey];
+}
+
+// Preload all 20 WAV files into memory right away so playback is instantaneous on keypress
+(function preloadAllVoiceWavs() {
+  var keys = Object.keys(window.VOICE_PACK);
+  keys.forEach(function(k, idx) {
+    setTimeout(function() {
+      fetchVoiceWavBuffer(k).catch(function() {});
+    }, idx * 45);
+  });
+})();
+
 // --- ENGLISH SPEECH SYNTHESIS & CLOUD FALLBACK ENGINE ---
 var verifiedEnVoices = [];
 function loadEnglishVoices() {
@@ -401,14 +665,16 @@ if ('speechSynthesis' in window) {
 }
 
 // ============================================================================
-// CONVERSATIONAL TURN-TAKING QUEUE WITH GUARANTEED PLAYBACK
+// CONVERSATIONAL TURN-TAKING QUEUE WITH WEB AUDIO API PLAYBACK
 // ============================================================================
+var activeBufferSource = null;
 var activeVoiceAudio = null;
 var activeVoiceKey = null;
 var activeVoiceEndTime = 0;
 var activeWatchdogTimer = null;
 var pendingVoiceItem = null;
 var nextVoiceTimer = null;
+var deferredWelcomeClip = 'storyteller-hello';
 var faceCardTimer = null;
 var stationAlternateIdx = 0;
 var hornCycleIdx = 0;
@@ -416,7 +682,7 @@ var charlieCycleIdx = 0;
 var metroCycleIdx = 0;
 
 window.isVoiceCurrentlyPlaying = function() {
-  return Date.now() < activeVoiceEndTime;
+  return hasUserGesture && Date.now() < activeVoiceEndTime;
 };
 
 function showFaceCamBanner(role, speakerName, avatarColorHex, displayText, durationMs) {
@@ -457,6 +723,7 @@ function showFaceCamBanner(role, speakerName, avatarColorHex, displayText, durat
 function onCurrentVoiceFinished() {
   clearTimeout(activeWatchdogTimer);
   activeWatchdogTimer = null;
+  activeBufferSource = null;
   activeVoiceAudio = null;
   activeVoiceKey = null;
   activeVoiceEndTime = 0;
@@ -473,7 +740,7 @@ function onCurrentVoiceFinished() {
     nextVoiceTimer = setTimeout(function() {
       nextVoiceTimer = null;
       startVoiceClipImmediate(nextItem.clipKey, nextItem.customSubtitleText, nextItem.customSpeaker);
-    }, 320);
+    }, 280);
   } else {
     if (isMusicPlaying && bgMusicAudio) {
       bgMusicAudio.volume = userMusicVolume;
@@ -488,13 +755,13 @@ function onCurrentVoiceFinished() {
   }
 }
 
-// Fallback speech synthesis if WAV file is missing (e.g., when only audio.js is copied to GitHub Pages)
+// Fallback speech synthesis ONLY if the WAV file is missing (e.g., when only audio.js is copied to GitHub Pages)
 function speakFallbackTTS(role, textToSpeak, estDurationMs) {
   var resolvedText = window.formatPersonalizedText(role, textToSpeak);
   if (!verifiedEnVoices.length) loadEnglishVoices();
 
   clearTimeout(activeWatchdogTimer);
-  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, estDurationMs + 300);
+  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, estDurationMs + 400);
 
   if (verifiedEnVoices.length > 0 && 'speechSynthesis' in window) {
     try {
@@ -533,20 +800,47 @@ function speakFallbackTTS(role, textToSpeak, estDurationMs) {
     } catch (e) {}
   }
 
-  // Cloud TTS fallback if no local English voice is installed
-  try {
-    var url = 'https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=en-US&q=' + encodeURIComponent(resolvedText);
-    var fbAudio = new Audio(url);
-    fbAudio.playbackRate = role === 'train' ? 1.12 : (role === 'charlie' ? 1.08 : 0.96);
-    activeVoiceAudio = fbAudio;
-    fbAudio.onended = onCurrentVoiceFinished;
-    fbAudio.onerror = onCurrentVoiceFinished;
-    fbAudio.play().catch(function() {
-      onCurrentVoiceFinished();
-    });
-  } catch (e) {
-    onCurrentVoiceFinished();
+  onCurrentVoiceFinished();
+}
+
+function playDecodedWebAudioBuffer(audioBuf, entry, subtitleToShow, speakerToShow) {
+  if (!audioCtx || !audioBuf) return false;
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
   }
+
+  if (activeBufferSource) {
+    try {
+      activeBufferSource.onended = null;
+      activeBufferSource.stop();
+    } catch (e) {}
+    activeBufferSource = null;
+  }
+
+  var durMs = Math.ceil(audioBuf.duration * 1000) + 150;
+  activeVoiceEndTime = Date.now() + durMs;
+  clearTimeout(activeWatchdogTimer);
+  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, durMs + 500);
+  showFaceCamBanner(entry.role, speakerToShow, entry.color, subtitleToShow, durMs);
+
+  var src = audioCtx.createBufferSource();
+  src.buffer = audioBuf;
+
+  var vGain = audioCtx.createGain();
+  vGain.gain.setValueAtTime(1.35, audioCtx.currentTime);
+
+  src.connect(vGain);
+  vGain.connect(audioCtx.destination);
+
+  activeBufferSource = src;
+  src.onended = function() {
+    if (activeBufferSource === src) {
+      onCurrentVoiceFinished();
+    }
+  };
+
+  src.start(0);
+  return true;
 }
 
 function startVoiceClipImmediate(clipKey, customSubtitleText, customSpeaker) {
@@ -559,65 +853,62 @@ function startVoiceClipImmediate(clipKey, customSubtitleText, customSpeaker) {
 
   showFaceCamBanner(entry.role, speakerToShow, entry.color, subtitleToShow, estDurMs);
 
+  // CRITICAL FIX: Never lock the voice queue before the user has pressed a key or clicked!
+  if (!hasUserGesture) {
+    deferredWelcomeClip = clipKey;
+    return false;
+  }
+
+  window.initAudio();
+
   if (isMusicPlaying && bgMusicAudio) {
     bgMusicAudio.volume = Math.max(0.08, userMusicVolume * 0.35);
   }
 
   activeVoiceKey = clipKey;
   activeVoiceEndTime = Date.now() + estDurMs;
-
   clearTimeout(activeWatchdogTimer);
-  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, estDurMs + 800);
+  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, estDurMs + 900);
 
-  // Create a fresh Audio instance per playback so event listeners & Promises never go stale
-  var audioEl = new Audio(entry.file);
-  activeVoiceAudio = audioEl;
-
-  var fallbackTriggered = false;
-  function triggerFallbackOnce() {
-    if (fallbackTriggered) return;
-    fallbackTriggered = true;
-    speakFallbackTTS(entry.role, subtitleToShow, estDurMs);
+  // 1. Instantaneous synchronous playback if the WAV ArrayBuffer is already in memory!
+  if (audioCtx && rawWavArrayBuffers[clipKey] && !decodedVoiceBuffers[clipKey]) {
+    decodedVoiceBuffers[clipKey] = parsePcm16WavToAudioBuffer(audioCtx, rawWavArrayBuffers[clipKey]);
+  }
+  if (audioCtx && decodedVoiceBuffers[clipKey]) {
+    return playDecodedWebAudioBuffer(decodedVoiceBuffers[clipKey], entry, subtitleToShow, speakerToShow);
   }
 
-  audioEl.onloadedmetadata = function() {
-    if (audioEl.duration && isFinite(audioEl.duration) && audioEl.duration > 0.2) {
-      var durMs = Math.ceil(audioEl.duration * 1000) + 200;
-      activeVoiceEndTime = Date.now() + durMs;
-      clearTimeout(activeWatchdogTimer);
-      activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, durMs + 600);
-      showFaceCamBanner(entry.role, speakerToShow, entry.color, subtitleToShow, durMs);
+  // 2. Fetch WAV -> decode into Web Audio Buffer -> play through `audioCtx.destination`
+  fetchVoiceWavBuffer(clipKey).then(function(buf) {
+    if (activeVoiceKey !== clipKey) return;
+    if (audioCtx && !buf && rawWavArrayBuffers[clipKey]) {
+      buf = parsePcm16WavToAudioBuffer(audioCtx, rawWavArrayBuffers[clipKey]);
+      if (buf) decodedVoiceBuffers[clipKey] = buf;
     }
-  };
-
-  audioEl.onended = function() {
-    if (!fallbackTriggered) {
-      onCurrentVoiceFinished();
+    if (audioCtx && buf) {
+      playDecodedWebAudioBuffer(buf, entry, subtitleToShow, speakerToShow);
+    } else {
+      speakFallbackTTS(entry.role, subtitleToShow, estDurMs);
     }
-  };
-
-  audioEl.onerror = function() {
-    triggerFallbackOnce();
-  };
-
-  try {
-    var playPromise = audioEl.play();
-    if (playPromise && typeof playPromise.catch === 'function') {
-      playPromise.catch(function() {
-        triggerFallbackOnce();
-      });
+  }).catch(function() {
+    if (activeVoiceKey === clipKey) {
+      speakFallbackTTS(entry.role, subtitleToShow, estDurMs);
     }
-    return true;
-  } catch (e) {
-    triggerFallbackOnce();
-    return true;
-  }
+  });
+
+  return true;
 }
 
 // Plays or queues a clip from window.VOICE_PACK without cutting off the current speaker
 window.playVoicePackClip = function(clipKey, customSubtitleText, customSpeaker, overridePriority) {
   var entry = window.VOICE_PACK[clipKey];
   if (!entry) return false;
+
+  if (!hasUserGesture) {
+    showFaceCamBanner(entry.role, customSpeaker || entry.speaker, entry.color, customSubtitleText || entry.text, 3800);
+    deferredWelcomeClip = clipKey;
+    return false;
+  }
 
   var prio = (overridePriority !== undefined && overridePriority !== null)
     ? overridePriority
@@ -712,13 +1003,13 @@ function resolveVoiceClipInfo(role, speakerName, rawText, explicitClipKey) {
       return { key: 'danicek-tunnel', priority: 3, dropIfBusy: false };
     }
     if (s.indexOf('speed') !== -1 || s.indexOf('chugga') !== -1 || s.indexOf('faster') !== -1) {
-      return { key: 'danicek-speed-up', priority: 1, dropIfBusy: false };
+      return { key: 'danicek-speed-up', priority: 2, dropIfBusy: false };
     }
     if (s.indexOf('backing up') !== -1 || s.indexOf('turning back') !== -1 || s.indexOf('reverse') !== -1) {
       return { key: 'danicek-reverse', priority: 2, dropIfBusy: false };
     }
     if (s.indexOf('slowing down') !== -1) {
-      return { key: 'danicek-slow-down', priority: 1, dropIfBusy: false };
+      return { key: 'danicek-slow-down', priority: 2, dropIfBusy: false };
     }
     if (s.indexOf('new wagon') !== -1 || s.indexOf('3 treasures') !== -1) {
       return { key: 'storyteller-praise', priority: 3, dropIfBusy: false };
@@ -770,40 +1061,39 @@ window.speakPureEnglish = function(emoji, text) {
 };
 
 // ============================================================================
-// AUTOMATIC WELCOME DIALOGUE & CHARLIE THE HELICOPTER SKY DIRECTOR
+// USER GESTURE AUDIO UNLOCK & CHARLIE THE HELICOPTER SKY DIRECTOR
 // ============================================================================
-var welcomeSequenceStarted = false;
-function triggerWelcomeVoiceSequence() {
-  if (welcomeSequenceStarted) return;
-  welcomeSequenceStarted = true;
-
-  if (!window.isVoiceCurrentlyPlaying()) {
-    window.playVoicePackClip('storyteller-hello', null, null, 3);
+function unlockAudioOnFirstGesture(playWelcomeIfIdle) {
+  var wasUnlocked = hasUserGesture;
+  window.initAudio();
+  if (!wasUnlocked && playWelcomeIfIdle) {
+    setTimeout(function() {
+      if (!window.isVoiceCurrentlyPlaying() && !pendingVoiceItem) {
+        window.playVoicePackClip(deferredWelcomeClip || 'storyteller-hello', null, null, 3);
+      }
+    }, 60);
   }
 }
 
 window.addEventListener('keydown', function onKey(e) {
-  if (!welcomeSequenceStarted) {
-    welcomeSequenceStarted = true;
-  }
+  unlockAudioOnFirstGesture(false);
   if ((e.key === 'c' || e.key === 'C') && (!document.activeElement || ['INPUT', 'TEXTAREA'].indexOf(document.activeElement.tagName) === -1)) {
     var cClips = ['charlie-takeoff', 'charlie-overview', 'charlie-explore'];
     var ck = cClips[charlieCycleIdx % cClips.length];
     charlieCycleIdx++;
     window.playVoicePackClip(ck, null, null, 2);
   }
-});
+}, true);
 
-window.addEventListener('pointerdown', function onFirstPointer() {
-  if (!welcomeSequenceStarted) {
-    triggerWelcomeVoiceSequence();
-  }
-}, { once: true });
+window.addEventListener('pointerdown', function onPointer() {
+  unlockAudioOnFirstGesture(true);
+}, true);
 
-var lastAutoSkyCallout = Date.now() + 10000;
+var lastAutoSkyCallout = Date.now() + 8000;
 setInterval(function() {
+  if (!hasUserGesture) return;
   if (window.isVoiceCurrentlyPlaying() || pendingVoiceItem) return;
-  if (Date.now() - lastAutoSkyCallout < 22000) return;
+  if (Date.now() - lastAutoSkyCallout < 20000) return;
 
   if (window.pState && Math.abs(window.pState.currentVel || 0) > 0.04 && !window.pState.atGate) {
     lastAutoSkyCallout = Date.now();
@@ -930,14 +1220,9 @@ function spawnGlossyChimneyBurst(count) {
 // ============================================================================
 // WEB AUDIO SYNTHESIZER (Authentic Steam Locomotive Whistle + Steam Hiss!)
 // ============================================================================
-var audioCtx = null;
-window.initAudio = function() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-};
-
 function playTone(freqs, dur, type) {
-  initAudio();
+  window.initAudio();
+  if (!audioCtx) return;
   var now = audioCtx.currentTime;
   freqs.forEach(function(f, idx) {
     var osc = audioCtx.createOscillator();
@@ -955,7 +1240,7 @@ function playTone(freqs, dur, type) {
 
 // Authentic Fairytale Steam Locomotive Two-Chime Whistle ("Húúú - húúúúú!") + Steam Puff Hiss + Bubbles
 window.playTrainHorn = function() {
-  initAudio();
+  window.initAudio();
 
   // Launch multi-wave fountain of glossy colorful chimney soap bubbles!
   spawnGlossyChimneyBurst(16);
@@ -965,7 +1250,6 @@ window.playTrainHorn = function() {
   if (!audioCtx) return;
   var now = audioCtx.currentTime;
 
-  // Warm steam whistle harmonic chord (F4 + A4 + C5 + D5) played in two expressive blasts
   var chordFreqs = [349.23, 440.0, 523.25, 587.33];
   var blasts = [
     { start: 0.0,  dur: 0.34, peak: 0.075 },
@@ -1041,7 +1325,7 @@ window.playMagicSubwaySound = function() { playTone([440, 554.37, 659.25, 880, 1
 
 // Authentic Czech Railway Crossing Bell (AŽD 71 / 97 "cink-cink-cink")
 window.playCzechCrossingBell = function() {
-  initAudio();
+  window.initAudio();
   if (!audioCtx) return;
   var now = audioCtx.currentTime;
   [1046.5, 1318.5, 2093.0].forEach(function(freq, i) {
@@ -1060,90 +1344,413 @@ window.playCzechCrossingBell = function() {
 };
 
 // ============================================================================
-// RUNTIME ENHANCEMENT BRIDGE (Ensures Metro Left/Right Turnouts & Glossy
-// Chimney Bubbles work seamlessly even when copying only audio.js!)
+// RUNTIME ENHANCEMENT BRIDGE (Upgrades Metro Turnouts, Signpost Icons &
+// Large Prague Metro Entrance Symbols even when copying only `audio.js`!)
 // ============================================================================
 window.addEventListener('load', function() {
   setTimeout(function() {
-    if (window.edges && window.nodes && window.turnoutCurves && window.THREE) {
-      window.getBranches = function(currentEdge) {
-        var baseEdge = currentEdge.isTurnout ? currentEdge.targetEdge : currentEdge;
-        var node = baseEdge.to;
-        var p1 = baseEdge.curve.getPointAt(0.84);
-        var inDir = baseEdge.curve.getTangentAt(0.84).normalize();
+    if (!window.edges || !window.nodes || !window.turnoutCurves || !window.THREE) return;
 
-        var candidates = window.edges.filter(function(e) {
-          if (e.from !== node || e.to === baseEdge.from) return false;
-          return true;
-        });
-        if (candidates.length === 0) {
-          candidates = window.edges.filter(function(e) { return e.from === node && !e.isSubway; });
-        }
+    // 1. Allow turning into all 4 Metro Stations from both incoming directions
+    window.getBranches = function(currentEdge) {
+      var baseEdge = currentEdge.isTurnout ? currentEdge.targetEdge : currentEdge;
+      var node = baseEdge.to;
+      var p1 = baseEdge.curve.getPointAt(0.84);
+      var inDir = baseEdge.curve.getTangentAt(0.84).normalize();
 
-        var scored = candidates.map(function(e) {
-          var p2 = e.curve.getPointAt(0.18);
-          var outDir = p2.clone().sub(p1).normalize();
-          var cross = inDir.x * outDir.z - inDir.z * outDir.x;
-          var dot = inDir.x * outDir.x + inDir.z * outDir.z;
-          var angle = Math.atan2(cross, dot);
-          return { edge: e, angle: angle };
-        });
+      var candidates = window.edges.filter(function(e) {
+        if (e.from !== node || e.to === baseEdge.from) return false;
+        return true;
+      });
+      if (candidates.length === 0) {
+        candidates = window.edges.filter(function(e) { return e.from === node && !e.isSubway; });
+      }
 
-        scored.sort(function(a, b) { return a.angle - b.angle; });
-
-        var straight = scored.reduce(function(best, cur) {
-          return Math.abs(cur.angle) < Math.abs(best.angle) ? cur : best;
-        }, scored[0]).edge;
-
-        return {
-          left: scored[0].edge,
-          straight: straight,
-          right: scored[scored.length - 1].edge
-        };
-      };
-
-      // Build any missing turnout curves into Metro edges from both incoming directions
-      window.edges.forEach(function(edgeIn) {
-        if (edgeIn.to.indexOf('EXIT_') === 0) return;
-        var nodePos = window.nodes[edgeIn.to].pos;
-        window.edges.forEach(function(edgeOut) {
-          if (edgeOut.from !== edgeIn.to || edgeOut.to === edgeIn.from) return;
-          if (edgeIn.isSubway && edgeOut.isSubway) return;
-          var key = edgeIn.id + '=>' + edgeOut.id;
-          if (!window.turnoutCurves[key]) {
-            var p0 = edgeIn.curve.getPointAt(0.84);
-            var t0 = edgeIn.curve.getTangentAt(0.84).normalize();
-            var p4 = edgeOut.curve.getPointAt(0.16);
-            var t4 = edgeOut.curve.getTangentAt(0.16).normalize();
-            var chord = p0.distanceTo(p4);
-            var handleLen = Math.max(4.0, chord * 0.34);
-            var p1 = p0.clone().add(t0.clone().multiplyScalar(handleLen));
-            var p3 = p4.clone().sub(t4.clone().multiplyScalar(handleLen));
-            var p2 = p1.clone().lerp(p3, 0.5).lerp(nodePos, 0.22);
-            p2.y = (p1.y + p3.y) * 0.5;
-            var mainFillet = new window.THREE.CatmullRomCurve3([p0, p1, p2, p3, p4], false);
-            window.turnoutCurves[key] = {
-              id: 'TURNOUT_' + key,
-              from: edgeIn.to,
-              to: edgeOut.to,
-              isTurnout: true,
-              isSubway: false,
-              sourceEdge: edgeIn,
-              targetEdge: edgeOut,
-              curve: mainFillet,
-              parallelCurve: mainFillet,
-              station: edgeOut.isSubway ? edgeOut.station : edgeIn.station
-            };
-            if (typeof window.renderSingleTrackCurve === 'function') {
-              window.renderSingleTrackCurve(mainFillet, true, window.turnoutCurves[key], 0.0, 1.0);
-            }
-          }
-        });
+      var scored = candidates.map(function(e) {
+        var p2 = e.curve.getPointAt(0.18);
+        var outDir = p2.clone().sub(p1).normalize();
+        var cross = inDir.x * outDir.z - inDir.z * outDir.x;
+        var dot = inDir.x * outDir.x + inDir.z * outDir.z;
+        var angle = Math.atan2(cross, dot);
+        return { edge: e, angle: angle };
       });
 
-      if (typeof window.updateHUD === 'function') {
-        window.updateHUD();
+      scored.sort(function(a, b) { return a.angle - b.angle; });
+
+      var straight = scored.reduce(function(best, cur) {
+        return Math.abs(cur.angle) < Math.abs(best.angle) ? cur : best;
+      }, scored[0]).edge;
+
+      return {
+        left: scored[0].edge,
+        straight: straight,
+        right: scored[scored.length - 1].edge
+      };
+    };
+
+    // 2. Build any missing turnout curves into Metro edges
+    window.edges.forEach(function(edgeIn) {
+      if (edgeIn.to.indexOf('EXIT_') === 0) return;
+      var nodePos = window.nodes[edgeIn.to].pos;
+      window.edges.forEach(function(edgeOut) {
+        if (edgeOut.from !== edgeIn.to || edgeOut.to === edgeIn.from) return;
+        if (edgeIn.isSubway && edgeOut.isSubway) return;
+        var key = edgeIn.id + '=>' + edgeOut.id;
+        if (!window.turnoutCurves[key]) {
+          var p0 = edgeIn.curve.getPointAt(0.84);
+          var t0 = edgeIn.curve.getTangentAt(0.84).normalize();
+          var p4 = edgeOut.curve.getPointAt(0.16);
+          var t4 = edgeOut.curve.getTangentAt(0.16).normalize();
+          var chord = p0.distanceTo(p4);
+          var handleLen = Math.max(4.0, chord * 0.34);
+          var p1 = p0.clone().add(t0.clone().multiplyScalar(handleLen));
+          var p3 = p4.clone().sub(t4.clone().multiplyScalar(handleLen));
+          var p2 = p1.clone().lerp(p3, 0.5).lerp(nodePos, 0.22);
+          p2.y = (p1.y + p3.y) * 0.5;
+          var mainFillet = new window.THREE.CatmullRomCurve3([p0, p1, p2, p3, p4], false);
+          window.turnoutCurves[key] = {
+            id: 'TURNOUT_' + key,
+            from: edgeIn.to,
+            to: edgeOut.to,
+            isTurnout: true,
+            isSubway: false,
+            sourceEdge: edgeIn,
+            targetEdge: edgeOut,
+            curve: mainFillet,
+            parallelCurve: mainFillet,
+            station: edgeOut.isSubway ? edgeOut.station : edgeIn.station
+          };
+          if (typeof window.renderSingleTrackCurve === 'function') {
+            window.renderSingleTrackCurve(mainFillet, true, window.turnoutCurves[key], 0.0, 1.0);
+          }
+        }
+      });
+    });
+
+    // 3. Upgrade the 4 Surface Metro Entrance Signs to the Large Prague Metro Symbol (`Znak pražského metra`)
+    if (window.allSurfaceSigns && window.allSurfaceSigns.length > 0) {
+      var lineColors = ['#2563eb', '#9333ea', '#16a34a', '#ea580c'];
+      window.allSurfaceSigns.forEach(function(sp, idx) {
+        if (!sp || !sp.material) return;
+        var mCanvas = window.createPragueMetroEntranceCanvas(lineColors[idx % lineColors.length]);
+        var mTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(mCanvas) : new window.THREE.CanvasTexture(mCanvas);
+        sp.material.map = mTex;
+        sp.material.needsUpdate = true;
+        sp.scale.set(11.5, 11.5, 1);
+      });
+    }
+
+    // 4. Rebuild Railway Junction Direction Signposts so all Metro branches show the Prague Metro Symbol!
+    if (window.junctionSignsGroup && window.scene) {
+      while (window.junctionSignsGroup.children.length > 0) {
+        window.junctionSignsGroup.remove(window.junctionSignsGroup.children[0]);
       }
+
+      function getBranchInfo(bEdge) {
+        if (!bEdge) return { icon: 'city', badgeCol: '#0284c7' };
+        if (bEdge.isSubway) return { icon: 'metro', badgeCol: '#2563eb' };
+        var stType = bEdge.station ? bEdge.station.type : '';
+        var stName = bEdge.station ? (bEdge.station.name || '') : '';
+        if (stType === 'bridge_suspension' || stType === 'hero_viaduct' || stType === 'viaduct') {
+          return { icon: 'bridge', badgeCol: '#dc2626' };
+        }
+        if (stType === 'tunnel') return { icon: 'tunnel', badgeCol: '#475569' };
+        if (stType === 'depot') return { icon: 'depot', badgeCol: '#d97706' };
+        if (bEdge.to === 'EXIT_ALPS') return { icon: 'alps', badgeCol: '#0284c7' };
+        if (bEdge.to === 'EXIT_EGYPT') return { icon: 'egypt', badgeCol: '#ca8a04' };
+        if (bEdge.to === 'J_CENTER' || stName.indexOf('Fountain') !== -1) return { icon: 'city', badgeCol: '#0284c7' };
+        if (bEdge.to === 'J_WEST' || bEdge.to === 'J_EAST') return { icon: 'bridge', badgeCol: '#dc2626' };
+        if (bEdge.to === 'J_NORTH' || stName.indexOf('School') !== -1) return { icon: 'school', badgeCol: '#16a34a' };
+        if (bEdge.to === 'J_SW' || stName.indexOf('Stadium') !== -1) return { icon: 'stadium', badgeCol: '#15803d' };
+        if (bEdge.to === 'J_NE') return { icon: 'city', badgeCol: '#db2777' };
+        if (bEdge.to === 'J_SE') return { icon: 'city', badgeCol: '#7c3aed' };
+        return { icon: 'city', badgeCol: '#0284c7' };
+      }
+
+      function drawArrow(ctx, dirType, cx, cy, size) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        if (dirType === 'left') ctx.rotate(-Math.PI * 0.5);
+        else if (dirType === 'right') ctx.rotate(Math.PI * 0.5);
+
+        var s = size * 0.52;
+        ctx.fillStyle = '#fde047';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 10;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, -s);
+        ctx.lineTo(s * 0.92, -s * 0.05);
+        ctx.lineTo(s * 0.42, -s * 0.05);
+        ctx.lineTo(s * 0.42, s * 0.92);
+        ctx.lineTo(-s * 0.42, s * 0.92);
+        ctx.lineTo(-s * 0.42, -s * 0.05);
+        ctx.lineTo(-s * 0.92, -s * 0.05);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = '#fef9c3';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawIcon(ctx, iconType, cx, cy, r) {
+        ctx.save();
+        ctx.fillStyle = '#e0f2fe';
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, r - 4, 0, Math.PI * 2);
+        ctx.clip();
+
+        if (iconType === 'metro') {
+          window.drawPragueMetroSymbol(ctx, cx, cy, r, '#d9261c');
+        } else if (iconType === 'bridge') {
+          ctx.fillStyle = '#bae6fd';
+          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+          ctx.fillStyle = '#0284c7';
+          ctx.fillRect(cx - r, cy + r * 0.32, r * 2, r * 0.70);
+          ctx.fillStyle = '#dc2626';
+          ctx.fillRect(cx - r * 0.92, cy - r * 0.34, r * 1.84, r * 0.72);
+          ctx.fillStyle = '#fef3c7';
+          ctx.fillRect(cx - r * 0.92, cy - r * 0.42, r * 1.84, r * 0.10);
+          ctx.fillStyle = '#bae6fd';
+          ctx.beginPath();
+          ctx.arc(cx - r * 0.42, cy + r * 0.34, r * 0.28, Math.PI, 0, false);
+          ctx.arc(cx + r * 0.42, cy + r * 0.34, r * 0.28, Math.PI, 0, false);
+          ctx.fill();
+        } else if (iconType === 'tunnel') {
+          ctx.fillStyle = '#bae6fd';
+          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+          ctx.fillStyle = '#16a34a';
+          ctx.beginPath();
+          ctx.moveTo(cx - r * 0.98, cy + r * 0.85);
+          ctx.lineTo(cx, cy - r * 0.82);
+          ctx.lineTo(cx + r * 0.98, cy + r * 0.85);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#14532d';
+          ctx.lineWidth = 5;
+          ctx.stroke();
+          ctx.fillStyle = '#0f172a';
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 8;
+          ctx.beginPath();
+          ctx.arc(cx, cy + r * 0.25, r * 0.42, Math.PI, 0, false);
+          ctx.lineTo(cx + r * 0.42, cy + r * 0.85);
+          ctx.lineTo(cx - r * 0.42, cy + r * 0.85);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        } else if (iconType === 'school') {
+          ctx.fillStyle = '#bae6fd';
+          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+          ctx.fillStyle = '#4ade80';
+          ctx.fillRect(cx - r, cy + r * 0.45, r * 2, r * 0.6);
+          ctx.fillStyle = '#fb923c';
+          ctx.fillRect(cx - r * 0.68, cy - r * 0.12, r * 0.85, r * 0.65);
+          ctx.fillStyle = '#dc2626';
+          ctx.beginPath();
+          ctx.moveTo(cx - r * 0.76, cy - r * 0.12);
+          ctx.lineTo(cx - r * 0.25, cy - r * 0.64);
+          ctx.lineTo(cx + r * 0.25, cy - r * 0.12);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#ec4899';
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          ctx.arc(cx + r * 0.42, cy - r * 0.05, r * 0.34, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (iconType === 'stadium') {
+          ctx.fillStyle = '#16a34a';
+          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 4;
+          ctx.strokeRect(cx - r * 0.68, cy - r * 0.48, r * 1.36, r * 0.96);
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#0f172a';
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r * 0.48, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(cx, cy, r * 0.18, 0, Math.PI * 2);
+          ctx.arc(cx - r * 0.30, cy - r * 0.20, r * 0.11, 0, Math.PI * 2);
+          ctx.arc(cx + r * 0.30, cy - r * 0.20, r * 0.11, 0, Math.PI * 2);
+          ctx.arc(cx - r * 0.24, cy + r * 0.28, r * 0.11, 0, Math.PI * 2);
+          ctx.arc(cx + r * 0.24, cy + r * 0.28, r * 0.11, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (iconType === 'alps') {
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+          ctx.fillStyle = '#64748b';
+          ctx.beginPath();
+          ctx.moveTo(cx - r * 0.95, cy + r * 0.75);
+          ctx.lineTo(cx - r * 0.18, cy - r * 0.72);
+          ctx.lineTo(cx + r * 0.55, cy + r * 0.75);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(cx - r * 0.45, cy - r * 0.15);
+          ctx.lineTo(cx - r * 0.18, cy - r * 0.72);
+          ctx.lineTo(cx + r * 0.10, cy - r * 0.15);
+          ctx.closePath();
+          ctx.fill();
+        } else if (iconType === 'egypt') {
+          ctx.fillStyle = '#7dd3fc';
+          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+          ctx.fillStyle = '#fde047';
+          ctx.fillRect(cx - r, cy + r * 0.35, r * 2, r * 0.7);
+          ctx.fillStyle = '#f59e0b';
+          ctx.beginPath();
+          ctx.moveTo(cx - r * 0.80, cy + r * 0.48);
+          ctx.lineTo(cx - r * 0.10, cy - r * 0.58);
+          ctx.lineTo(cx + r * 0.65, cy + r * 0.48);
+          ctx.closePath();
+          ctx.fill();
+        } else if (iconType === 'city') {
+          ctx.fillStyle = '#bae6fd';
+          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+          ctx.fillStyle = '#4ade80';
+          ctx.fillRect(cx - r, cy + r * 0.45, r * 2, r * 0.6);
+          ctx.fillStyle = '#fef08a';
+          ctx.fillRect(cx - r * 0.72, cy - r * 0.15, r * 0.64, r * 0.68);
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.moveTo(cx - r * 0.78, cy - r * 0.15);
+          ctx.lineTo(cx - r * 0.40, cy - r * 0.68);
+          ctx.lineTo(cx - r * 0.02, cy - r * 0.15);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#3b82f6';
+          ctx.fillRect(cx + r * 0.04, cy - r * 0.38, r * 0.64, r * 0.92);
+          ctx.fillStyle = '#fef08a';
+          ctx.fillRect(cx + r * 0.16, cy - r * 0.22, r * 0.16, r * 0.16);
+          ctx.fillRect(cx + r * 0.40, cy - r * 0.22, r * 0.16, r * 0.16);
+          ctx.fillRect(cx + r * 0.16, cy + r * 0.06, r * 0.16, r * 0.16);
+          ctx.fillRect(cx + r * 0.40, cy + r * 0.06, r * 0.16, r * 0.16);
+        } else {
+          ctx.fillStyle = '#bae6fd';
+          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(cx - r * 0.62, cy - r * 0.20, r * 1.24, r * 0.62);
+          ctx.fillStyle = '#facc15';
+          ctx.fillRect(cx - r * 0.62, cy - r * 0.52, r * 0.52, r * 0.35);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(cx + r * 0.20, cy - r * 0.58, r * 0.24, r * 0.40);
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.arc(cx - r * 0.34, cy + r * 0.46, r * 0.18, 0, Math.PI * 2);
+          ctx.arc(cx + r * 0.34, cy + r * 0.46, r * 0.18, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function makeSignBoardCanvas(rows) {
+        var rowH = 168;
+        var padY = 20;
+        var c = document.createElement('canvas');
+        c.width = 520;
+        c.height = padY * 2 + rows.length * rowH;
+        var ctx = c.getContext('2d');
+
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 12;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(8, 8, c.width - 16, c.height - 16, 34);
+        else ctx.rect(8, 8, c.width - 16, c.height - 16);
+        ctx.fill();
+        ctx.stroke();
+
+        for (var i = 0; i < rows.length; i++) {
+          var r = rows[i];
+          var ry = padY + i * rowH;
+          var cardH = rowH - 12;
+          var cy = ry + cardH * 0.5;
+
+          ctx.fillStyle = r.info.badgeCol;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(24, ry + 6, c.width - 48, cardH, 26);
+          else ctx.rect(24, ry + 6, c.width - 48, cardH);
+          ctx.fill();
+          ctx.stroke();
+
+          drawArrow(ctx, r.dirType, 130, cy + 6, 98);
+          drawIcon(ctx, r.info.icon, 355, cy + 6, 68);
+        }
+        return c;
+      }
+
+      var postMat = new window.THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.5, roughness: 0.4 });
+      var trimMat = new window.THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
+
+      window.edges.forEach(function(e) {
+        if (e.isSubway || e.isTurnout) return;
+        if (e.to.indexOf('EXIT_') === 0) return;
+
+        var br = window.getBranches(e);
+        if (!br) return;
+
+        var rows = [];
+        var usedIds = {};
+        if (br.left && (!br.straight || br.left.id !== br.straight.id)) {
+          usedIds[br.left.id] = true;
+          rows.push({ dirType: 'left', info: getBranchInfo(br.left) });
+        }
+        if (br.straight && !usedIds[br.straight.id]) {
+          usedIds[br.straight.id] = true;
+          rows.push({ dirType: 'straight', info: getBranchInfo(br.straight) });
+        }
+        if (br.right && !usedIds[br.right.id]) {
+          usedIds[br.right.id] = true;
+          rows.push({ dirType: 'right', info: getBranchInfo(br.right) });
+        }
+        if (rows.length === 0) return;
+
+        var uSign = 0.81;
+        var pt = e.curve.getPointAt(uSign);
+        var tan = e.curve.getTangentAt(uSign).normalize();
+        var rightVec = new window.THREE.Vector3(-tan.z, 0, tan.x).normalize();
+        var signPos = pt.clone().add(rightVec.clone().multiplyScalar(7.8));
+
+        var signG = new window.THREE.Group();
+        signG.position.copy(signPos);
+
+        var pole = new window.THREE.Mesh(new window.THREE.CylinderGeometry(0.24, 0.32, 9.6, 10), postMat);
+        pole.position.y = 1.4;
+        var cap = new window.THREE.Mesh(new window.THREE.CylinderGeometry(0.45, 0.45, 0.35, 10), trimMat);
+        cap.position.y = 6.2;
+        signG.add(pole, cap);
+
+        var signCanvas = makeSignBoardCanvas(rows);
+        var signTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(signCanvas) : new window.THREE.CanvasTexture(signCanvas);
+        var signSprite = new window.THREE.Sprite(
+          new window.THREE.SpriteMaterial({ map: signTex, transparent: true, depthTest: true })
+        );
+        var signH = 2.4 * rows.length;
+        signSprite.scale.set(7.4, signH, 1);
+        signSprite.position.set(0, 6.4 + signH * 0.45, 0);
+        signG.add(signSprite);
+
+        window.junctionSignsGroup.add(signG);
+      });
+    }
+
+    if (typeof window.updateHUD === 'function') {
+      window.updateHUD();
     }
   }, 50);
 });

@@ -1596,9 +1596,11 @@ function buildGrandMetroStationPortal(entryPt, intoTunnelDir, stationLabel, them
     g.add(plat);
   });
 
-  // 6. Sign Banner "(M) Metro Station 1..4" above the Arch
-  var mSign = window.makeSign(stationLabel + " (◀/▶ or OK)", themeHexStr, "#ffffff", 26, 5.8);
-  mSign.position.set(0, 16.2, -3.0);
+  // 6. Large Prague Metro Symbol Emblem (Velký znak pražského metra) above the Metro Entrance Arch!
+  var mSign = window.createPragueMetroEntranceSign
+    ? window.createPragueMetroEntranceSign(themeHexStr)
+    : window.makeSign(stationLabel, themeHexStr, "#ffffff", 20, 10);
+  mSign.position.set(0, 16.5, -3.5);
   g.add(mSign);
 
   // 7. Cute Vintage Street Lamps flanking the Metro Portal
@@ -3078,40 +3080,10 @@ scene.add(window.junctionSignsGroup);
     ctx.clip();
 
     if (iconType === 'metro') {
-      // Dark stone tunnel arch + bright blue/yellow metro train front with cartoon eyes & headlights
-      ctx.fillStyle = '#334155';
-      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.arc(cx, cy + r * 0.05, r * 0.76, Math.PI, 0, false);
-      ctx.lineTo(cx + r * 0.76, cy + r);
-      ctx.lineTo(cx - r * 0.76, cy + r);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = '#94a3b8';
-      ctx.lineWidth = 6;
-      ctx.stroke();
-
-      // Metro train body
-      ctx.fillStyle = '#2563eb';
-      ctx.strokeStyle = '#f8fafc';
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(cx - r * 0.50, cy - r * 0.36, r * 1.0, r * 0.96, 16);
-      else ctx.rect(cx - r * 0.50, cy - r * 0.36, r * 1.0, r * 0.96);
-      ctx.fill();
-      ctx.stroke();
-
-      // Windshield
-      ctx.fillStyle = '#67e8f9';
-      ctx.fillRect(cx - r * 0.38, cy - r * 0.24, r * 0.76, r * 0.36);
-
-      // Glowing yellow headlights
-      ctx.fillStyle = '#fef08a';
-      ctx.beginPath();
-      ctx.arc(cx - r * 0.28, cy + r * 0.36, r * 0.13, 0, Math.PI * 2);
-      ctx.arc(cx + r * 0.28, cy + r * 0.36, r * 0.13, 0, Math.PI * 2);
-      ctx.fill();
+      // Iconic Prague Metro Symbol (Znak pražského metra — winged M with downward arrow on crisp white plate!)
+      if (window.drawPragueMetroSymbol) {
+        window.drawPragueMetroSymbol(ctx, cx, cy, r, '#d9261c');
+      }
     } else if (iconType === 'bridge') {
       // Multi-arch red brick viaduct bridge over sparkling blue water
       ctx.fillStyle = '#bae6fd';
