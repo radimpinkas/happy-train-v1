@@ -987,8 +987,6 @@ window.getBranches = function(currentEdge) {
 
   var candidates = edges.filter(function(e) {
     if (e.from !== node || e.to === baseEdge.from) return false;
-    // Prevent entering a Metro edge from a non-aligned surface edge so turnouts never cross or stack!
-    if (e.isSubway && e.allowedSurfaceEntryId && e.allowedSurfaceEntryId !== baseEdge.id) return false;
     return true;
   });
   if (candidates.length === 0) {
@@ -1435,9 +1433,6 @@ physicalTracksToRender.forEach(function(e) {
     edges.forEach(function(edgeOut) {
       if (edgeOut.from !== edgeIn.to || edgeOut.to === edgeIn.from) return;
       if (edgeIn.isSubway && edgeOut.isSubway) return;
-
-      // Keep only the single aligned surface turnout into/out of each Metro Station so tracks NEVER stack!
-      if (edgeOut.isSubway && edgeOut.allowedSurfaceEntryId && edgeOut.allowedSurfaceEntryId !== edgeIn.id) return;
 
       var isSubTurn = Boolean(edgeIn.isSubway || edgeOut.isSubway);
       var mainFillet = makeFilletCurve(edgeIn.curve, edgeOut.curve, nodePos, isSubTurn);
@@ -3340,7 +3335,7 @@ scene.add(window.junctionSignsGroup);
 
     var rows = [];
     var usedIds = {};
-    if (br.left) {
+    if (br.left && (!br.straight || br.left.id !== br.straight.id)) {
       usedIds[br.left.id] = true;
       rows.push({ dirType: 'left', info: getBranchDestinationInfo(br.left) });
     }

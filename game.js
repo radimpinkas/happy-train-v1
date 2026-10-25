@@ -321,37 +321,160 @@ function updateClockAndLighting(dt) {
   }
 }
 
-// Fluffy Turquoise Cartoon Steam Clouds
+// Fluffy Turquoise Cartoon Steam Clouds & Glossy Iridescent Chimney Soap Bubbles!
 var particles = [];
-var puffClusterGeo = new THREE.SphereGeometry(0.65, 10, 10);
-var bCols = [0x38bdf8, 0xf472b6, 0xfacc15, 0x4ade80, 0xa78bfa];
+var puffClusterGeo = new THREE.SphereGeometry(0.62, 10, 10);
+var bCols = [
+  '#38bdf8', // Sky Blue
+  '#f472b6', // Bubblegum Pink
+  '#facc15', // Sunshine Gold
+  '#4ade80', // Emerald Mint
+  '#c084fc', // Lavender Purple
+  '#fb923c', // Tangerine Orange
+  '#2dd4bf', // Bright Turquoise
+  '#f43f5e'  // Strawberry Rose
+];
+
+var glossyBubbleMaterials = [];
+function getGlossyBubbleMaterial(idx) {
+  var cIdx = idx % bCols.length;
+  if (glossyBubbleMaterials[cIdx]) return glossyBubbleMaterials[cIdx];
+
+  var hexStr = bCols[cIdx];
+  var c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 128;
+  var ctx = c.getContext('2d');
+
+  // 1. Soft translucent bubble interior with glowing colored rim
+  var grad = ctx.createRadialGradient(52, 48, 8, 64, 64, 58);
+  grad.addColorStop(0.0, 'rgba(255, 255, 255, 0.20)');
+  grad.addColorStop(0.55, hexStr + '55');
+  grad.addColorStop(0.84, hexStr + 'cc');
+  grad.addColorStop(0.96, '#ffffff');
+  grad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(64, 64, 58, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Crisp iridescent outer ring
+  ctx.strokeStyle = hexStr;
+  ctx.lineWidth = 4.5;
+  ctx.beginPath();
+  ctx.arc(64, 64, 54, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 3. Top-left glossy curved specular highlight
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+  ctx.beginPath();
+  ctx.ellipse(44, 38, 16, 8.5, -Math.PI * 0.24, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 4. Secondary sparkle dot & bottom rim reflection
+  ctx.beginPath();
+  ctx.arc(32, 54, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(64, 64, 46, Math.PI * 0.15, Math.PI * 0.42);
+  ctx.stroke();
+
+  var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new THREE.CanvasTexture(c);
+  glossyBubbleMaterials[cIdx] = new THREE.SpriteMaterial({
+    map: tex,
+    transparent: true,
+    depthWrite: false,
+    opacity: 0.96
+  });
+  return glossyBubbleMaterials[cIdx];
+}
+
+function getLocomotiveChimneyWorldPos() {
+  if (!pState || !pState.edge || !pState.edge.curve) {
+    return playerLoco.position.clone().add(new THREE.Vector3(0, 3.8, 0));
+  }
+  var ct = Math.max(0, Math.min(1, pState.t || 0));
+  var tan = pState.edge.curve.getTangentAt(ct).normalize();
+  return playerLoco.position.clone()
+    .add(tan.multiplyScalar(1.45))
+    .add(new THREE.Vector3(0, 3.85, 0));
+}
 
 function spawnSmokeAndBubbles(pos, count, withBubbles, customYOffset) {
-  for (var i = 0; i < count; i++) {
-    var isB = withBubbles && (i % 2 === 0);
-    var col = isB ? bCols[i % bCols.length] : 0x67e8f9;
-    var puffGroup = new THREE.Group();
-    var pMat = new THREE.MeshLambertMaterial({ color: col, transparent: true, opacity: 0.90 });
+  var origin = (withBubbles && pos === playerLoco.position)
+    ? getLocomotiveChimneyWorldPos()
+    : pos.clone().add(new THREE.Vector3(0, customYOffset !== undefined ? customYOffset : 3.6, 0));
 
-    var mainSphere = new THREE.Mesh(puffClusterGeo, pMat);
-    puffGroup.add(mainSphere);
-    if (!isB) {
+  for (var i = 0; i < count; i++) {
+    var isB = withBubbles && (i % 5 !== 0);
+    if (isB) {
+      var baseMat = getGlossyBubbleMaterial(i + Math.floor(Math.random() * 8));
+      var bMat = baseMat.clone();
+      var bSprite = new THREE.Sprite(bMat);
+      var initScale = 0.65 + Math.random() * 0.85;
+      bSprite.scale.set(initScale, initScale, initScale);
+      bSprite.position.set(
+        origin.x + (Math.random() - 0.5) * 1.3,
+        origin.y + (Math.random() - 0.2) * 0.8,
+        origin.z + (Math.random() - 0.5) * 1.3
+      );
+      scene.add(bSprite);
+      particles.push({
+        mesh: bSprite,
+        mat: bMat,
+        isBubble: true,
+        vx: (Math.random() - 0.5) * 0.14,
+        vy: 0.11 + Math.random() * 0.12,
+        vz: (Math.random() - 0.5) * 0.14,
+        swirlPhase: Math.random() * Math.PI * 2,
+        swirlAmp: 0.04 + Math.random() * 0.05,
+        scale: initScale,
+        growRate: 0.014 + Math.random() * 0.012,
+        fadeRate: 0.0085 + Math.random() * 0.005
+      });
+    } else {
+      var puffGroup = new THREE.Group();
+      var pMat = new THREE.MeshLambertMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.85 });
+      var mainSphere = new THREE.Mesh(puffClusterGeo, pMat);
+      puffGroup.add(mainSphere);
       var sideL = new THREE.Mesh(puffClusterGeo, pMat);
       sideL.scale.set(0.7, 0.7, 0.7); sideL.position.set(-0.42, -0.08, 0);
       var sideR = new THREE.Mesh(puffClusterGeo, pMat);
       sideR.scale.set(0.65, 0.65, 0.65); sideR.position.set(0.42, 0.08, 0);
       puffGroup.add(sideL, sideR);
-    }
 
-    var yOff = customYOffset !== undefined ? customYOffset : 3.6;
-    puffGroup.position.set(
-      pos.x + (Math.random() - 0.5) * 0.6,
-      pos.y + yOff,
-      pos.z + (Math.random() - 0.5) * 0.6
-    );
-    scene.add(puffGroup);
-    particles.push({ mesh: puffGroup, mat: pMat, vy: 0.07 + Math.random() * 0.05, scale: 0.75 });
+      puffGroup.position.set(
+        origin.x + (Math.random() - 0.5) * 0.6,
+        origin.y,
+        origin.z + (Math.random() - 0.5) * 0.6
+      );
+      scene.add(puffGroup);
+      particles.push({
+        mesh: puffGroup,
+        mat: pMat,
+        isBubble: false,
+        vx: (Math.random() - 0.5) * 0.03,
+        vy: 0.07 + Math.random() * 0.05,
+        vz: (Math.random() - 0.5) * 0.03,
+        swirlPhase: 0,
+        swirlAmp: 0,
+        scale: 0.72,
+        growRate: 0.018,
+        fadeRate: 0.014
+      });
+    }
   }
+}
+
+function triggerChimneyBubbleExtravaganza() {
+  spawnSmokeAndBubbles(playerLoco.position, 18, true);
+  setTimeout(function() { spawnSmokeAndBubbles(playerLoco.position, 12, true); }, 140);
+  setTimeout(function() { spawnSmokeAndBubbles(playerLoco.position, 10, true); }, 280);
+  setTimeout(function() { spawnSmokeAndBubbles(playerLoco.position, 8, true); }, 420);
 }
 
 function renderGiantArrow(choice, targetName) {
@@ -444,25 +567,8 @@ window.handleInput = function(key) {
     speakCharacter('train', '🚂 Little Train Toby', '#ef4444', pState.speedStage === -1 ? 'Backing up! Beep beep!' : 'Slowing down!');
   } else if (key === 'Enter' || key === ' ') {
     playTrainHorn();
-    spawnSmokeAndBubbles(playerLoco.position, 8, true);
-
-    var metroSub = subwayEdges.find(function(se) {
-      return nodes[se.from].pos.distanceTo(playerLoco.position) < 55;
-    });
-    if (metroSub && !pState.edge.isSubway) {
-      pState.prevSegments.unshift({ edge: pState.edge, startT: pState.entryT || 0.16, endT: pState.t });
-      pState.edge = metroSub;
-      pState.entryT = 0.14;
-      pState.t = 0.14;
-      pState.speedStage = 2;
-      updateHUD();
-      playMagicSubwaySound();
-      speakCharacter('train', '🚇 Little Train Toby', '#a855f7', 'Entering the Metro Station tunnel! Let us visit the fairy-tale underground world of gnomes, waterfalls, and magic mushrooms!');
-      return;
-    }
-
-    playHappyLaugh();
-    speakCharacter('train', '🚂 Little Train Toby', '#ef4444', 'Hi friends! Watch the railway crossing barriers lower and enter the 4 Metro Stations!');
+    triggerChimneyBubbleExtravaganza();
+    speakCharacter('train', '🚂 Little Train Toby', '#0d9488', 'Hi friends! Watch the railway crossing barriers lower and enter the 4 Metro Stations!');
   } else if (key === 'm' || key === 'M') {
     window.toggleMusic();
   } else if (key === 'w' || key === 'W') {
@@ -1177,9 +1283,17 @@ function animate() {
   for (var pi2 = particles.length - 1; pi2 >= 0; pi2--) {
     var pt = particles[pi2];
     pt.mesh.position.y += pt.vy;
-    pt.scale += 0.018;
+    if (pt.isBubble) {
+      pt.swirlPhase += 0.14;
+      pt.mesh.position.x += (pt.vx || 0) + Math.sin(pt.swirlPhase) * (pt.swirlAmp || 0.04);
+      pt.mesh.position.z += (pt.vz || 0) + Math.cos(pt.swirlPhase) * (pt.swirlAmp || 0.04);
+    } else {
+      pt.mesh.position.x += (pt.vx || 0);
+      pt.mesh.position.z += (pt.vz || 0);
+    }
+    pt.scale += (pt.growRate || 0.018);
     pt.mesh.scale.set(pt.scale, pt.scale, pt.scale);
-    pt.mat.opacity -= 0.014;
+    pt.mat.opacity -= (pt.fadeRate || 0.014);
     if (pt.mat.opacity <= 0) { scene.remove(pt.mesh); particles.splice(pi2, 1); }
   }
 

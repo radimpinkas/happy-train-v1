@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Happy Train – Complete Voice Pack (20 WAV Files)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --gold: #fbbf24;
+      --green: #34d399;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px 20px 60px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 28px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.75rem;
+      color: var(--gold);
+    }
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .btn-all {
+      background: var(--gold);
+      color: #0f172a;
+      border: none;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 12px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    .btn-all:hover {
+      transform: translateY(-1px);
+      opacity: 0.95;
+    }
+    .group {
+      margin-bottom: 32px;
+    }
+    .group-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .group-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0;
+      color: var(--accent);
+    }
+    .group-meta {
+      font-size: 0.85rem;
+      color: var(--muted);
+      background: rgba(255,255,255,0.05);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+    .clip-list {
+      display: grid;
+      gap: 12px;
+    }
+    .clip-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .clip-info {
+      flex: 1 1 280px;
+    }
+    .filename {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--green);
+      margin-bottom: 4px;
+    }
+    .line-text {
+      font-size: 1.02rem;
+      color: var(--text);
+      margin: 0;
+    }
+    .clip-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    audio {
+      height: 38px;
+      width: 240px;
+    }
+    .dl-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+    .dl-link:hover {
+      background: rgba(56, 189, 248, 0.25);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Happy Train – Complete Voice Pack (20 WAV Files)</h1>
+        <p class="subtitle">20 standalone WAV files (24 kHz, 16-bit mono RIFF WAV) integrated directly into Happy Train</p>
+      </div>
+      <button class="btn-all" id="downloadAllBtn">Download All 20 WAV Files</button>
+    </header>
+
+    <section class="group">
+      <div class="group-header">
+        <h2 class="group-title">1. Storyteller (9 WAV Clips)</h2>
+        <span class="group-meta">Voice: Achernar • Style: Empathetic • Pace: Natural • Accent: Neutral</span>
+      </div>
+      <div class="clip-list" id="list-storyteller"></div>
+    </section>
+
+    <section class="group">
+      <div class="group-header">
+        <h2 class="group-title">2. Daníček, the little train (8 WAV Clips)</h2>
+        <span class="group-meta">Voice: Sulafat • Style: Vocal Smile • Pace: Neutral • Accent: Neutral</span>
+      </div>
+      <div class="clip-list" id="list-danicek"></div>
+    </section>
+
+    <section class="group">
+      <div class="group-header">
+        <h2 class="group-title">3. Charlie, the helicopter (3 WAV Clips)</h2>
+        <span class="group-meta">Voice: Zephyr • Style: Promo/Hype • Pace: Rapid fire • Accent: Neutral</span>
+      </div>
+      <div class="clip-list" id="list-charlie"></div>
+    </section>
+  </div>
+
+  <script>
+    var groups = {
+      storyteller: [
+        { file: 'storyteller-hello.wav', text: 'Hello, little explorer! Are you ready for an adventure?' },
+        { file: 'storyteller-discovery.wav', text: 'Look ahead. A magical world is waiting for us.' },
+        { file: 'storyteller-praise.wav', text: 'Wonderful! You found something new.' },
+        { file: 'storyteller-turn-left.wav', text: "Let's turn left and see where the tracks take us." },
+        { file: 'storyteller-turn-right.wav', text: "Let's turn right toward a new adventure." },
+        { file: 'storyteller-go-straight.wav', text: 'Going straight ahead along the railway line.' },
+        { file: 'storyteller-station.wav', text: 'Here we are at the station! Watch the happy passengers step aboard our train.' },
+        { file: 'storyteller-sheep.wav', text: "Oh look, fluffy white sheep are on the track! Let's honk gently so they step onto the grass." },
+        { file: 'storyteller-sunny.wav', text: 'The sun is shining brightly over our fairytale world!' }
+      ],
+      danicek: [
+        { file: 'danicek-ready.wav', text: "Hi, buddy! I'm ready to explore!" },
+        { file: 'danicek-crystals.wav', text: 'Wow! Look at those beautiful crystals!' },
+        { file: 'danicek-next-stop.wav', text: 'Where shall we go next?' },
+        { file: 'danicek-speed-up.wav', text: 'Chugga chugga! Going faster! Choo choo!' },
+        { file: 'danicek-slow-down.wav', text: 'Slowing down! Easy and steady!' },
+        { file: 'danicek-reverse.wav', text: 'Backing up! Beep beep, watch out behind me!' },
+        { file: 'danicek-tunnel.wav', text: 'Whoosh! Entering the dark tunnel! Turning on my bright headlight!' },
+        { file: 'danicek-metro.wav', text: 'Hooray! Into the underground metro tunnel we go! Look at the gnomes and waterfalls!' }
+      ],
+      charlie: [
+        { file: 'charlie-takeoff.wav', text: 'Hey, adventurers! Charlie is ready for takeoff!' },
+        { file: 'charlie-overview.wav', text: 'I can see something interesting from up here!' },
+        { file: 'charlie-explore.wav', text: "Come on, team! Let's take a closer look!" }
+      ]
+    };
+
+    var allFiles = [];
+    Object.keys(groups).forEach(function (key) {
+      var container = document.getElementById('list-' + key);
+      groups[key].forEach(function (item) {
+        allFiles.push(item.file);
+        var card = document.createElement('div');
+        card.className = 'clip-card';
+        card.innerHTML =
+          '<div class="clip-info">' +
+            '<div class="filename">' + item.file + '</div>' +
+            '<p class="line-text">"' + item.text + '"</p>' +
+          '</div>' +
+          '<div class="clip-actions">' +
+            '<audio controls preload="metadata" src="/voices/' + item.file + '"></audio>' +
+            '<a class="dl-link" href="/voices/' + item.file + '" download="' + item.file + '">Download WAV</a>' +
+          '</div>';
+        container.appendChild(card);
+      });
+    });
+
+    document.getElementById('downloadAllBtn').addEventListener('click', function () {
+      allFiles.forEach(function (file, idx) {
+        setTimeout(function () {
+          var a = document.createElement('a');
+          a.href = '/voices/' + file;
+          a.download = file;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }, idx * 350);
+      });
+    });
+  </script>
+</body>
+</html>
