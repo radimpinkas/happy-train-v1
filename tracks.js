@@ -186,6 +186,7 @@ river.position.set(0, -1.6, -85);
 river.receiveShadow = true;
 scene.add(river);
 window.riverMesh = river;
+window.tracksRiverMesh = river;
 
 // ============================================================================
 // HAND-PAINTED RED BRICK VIADUCT TEXTURE & SAFE ELLIPTICAL ARCH GENERATOR
@@ -225,6 +226,7 @@ window.sharedStoneTrimMat = new THREE.MeshStandardMaterial({
 });
 window.sharedDarkTunnelMat = new THREE.MeshBasicMaterial({ color: 0x020617 });
 
+window.allSurfaceSigns = [];
 window.makeSign = function(text, bg, fg, w, h) {
   var c = document.createElement('canvas');
   c.width = 512; c.height = 128;
@@ -243,8 +245,9 @@ window.makeSign = function(text, bg, fg, w, h) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, 256, 66);
-  var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: window.upgradeCanvasTex(c), transparent: true, depthTest: false }));
+  var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: window.upgradeCanvasTex(c), transparent: true, depthTest: true }));
   sp.scale.set((w || 20) * 0.62, (h || 5.0) * 0.62, 1);
+  window.allSurfaceSigns.push(sp);
   return sp;
 };
 
@@ -453,9 +456,9 @@ function addSubwayLine(fromId, toId, unusedA, unusedB, cavernOffsetZ, allowedSur
 
   var surfA1 = pA.clone().add(dirA.clone().multiplyScalar(38)); // u = 0.16 (Turnout end in front of entry portal)
   var surfA2 = pA.clone().add(dirA.clone().multiplyScalar(61)); // u ≈ 0.191 (Entry Portal front arch)
-  var surfA3 = pA.clone().add(dirA.clone().multiplyScalar(71)); // u ≈ 0.205 (Inside covered station shell)
+  var surfA3 = pA.clone().add(dirA.clone().multiplyScalar(76)); // u ≈ 0.212 (Back of covered station shell)
 
-  var surfB3 = pB.clone().add(dirB.clone().multiplyScalar(71)); // u ≈ 0.795 (Inside exit covered station shell)
+  var surfB3 = pB.clone().add(dirB.clone().multiplyScalar(76)); // u ≈ 0.788 (Back of exit covered station shell)
   var surfB2 = pB.clone().add(dirB.clone().multiplyScalar(61)); // u ≈ 0.809 (Exit Portal front arch)
   var surfB1 = pB.clone().add(dirB.clone().multiplyScalar(38)); // u = 0.84 (Turnout start in front of exit portal)
 
@@ -476,19 +479,22 @@ function addSubwayLine(fromId, toId, unusedA, unusedB, cavernOffsetZ, allowedSur
   surfB1.y = portalSurfaceYB; surfB2.y = portalSurfaceYB; surfB3.y = portalSurfaceYB;
 
   var signX = (pA.x < pB.x) ? 1 : -1;
-  var pCavernStart = new THREE.Vector3(-64 * signX, -25.5, cavernOffsetZ);
-  var pCavernEnd   = new THREE.Vector3( 64 * signX, -25.5, cavernOffsetZ);
+  var pCavernPreStart = new THREE.Vector3(-80 * signX, -25.5, cavernOffsetZ);
+  var pCavernStart    = new THREE.Vector3(-64 * signX, -25.5, cavernOffsetZ);
+  var pCavernEnd      = new THREE.Vector3( 64 * signX, -25.5, cavernOffsetZ);
+  var pCavernPostEnd  = new THREE.Vector3( 80 * signX, -25.5, cavernOffsetZ);
 
-  // Cubic Bezier control points for smooth horizontal & vertical alignment into the Cavern Portals:
-  // Enters along `dirA` at surfA3 and arrives at `pCavernStart` strictly aligned with the X-axis (`[signX, 0, 0]`)!
+  // Cubic Bezier control points for smooth horizontal & vertical alignment into the Straight Cavern Approach:
+  // Enters along `dirA` at surfA3 and arrives at `pCavernPreStart` (-80 * signX) already aligned with the X-axis
+  // so the last 16m before the Cavern Portal (-64 * signX) is 100% straight along X!
   var downP0 = surfA3.clone();
   var downP1 = surfA3.clone().add(dirA.clone().multiplyScalar(28.0));
   downP1.y = portalSurfaceYA - 6.5;
-  var downP2 = new THREE.Vector3(-92 * signX, -25.5, cavernOffsetZ);
-  var downP3 = pCavernStart.clone();
+  var downP2 = new THREE.Vector3(-112 * signX, -25.5, cavernOffsetZ);
+  var downP3 = pCavernPreStart.clone();
 
-  var upP0 = pCavernEnd.clone();
-  var upP1 = new THREE.Vector3(92 * signX, -25.5, cavernOffsetZ);
+  var upP0 = pCavernPostEnd.clone();
+  var upP1 = new THREE.Vector3(112 * signX, -25.5, cavernOffsetZ);
   var upP2 = surfB3.clone().add(dirB.clone().multiplyScalar(28.0));
   upP2.y = portalSurfaceYB - 6.5;
   var upP3 = surfB3.clone();
@@ -509,32 +515,32 @@ function addSubwayLine(fromId, toId, unusedA, unusedB, cavernOffsetZ, allowedSur
   // Build active curve strictly from surfA1 (s = 0.0 -> u = 0.16) to surfB1 (s = 1.0 -> u = 0.84)
   // so that turnouts at u = 0.16 and u = 0.84 connect 100% in front of the Metro Station arches!
   var rawPts = [];
-  var sSteps = 72;
+  var sSteps = 80;
   for (var k = 0; k <= sSteps; k++) {
     var s = k / sSteps;
     var pt = new THREE.Vector3();
-    if (s <= 0.08) {
-      // Straight & level from turnout (surfA1, 38m) through front arch (surfA2, 61m) into station shell (surfA3, 71m)
-      var tA = s / 0.08;
+    if (s <= 0.09) {
+      // Straight & level from turnout (surfA1, 38m) through front arch (surfA2, 61m) into station shell (surfA3, 76m)
+      var tA = s / 0.09;
       pt.lerpVectors(surfA1, surfA3, tA);
       pt.y = portalSurfaceYA;
-    } else if (s < 0.36) {
-      // Smooth Cubic Bezier descent inside enclosed tunnel tube from surfA3 down to pCavernStart
-      var tDown = (s - 0.08) / 0.28;
+    } else if (s < 0.34) {
+      // Smooth Cubic Bezier descent inside enclosed tunnel tube from surfA3 down to pCavernPreStart (-80 * signX)
+      var tDown = (s - 0.09) / 0.25;
       pt.copy(evalCubicBezier(downP0, downP1, downP2, downP3, tDown));
-    } else if (s <= 0.64) {
-      // 100% straight & level across the Underground Stone Arch Viaduct Causeway (x = -64 .. +64)
-      var tCav = (s - 0.36) / 0.28;
-      pt.lerpVectors(pCavernStart, pCavernEnd, tCav);
+    } else if (s <= 0.66) {
+      // 100% straight & level along X from -80 * signX through the Cavern Portals (±64 * signX) to +80 * signX!
+      var tCav = (s - 0.34) / 0.32;
+      pt.lerpVectors(pCavernPreStart, pCavernPostEnd, tCav);
       pt.y = -25.5;
       pt.z = cavernOffsetZ;
-    } else if (s < 0.92) {
-      // Smooth Cubic Bezier ascent inside enclosed tunnel tube from pCavernEnd up to surfB3
-      var tUp = (s - 0.64) / 0.28;
+    } else if (s < 0.91) {
+      // Smooth Cubic Bezier ascent inside enclosed tunnel tube from pCavernPostEnd (+80 * signX) up to surfB3
+      var tUp = (s - 0.66) / 0.25;
       pt.copy(evalCubicBezier(upP0, upP1, upP2, upP3, tUp));
     } else {
-      // Straight & level from inside exit station shell (surfB3, 71m) out through front arch (surfB2, 61m) to surfB1 (38m)
-      var tB = (s - 0.92) / 0.08;
+      // Straight & level from inside exit station shell (surfB3, 76m) out through front arch (surfB2, 61m) to surfB1 (38m)
+      var tB = (s - 0.91) / 0.09;
       pt.lerpVectors(surfB3, surfB1, tB);
       pt.y = portalSurfaceYB;
     }
@@ -604,6 +610,19 @@ function addSubwayLine(fromId, toId, unusedA, unusedB, cavernOffsetZ, allowedSur
   };
   subwayEdges.push(subEdge);
   edges.push(subEdge);
+
+  // Register surface Metro approaches, Station Portals, and upper ramp corridors in `allTrackSamples`
+  // so `isNearTrack` prevents any house, tree, or flower from spawning inside the Metro Station or ramp tunnel!
+  var perpSub = new THREE.Vector3(-dirA.z, 0, dirA.x).normalize();
+  for (var mSample = 0; mSample <= 48; mSample++) {
+    var uMS = 0.16 + (mSample / 48) * 0.68;
+    if (uMS <= 0.36 || uMS >= 0.64) {
+      var ptMS = curve.getPointAt(uMS);
+      allTrackSamples.push(ptMS.clone());
+      allTrackSamples.push(ptMS.clone().add(perpSub.clone().multiplyScalar(8.5)));
+      allTrackSamples.push(ptMS.clone().add(perpSub.clone().multiplyScalar(-8.5)));
+    }
+  }
 }
 
 // Metro Line 1 <-> 3 (J_NW <-> J_SE)
@@ -825,17 +844,17 @@ function buildCzechLevelCrossing(crossPos, roadAng, trackTan) {
   // Inner City Loop: drives under the Hero Viaduct Arch in the north, and crosses
   // J_WEST->J_CENTER, J_CENTER->J_SOUTH, and J_CENTER->J_EAST at the exact same ground level in the city!
   var innerLoopPts = [
-    new THREE.Vector3( -30, 0, -130),
+    new THREE.Vector3( -30, 0, -118),
     new THREE.Vector3( -30, 0, -195), // Drives NORTH dead-center under the Hero Viaduct Arch!
     new THREE.Vector3( -95, 0, -225),
     new THREE.Vector3(-145, 0, -175),
-    new THREE.Vector3(-140, 0, -135),
+    new THREE.Vector3(-132, 0, -122),
     new THREE.Vector3( -85, 0,  -45),
     new THREE.Vector3( -72, 0,   42), // Same-Level Crossing #4 across J_WEST->J_CENTER!
     new THREE.Vector3(   0, 0,   92), // Same-Level Crossing #5 across J_CENTER->J_SOUTH!
     new THREE.Vector3(  72, 0,   42), // Same-Level Crossing #6 across J_CENTER->J_EAST!
     new THREE.Vector3(  85, 0,  -45),
-    new THREE.Vector3(  75, 0, -132)
+    new THREE.Vector3(  68, 0, -118)
   ];
 
   [mainLoopPts, innerLoopPts].forEach(function(rawPts) {
@@ -1275,7 +1294,7 @@ function renderSingleTrackCurve(curve, isMainTrack, e, uStart, uEnd) {
     var horizLen = Math.hypot(tan.x, tan.z) || 0.001;
     var pitch = -Math.atan2(tan.y, horizLen);
 
-    var isSurfaceMetroApproach = e.isSubway && (u <= (e.uPortalEntry || 0.195) + 0.012 || u >= (e.uPortalExit || 0.805) - 0.012);
+    var isSurfaceMetroApproach = e.isSubway && (u <= (e.uPortalEntry || 0.195) + 0.038 || u >= (e.uPortalExit || 0.805) - 0.038);
     var trackParent = (e.isSubway && !isSurfaceMetroApproach && window.undergroundWorldGroup) ? window.undergroundWorldGroup : scene;
 
     var sl = new THREE.Mesh(slGeo, slMat);
@@ -1482,6 +1501,7 @@ window.waterfallTextures = [];
 window.goldMinecarts = [];
 window.undergroundParallaxLayers = [];
 window.cavernFireflies = [];
+window.metroPortalBlockerMeshes = [];
 window.undergroundWorldGroup = new THREE.Group();
 window.undergroundWorldGroup.visible = false;
 scene.add(window.undergroundWorldGroup);
@@ -1513,14 +1533,14 @@ function buildGrandMetroStationPortal(entryPt, intoTunnelDir, stationLabel, them
   stShape.lineTo(-9.6, -1.5);
   stShape.closePath();
 
-  var shellGeo = new THREE.ExtrudeGeometry(stShape, { depth: 20.0, bevelEnabled: true, bevelSize: 0.22, bevelThickness: 0.22, curveSegments: 22 });
+  var shellGeo = new THREE.ExtrudeGeometry(stShape, { depth: 26.0, bevelEnabled: true, bevelSize: 0.22, bevelThickness: 0.22, curveSegments: 22 });
   shellGeo.translate(0, 0, -4.0);
   var shellMesh = new THREE.Mesh(shellGeo, stationRoofMat);
   shellMesh.castShadow = true;
   shellMesh.receiveShadow = true;
   g.add(shellMesh);
 
-  // 2. Hollow Outer Grassy Hill Arch wrapping around the back of the Metro Station (100% open inside!)
+  // 2. Hollow Outer Grassy Hill Arch wrapping around the back of the Metro Station (extended to z = +30m to enclose the upper stone tunnel bore!)
   var hillArchShape = new THREE.Shape();
   hillArchShape.moveTo(-9.5, -1.5);
   hillArchShape.lineTo(-9.5, 5.2);
@@ -1540,7 +1560,7 @@ function buildGrandMetroStationPortal(entryPt, intoTunnelDir, stationLabel, them
   });
   window.tunnelRoofMeshes.push(hillArchMat);
 
-  var hillArchGeo = new THREE.ExtrudeGeometry(hillArchShape, { depth: 18.0, bevelEnabled: false, curveSegments: 20 });
+  var hillArchGeo = new THREE.ExtrudeGeometry(hillArchShape, { depth: 28.0, bevelEnabled: false, curveSegments: 20 });
   hillArchGeo.translate(0, 0, 2.0);
   var hillMound = new THREE.Mesh(hillArchGeo, hillArchMat);
   g.add(hillMound);
@@ -1556,21 +1576,28 @@ function buildGrandMetroStationPortal(entryPt, intoTunnelDir, stationLabel, them
   var hArch = new THREE.Mesh(headerGeo, headerMat);
   g.add(hArch);
 
-  // 4. Warm Golden Glowing Interior Vault Ceiling & Side Platforms inside the Metro Station
-  var innerGlowGeo = new THREE.CylinderGeometry(6.8, 6.8, 20.0, 18, 1, true, -Math.PI * 0.5, Math.PI);
+  // 4. Warm Golden Glowing Interior Vault Ceiling, Solid Under-Track Floor Slab & Side Platforms
+  var innerGlowGeo = new THREE.CylinderGeometry(6.8, 6.8, 16.0, 18, 1, true, -Math.PI * 0.5, Math.PI);
   var innerGlow = new THREE.Mesh(
     innerGlowGeo,
     new THREE.MeshBasicMaterial({ color: 0xfde68a, side: THREE.DoubleSide })
   );
   innerGlow.rotation.z = Math.PI / 2;
   innerGlow.rotation.y = Math.PI / 2;
-  innerGlow.position.set(0, 4.7, 6.0);
+  innerGlow.position.set(0, 4.7, 4.0);
   g.add(innerGlow);
+
+  var stationFloorSlab = new THREE.Mesh(
+    new THREE.BoxGeometry(15.2, 0.9, 28.0),
+    new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.9 })
+  );
+  stationFloorSlab.position.set(0, -0.42, 9.5);
+  g.add(stationFloorSlab);
 
   var platMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.7 });
   [-5.1, 5.1].forEach(function(px) {
-    var plat = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.85, 16.5), platMat);
-    plat.position.set(px, 0.42, 5.0);
+    var plat = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.85, 16.0), platMat);
+    plat.position.set(px, 0.42, 4.0);
     g.add(plat);
   });
 
@@ -2278,8 +2305,8 @@ function buildUndergroundStoneArchCauseway(cz) {
   window.undergroundWorldGroup.add(g);
 }
 
-// Builds a Open Hollow Stone Brick Underground Tunnel Portal with Hanging Golden Lanterns
-// (No protruding cylinder or back disk blocking the track!)
+// Builds an Open Hollow Stone Brick Underground Tunnel Portal with Hanging Golden Lanterns
+// (Compact 7.6m outer width so parallel portals at z = -8 and z = +8 never overlap!)
 function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
   var g = new THREE.Group();
   g.position.set(x, y, z);
@@ -2290,27 +2317,27 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
   var trimCol = [0x94a3b8, 0xcbd5e1, 0x78716c, 0xf59e0b];
 
   var archShape = new THREE.Shape();
-  archShape.moveTo(-7.6, -1.0);
-  archShape.lineTo(-7.6, 4.4);
-  archShape.absarc(0, 4.4, 7.6, Math.PI, 0, true);
+  archShape.moveTo(-5.8, -1.0);
+  archShape.lineTo(-5.8, 4.4);
+  archShape.absarc(0, 4.4, 5.8, Math.PI, 0, true);
+  archShape.lineTo(5.8, -1.0);
   archShape.lineTo(7.6, -1.0);
-  archShape.lineTo(10.8, -1.0);
-  archShape.lineTo(10.8, 5.0);
-  archShape.absarc(0, 5.0, 10.8, 0, Math.PI, false);
-  archShape.lineTo(-10.8, -1.0);
+  archShape.lineTo(7.6, 4.8);
+  archShape.absarc(0, 4.8, 7.6, 0, Math.PI, false);
+  archShape.lineTo(-7.6, -1.0);
   archShape.closePath();
 
-  var archGeo = new THREE.ExtrudeGeometry(archShape, { depth: 3.4, bevelEnabled: true, bevelSize: 0.22, bevelThickness: 0.22, curveSegments: 22 });
-  archGeo.translate(0, 0, -1.7);
+  var archGeo = new THREE.ExtrudeGeometry(archShape, { depth: 3.2, bevelEnabled: true, bevelSize: 0.18, bevelThickness: 0.18, curveSegments: 22 });
+  archGeo.translate(0, 0, -1.6);
   var archMesh = new THREE.Mesh(archGeo, stoneMat);
   g.add(archMesh);
 
   for (var i = 0; i <= 12; i++) {
     var ang = (i / 12) * Math.PI;
-    var vx = Math.cos(ang) * 8.4;
-    var vy = 4.4 + Math.sin(ang) * 8.4;
+    var vx = Math.cos(ang) * 6.4;
+    var vy = 4.4 + Math.sin(ang) * 6.4;
     var voussoir = new THREE.Mesh(
-      new THREE.BoxGeometry(1.5, 1.2, 3.9),
+      new THREE.BoxGeometry(1.2, 1.0, 3.6),
       new THREE.MeshStandardMaterial({ color: trimCol[i % trimCol.length], roughness: 0.75 })
     );
     voussoir.position.set(vx, vy, 0);
@@ -2319,10 +2346,10 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
   }
 
   // Hanging Golden Lanterns flanking the stone tunnel portal
-  [-6.2, 0, 6.2].forEach(function(lx, li) {
-    var ly = li === 1 ? 12.6 : 8.8;
-    var outerLamp = new THREE.Mesh(new THREE.SphereGeometry(0.75, 12, 12), bulbMat);
-    outerLamp.position.set(lx, ly, 1.8);
+  [-5.2, 0, 5.2].forEach(function(lx, li) {
+    var ly = li === 1 ? 11.2 : 8.2;
+    var outerLamp = new THREE.Mesh(new THREE.SphereGeometry(0.65, 12, 12), bulbMat);
+    outerLamp.position.set(lx, ly, 1.6);
     g.add(outerLamp);
   });
 
@@ -2342,35 +2369,64 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
     buildGrandMetroStationPortal(mc.pos, mc.dir, mc.label, mc.hexStr, mc.col);
   });
 
-  // 2. Build Hollow Stone-Arch Tunnel Tubes with Warm Lanterns along the descending/ascending Metro Ramps
-  //    (Registered in `window.tunnelRoofMeshes` so the roof softly becomes semi-transparent when Toby is inside!)
-  var rampTunnelShape = new THREE.Shape();
-  rampTunnelShape.moveTo(-7.4, -1.2);
-  rampTunnelShape.lineTo(-7.4, 4.4);
-  rampTunnelShape.absarc(0, 4.4, 7.4, Math.PI, 0, true);
-  rampTunnelShape.lineTo(7.4, -1.2);
-  rampTunnelShape.lineTo(8.8, -1.2);
-  rampTunnelShape.lineTo(8.8, 4.6);
-  rampTunnelShape.absarc(0, 4.6, 8.8, 0, Math.PI, false);
-  rampTunnelShape.lineTo(-8.8, -1.2);
-  rampTunnelShape.closePath();
+  // 2. Build Open-Ended Horseshoe Arch Tunnel Tubes with Solid Under-Track Floor & Warm Lanterns
+  //    (Uses an open-bottom horseshoe contour like `buildHollowDriveThroughTunnel` + flat floor slab
+  //     under the rails, isolated per Metro Line so no wall ever crosses the track!)
+  var rampArchShape = new THREE.Shape();
+  rampArchShape.moveTo(-6.2, -0.4);
+  rampArchShape.lineTo(-6.2, 4.4);
+  rampArchShape.absarc(0, 4.4, 6.2, Math.PI, 0, true);
+  rampArchShape.lineTo(6.2, -0.4);
+  rampArchShape.lineTo(7.2, -0.4);
+  rampArchShape.lineTo(7.2, 4.6);
+  rampArchShape.absarc(0, 4.6, 7.2, 0, Math.PI, false);
+  rampArchShape.lineTo(-7.2, -0.4);
+  rampArchShape.closePath();
 
-  var rampRingGeo = new THREE.ExtrudeGeometry(rampTunnelShape, { depth: 8.6, bevelEnabled: false, curveSegments: 16 });
-  rampRingGeo.translate(0, 0, -4.3);
+  var rampRingGeo = new THREE.ExtrudeGeometry(rampArchShape, { depth: 5.4, bevelEnabled: false, curveSegments: 18 });
+  rampRingGeo.translate(0, 0, -2.7);
+  var rampFloorGeo = new THREE.BoxGeometry(14.8, 0.85, 5.8);
   var rampStoneMat = new THREE.MeshStandardMaterial({
-    color: 0x475569,
+    map: sharedCavernStoneTex,
+    color: 0x94a3b8,
     emissive: 0x1e1b4b,
-    emissiveIntensity: 0.35,
-    roughness: 0.85,
-    transparent: true,
-    opacity: 1.0,
+    emissiveIntensity: 0.28,
+    roughness: 0.82,
     side: THREE.DoubleSide
   });
-  window.tunnelRoofMeshes.push(rampStoneMat);
+  var rampFloorMat = new THREE.MeshStandardMaterial({
+    color: 0x334155,
+    roughness: 0.90
+  });
   var rampLampMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
 
-  function buildSubwayRampTunnelTube(se, uStart, uEnd) {
-    var ringSteps = 22;
+  var blockerArchShape = new THREE.Shape();
+  blockerArchShape.moveTo(-6.6, -0.6);
+  blockerArchShape.lineTo(-6.6, 4.5);
+  blockerArchShape.absarc(0, 4.5, 6.6, Math.PI, 0, true);
+  blockerArchShape.lineTo(6.6, -0.6);
+  blockerArchShape.closePath();
+  var blockerArchGeo = new THREE.ShapeGeometry(blockerArchShape, 18);
+  var blockerArchMat = new THREE.MeshBasicMaterial({ color: 0x0f172a, side: THREE.DoubleSide });
+
+  function addPortalDepthBlockerAtU(se, uBlocker) {
+    var ptB = se.curve.getPointAt(uBlocker);
+    var tanB = se.curve.getTangentAt(uBlocker).normalize();
+    var angYB = Math.atan2(tanB.x, tanB.z);
+    var horizLenB = Math.hypot(tanB.x, tanB.z) || 0.001;
+    var pitchXB = -Math.atan2(tanB.y, horizLenB);
+
+    var bMesh = new THREE.Mesh(blockerArchGeo, blockerArchMat);
+    bMesh.position.copy(ptB);
+    bMesh.rotation.order = 'YXZ';
+    bMesh.rotation.y = angYB;
+    bMesh.rotation.x = pitchXB;
+    scene.add(bMesh);
+    window.metroPortalBlockerMeshes.push(bMesh);
+  }
+
+  function buildSubwayRampTunnelTube(se, uStart, uEnd, targetGroup) {
+    var ringSteps = 44;
     for (var ri = 0; ri < ringSteps; ri++) {
       var uMid = uStart + ((ri + 0.5) / ringSteps) * (uEnd - uStart);
       var pt = se.curve.getPointAt(uMid);
@@ -2386,25 +2442,42 @@ function buildUndergroundCavernTunnelPortal(x, y, z, rotY) {
       rGroup.rotation.x = pitchX;
 
       var wallMesh = new THREE.Mesh(rampRingGeo, rampStoneMat);
-      rGroup.add(wallMesh);
+      var floorMesh = new THREE.Mesh(rampFloorGeo, rampFloorMat);
+      floorMesh.position.set(0, -0.68, 0);
+      rGroup.add(wallMesh, floorMesh);
 
       if (ri % 3 === 1) {
-        [-6.2, 6.2].forEach(function(lx) {
-          var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 8), rampLampMat);
-          bulb.position.set(lx, 4.8, 0);
+        [-5.4, 5.4].forEach(function(lx) {
+          var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.38, 8, 8), rampLampMat);
+          bulb.position.set(lx, 4.6, 0);
           rGroup.add(bulb);
         });
       }
-      window.undergroundWorldGroup.add(rGroup);
+
+      // Upper rings sitting inside the surface Metro Station hill mound (`z = +11m .. +26m`)
+      // stay permanently in `scene` so the stone tunnel bore is ALWAYS visible from the station entrance!
+      var isUpperStationSleeve = (uMid <= se.uPortalEntry + 0.036) || (uMid >= se.uPortalExit - 0.036);
+      if (isUpperStationSleeve) {
+        scene.add(rGroup);
+      } else {
+        targetGroup.add(rGroup);
+      }
     }
   }
 
-  // Render full continuous Metro Track Curves [0.16 .. 0.84] & Hollow Ramp Tunnel Tubes!
+  // Render full continuous Metro Track Curves [0.16 .. 0.84] & Enclosed Ramp Tunnel Tubes per Metro Line!
   subwayEdges.forEach(function(se, idx) {
     if (idx % 2 === 0) {
+      var lineRampGroup = new THREE.Group();
+      window.undergroundWorldGroup.add(lineRampGroup);
+      se.rampTunnelGroup = lineRampGroup;
+      if (subwayEdges[idx + 1]) subwayEdges[idx + 1].rampTunnelGroup = lineRampGroup;
+
       renderSingleTrackCurve(se.curve, true, se, 0.16, 0.84);
-      buildSubwayRampTunnelTube(se, se.uPortalEntry + 0.022, se.uCavernStart - 0.008);
-      buildSubwayRampTunnelTube(se, se.uCavernEnd + 0.008, se.uPortalExit - 0.022);
+      buildSubwayRampTunnelTube(se, se.uPortalEntry + 0.015, se.uCavernStart - 0.004, lineRampGroup);
+      buildSubwayRampTunnelTube(se, se.uCavernEnd + 0.004, se.uPortalExit - 0.015, lineRampGroup);
+      addPortalDepthBlockerAtU(se, se.uPortalEntry + 0.036);
+      addPortalDepthBlockerAtU(se, se.uPortalExit - 0.036);
     }
   });
 
@@ -2907,3 +2980,409 @@ for (var hi = 0; hi < 18; hi++) {
   scene.add(hd);
   highlightDots.push(hd);
 }
+
+// ============================================================================
+// PICTORIAL RAILWAY JUNCTION DIRECTION SIGNS (NO TEXT — BIG ARROW + BIG ILLUSTRATION ONLY!)
+// Placed at `u = 0.81` (14m outside any tunnel portal or bridge wall) so children
+// immediately see each direction arrow (⬅, ⬆, ➡) paired with a large, vivid
+// illustration of the destination object!
+// ============================================================================
+window.junctionSignsGroup = new THREE.Group();
+scene.add(window.junctionSignsGroup);
+
+(function buildJunctionDirectionSigns() {
+  function getBranchDestinationInfo(bEdge) {
+    if (!bEdge) return { icon: 'city', badgeCol: '#0284c7' };
+    if (bEdge.isSubway) {
+      return { icon: 'metro', badgeCol: '#2563eb' };
+    }
+    var stType = bEdge.station ? bEdge.station.type : '';
+    var stName = bEdge.station ? (bEdge.station.name || '') : '';
+    if (stType === 'bridge_suspension' || stType === 'hero_viaduct' || stType === 'viaduct') {
+      return { icon: 'bridge', badgeCol: '#dc2626' };
+    }
+    if (stType === 'tunnel') {
+      return { icon: 'tunnel', badgeCol: '#475569' };
+    }
+    if (stType === 'depot') {
+      return { icon: 'depot', badgeCol: '#d97706' };
+    }
+    if (bEdge.to === 'EXIT_ALPS') {
+      return { icon: 'alps', badgeCol: '#0284c7' };
+    }
+    if (bEdge.to === 'EXIT_EGYPT') {
+      return { icon: 'egypt', badgeCol: '#ca8a04' };
+    }
+    if (bEdge.to === 'J_CENTER' || stName.indexOf('Fountain') !== -1) {
+      return { icon: 'city', badgeCol: '#0284c7' };
+    }
+    if (bEdge.to === 'J_WEST' || bEdge.to === 'J_EAST') {
+      return { icon: 'bridge', badgeCol: '#dc2626' };
+    }
+    if (bEdge.to === 'J_NORTH' || stName.indexOf('School') !== -1) {
+      return { icon: 'school', badgeCol: '#16a34a' };
+    }
+    if (bEdge.to === 'J_SW' || stName.indexOf('Stadium') !== -1) {
+      return { icon: 'stadium', badgeCol: '#15803d' };
+    }
+    if (bEdge.to === 'J_NE') {
+      return { icon: 'city', badgeCol: '#db2777' };
+    }
+    if (bEdge.to === 'J_SE') {
+      return { icon: 'city', badgeCol: '#7c3aed' };
+    }
+    return { icon: 'city', badgeCol: '#0284c7' };
+  }
+
+  function drawBigDirectionArrow(ctx, dirType, cx, cy, size) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (dirType === 'left') ctx.rotate(-Math.PI * 0.5);
+    else if (dirType === 'right') ctx.rotate(Math.PI * 0.5);
+
+    var s = size * 0.52;
+    ctx.fillStyle = '#fde047';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 10;
+    ctx.lineJoin = 'round';
+
+    // Bold upward arrow polygon (rotated for left/right)
+    ctx.beginPath();
+    ctx.moveTo(0, -s);
+    ctx.lineTo(s * 0.92, -s * 0.05);
+    ctx.lineTo(s * 0.42, -s * 0.05);
+    ctx.lineTo(s * 0.42, s * 0.92);
+    ctx.lineTo(-s * 0.42, s * 0.92);
+    ctx.lineTo(-s * 0.42, -s * 0.05);
+    ctx.lineTo(-s * 0.92, -s * 0.05);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Inner bright highlight
+    ctx.strokeStyle = '#fef9c3';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPictogramIcon(ctx, iconType, cx, cy, r) {
+    ctx.save();
+    // Large white circular picture plate with golden rim
+    ctx.fillStyle = '#e0f2fe';
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Clip illustration cleanly inside the circular badge
+    ctx.beginPath();
+    ctx.arc(cx, cy, r - 4, 0, Math.PI * 2);
+    ctx.clip();
+
+    if (iconType === 'metro') {
+      // Dark stone tunnel arch + bright blue/yellow metro train front with cartoon eyes & headlights
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(cx, cy + r * 0.05, r * 0.76, Math.PI, 0, false);
+      ctx.lineTo(cx + r * 0.76, cy + r);
+      ctx.lineTo(cx - r * 0.76, cy + r);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 6;
+      ctx.stroke();
+
+      // Metro train body
+      ctx.fillStyle = '#2563eb';
+      ctx.strokeStyle = '#f8fafc';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(cx - r * 0.50, cy - r * 0.36, r * 1.0, r * 0.96, 16);
+      else ctx.rect(cx - r * 0.50, cy - r * 0.36, r * 1.0, r * 0.96);
+      ctx.fill();
+      ctx.stroke();
+
+      // Windshield
+      ctx.fillStyle = '#67e8f9';
+      ctx.fillRect(cx - r * 0.38, cy - r * 0.24, r * 0.76, r * 0.36);
+
+      // Glowing yellow headlights
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(cx - r * 0.28, cy + r * 0.36, r * 0.13, 0, Math.PI * 2);
+      ctx.arc(cx + r * 0.28, cy + r * 0.36, r * 0.13, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (iconType === 'bridge') {
+      // Multi-arch red brick viaduct bridge over sparkling blue water
+      ctx.fillStyle = '#bae6fd';
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      // Blue river water at bottom
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(cx - r, cy + r * 0.32, r * 2, r * 0.70);
+      // Red brick viaduct deck & piers
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(cx - r * 0.92, cy - r * 0.34, r * 1.84, r * 0.72);
+      ctx.fillStyle = '#fef3c7';
+      ctx.fillRect(cx - r * 0.92, cy - r * 0.42, r * 1.84, r * 0.10);
+      // Open bridge arches showing sky/water
+      ctx.fillStyle = '#bae6fd';
+      ctx.beginPath();
+      ctx.arc(cx - r * 0.42, cy + r * 0.34, r * 0.28, Math.PI, 0, false);
+      ctx.arc(cx + r * 0.42, cy + r * 0.34, r * 0.28, Math.PI, 0, false);
+      ctx.fill();
+    } else if (iconType === 'tunnel') {
+      // Green mountain peak + dark stone tunnel arch + wooden sleepers
+      ctx.fillStyle = '#bae6fd';
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath();
+      ctx.moveTo(cx - r * 0.98, cy + r * 0.85);
+      ctx.lineTo(cx, cy - r * 0.82);
+      ctx.lineTo(cx + r * 0.98, cy + r * 0.85);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#14532d';
+      ctx.lineWidth = 5;
+      ctx.stroke();
+
+      // Stone arch ring & dark tunnel bore
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.arc(cx, cy + r * 0.25, r * 0.42, Math.PI, 0, false);
+      ctx.lineTo(cx + r * 0.42, cy + r * 0.85);
+      ctx.lineTo(cx - r * 0.42, cy + r * 0.85);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (iconType === 'school') {
+      // Sunny Schoolhouse with bell tower & colorful Ferris wheel
+      ctx.fillStyle = '#bae6fd';
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(cx - r, cy + r * 0.45, r * 2, r * 0.6);
+
+      ctx.fillStyle = '#fb923c';
+      ctx.fillRect(cx - r * 0.68, cy - r * 0.12, r * 0.85, r * 0.65);
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath();
+      ctx.moveTo(cx - r * 0.76, cy - r * 0.12);
+      ctx.lineTo(cx - r * 0.25, cy - r * 0.64);
+      ctx.lineTo(cx + r * 0.25, cy - r * 0.12);
+      ctx.closePath();
+      ctx.fill();
+
+      // Ferris wheel on right
+      ctx.strokeStyle = '#ec4899';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(cx + r * 0.42, cy - r * 0.05, r * 0.34, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (iconType === 'stadium') {
+      // Green soccer pitch + large classic soccer ball
+      ctx.fillStyle = '#16a34a';
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(cx - r * 0.68, cy - r * 0.48, r * 1.36, r * 0.96);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.48, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.18, 0, Math.PI * 2);
+      ctx.arc(cx - r * 0.30, cy - r * 0.20, r * 0.11, 0, Math.PI * 2);
+      ctx.arc(cx + r * 0.30, cy - r * 0.20, r * 0.11, 0, Math.PI * 2);
+      ctx.arc(cx - r * 0.24, cy + r * 0.28, r * 0.11, 0, Math.PI * 2);
+      ctx.arc(cx + r * 0.24, cy + r * 0.28, r * 0.11, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (iconType === 'alps') {
+      // Snow-capped Alpine mountain peaks
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      ctx.fillStyle = '#64748b';
+      ctx.beginPath();
+      ctx.moveTo(cx - r * 0.95, cy + r * 0.75);
+      ctx.lineTo(cx - r * 0.18, cy - r * 0.72);
+      ctx.lineTo(cx + r * 0.55, cy + r * 0.75);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(cx - r * 0.45, cy - r * 0.15);
+      ctx.lineTo(cx - r * 0.18, cy - r * 0.72);
+      ctx.lineTo(cx + r * 0.10, cy - r * 0.15);
+      ctx.closePath();
+      ctx.fill();
+    } else if (iconType === 'egypt') {
+      // Golden Egyptian pyramids under sunny sky
+      ctx.fillStyle = '#7dd3fc';
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(cx - r, cy + r * 0.35, r * 2, r * 0.7);
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.moveTo(cx - r * 0.80, cy + r * 0.48);
+      ctx.lineTo(cx - r * 0.10, cy - r * 0.58);
+      ctx.lineTo(cx + r * 0.65, cy + r * 0.48);
+      ctx.closePath();
+      ctx.fill();
+    } else if (iconType === 'city') {
+      // Colorful storybook houses & blue fountain
+      ctx.fillStyle = '#bae6fd';
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(cx - r, cy + r * 0.45, r * 2, r * 0.6);
+
+      // Left yellow house with red roof
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(cx - r * 0.72, cy - r * 0.15, r * 0.64, r * 0.68);
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.moveTo(cx - r * 0.78, cy - r * 0.15);
+      ctx.lineTo(cx - r * 0.40, cy - r * 0.68);
+      ctx.lineTo(cx - r * 0.02, cy - r * 0.15);
+      ctx.closePath();
+      ctx.fill();
+
+      // Right blue building with yellow windows
+      ctx.fillStyle = '#3b82f6';
+      ctx.fillRect(cx + r * 0.04, cy - r * 0.38, r * 0.64, r * 0.92);
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(cx + r * 0.16, cy - r * 0.22, r * 0.16, r * 0.16);
+      ctx.fillRect(cx + r * 0.40, cy - r * 0.22, r * 0.16, r * 0.16);
+      ctx.fillRect(cx + r * 0.16, cy + r * 0.06, r * 0.16, r * 0.16);
+      ctx.fillRect(cx + r * 0.40, cy + r * 0.06, r * 0.16, r * 0.16);
+    } else {
+      // Red/Yellow Storybook Locomotive & Depot Shed
+      ctx.fillStyle = '#bae6fd';
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(cx - r * 0.62, cy - r * 0.20, r * 1.24, r * 0.62);
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(cx - r * 0.62, cy - r * 0.52, r * 0.52, r * 0.35);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(cx + r * 0.20, cy - r * 0.58, r * 0.24, r * 0.40);
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.arc(cx - r * 0.34, cy + r * 0.46, r * 0.18, 0, Math.PI * 2);
+      ctx.arc(cx + r * 0.34, cy + r * 0.46, r * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function createJunctionSignCanvas(rows) {
+    var rowH = 168;
+    var padY = 20;
+    var c = document.createElement('canvas');
+    c.width = 520;
+    c.height = padY * 2 + rows.length * rowH;
+    var ctx = c.getContext('2d');
+
+    // Outer wooden/steel storybook frame (NO TEXT — ONLY BIG ARROWS & BIG PICTURES!)
+    ctx.fillStyle = '#0f172a';
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 12;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(8, 8, c.width - 16, c.height - 16, 34);
+    else ctx.rect(8, 8, c.width - 16, c.height - 16);
+    ctx.fill();
+    ctx.stroke();
+
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var ry = padY + i * rowH;
+      var cardH = rowH - 12;
+      var cy = ry + cardH * 0.5;
+
+      // Colored direction card row
+      ctx.fillStyle = r.info.badgeCol;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(24, ry + 6, c.width - 48, cardH, 26);
+      else ctx.rect(24, ry + 6, c.width - 48, cardH);
+      ctx.fill();
+      ctx.stroke();
+
+      // 1. Giant directional arrow on the left
+      drawBigDirectionArrow(ctx, r.dirType, 130, cy + 6, 98);
+
+      // 2. Giant destination illustration on the right
+      drawPictogramIcon(ctx, r.info.icon, 355, cy + 6, 68);
+    }
+
+    return c;
+  }
+
+  var postMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.5, roughness: 0.4 });
+  var trimMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
+
+  edges.forEach(function(e) {
+    if (e.isSubway || e.isTurnout) return;
+    if (e.to.indexOf('EXIT_') === 0) return;
+
+    var br = window.getBranches(e);
+    if (!br) return;
+
+    var rows = [];
+    var usedIds = {};
+    if (br.left) {
+      usedIds[br.left.id] = true;
+      rows.push({ dirType: 'left', info: getBranchDestinationInfo(br.left) });
+    }
+    if (br.straight && !usedIds[br.straight.id]) {
+      usedIds[br.straight.id] = true;
+      rows.push({ dirType: 'straight', info: getBranchDestinationInfo(br.straight) });
+    }
+    if (br.right && !usedIds[br.right.id]) {
+      usedIds[br.right.id] = true;
+      rows.push({ dirType: 'right', info: getBranchDestinationInfo(br.right) });
+    }
+    if (rows.length === 0) return;
+
+    // Place signpost at u = 0.81 (14m outside any tunnel portal at u = 0.75 or bridge parapet at u = 0.80)
+    var uSign = 0.81;
+    var pt = e.curve.getPointAt(uSign);
+    var tan = e.curve.getTangentAt(uSign).normalize();
+    var rightVec = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+
+    // Place the railway signpost safely to the right of the double track (`+7.8m` lateral offset)
+    var signPos = pt.clone().add(rightVec.clone().multiplyScalar(7.8));
+
+    var signG = new THREE.Group();
+    signG.position.copy(signPos);
+
+    var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.32, 9.6, 10), postMat);
+    pole.position.y = 1.4;
+    var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.35, 10), trimMat);
+    cap.position.y = 6.2;
+    signG.add(pole, cap);
+
+    var signCanvas = createJunctionSignCanvas(rows);
+    var signTex = window.upgradeCanvasTex(signCanvas);
+    var signSprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: signTex, transparent: true, depthTest: true })
+    );
+    var signH = 2.4 * rows.length;
+    signSprite.scale.set(7.4, signH, 1);
+    signSprite.position.set(0, 6.4 + signH * 0.45, 0);
+    signG.add(signSprite);
+
+    window.junctionSignsGroup.add(signG);
+  });
+})();
+

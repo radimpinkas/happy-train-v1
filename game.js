@@ -3,16 +3,17 @@
 // Wagon Coupling, Train Right-of-Way Yielding, Czech Level Crossings & Fairy-Tale Underground Diorama)
 // ============================================================================
 
-// Yellow & Red Cartoon Locomotive Toby (Scaled to 0.64 for clear map overview)
-var playerLoco = createDetailedLocomotive(0xfacc15, 0xef4444, false);
+// Turquoise, Cream & Gold Hero Steam Locomotive ("DANÍČEK", Scaled to 0.64 for clear map overview)
+var playerLoco = createDetailedLocomotive(0x0d9488, 0x0f766e, false);
 scene.add(playerLoco);
 var trainHeadLight = new THREE.PointLight(0xfef08a, 0.0, 105, 1.35);
 scene.add(trainHeadLight);
 
-var coachCols = [0xef4444, 0xef4444, 0xef4444, 0x3b82f6, 0x10b981, 0xf59e0b, 0xec4899, 0x8b5cf6];
+var coachCols = [0x0d9488, 0x0d9488, 0x0d9488, 0x0d9488, 0x0d9488, 0x0d9488, 0x0d9488, 0x0d9488];
 var playerCoaches = [];
 function addCoach() {
-  var c = createDetailedCoach(coachCols[playerCoaches.length % coachCols.length]);
+  var cIdx = playerCoaches.length;
+  var c = createDetailedCoach(coachCols[cIdx % coachCols.length], cIdx);
   scene.add(c);
   playerCoaches.push(c);
   document.getElementById('wagon-val').textContent = playerCoaches.length;
@@ -181,21 +182,60 @@ function updateClockAndLighting(dt) {
     pState.inTunnel = false;
   }
 
+  // Unified threshold: switch from Surface World to Underground World inside the covered
+  // Metro Station stone tunnel sleeve (`uSubEntry + 0.012 .. uSubExit - 0.010`), and toggle
+  // the dark tunnel depth blockers (`metroPortalBlockerMeshes`) so the tunnel is 100% continuous!
+  var isDeepInsideMetro = Boolean(pState.edge && pState.edge.isSubway && pState.t >= uSubEntry + 0.012 && pState.t <= uSubExit - 0.010);
   if (window.undergroundWorldGroup) {
-    window.undergroundWorldGroup.visible = isUndergroundMetro;
+    window.undergroundWorldGroup.visible = isDeepInsideMetro;
   }
-  var hideSurfaceGround = Boolean(pState.edge.isSubway && pState.t >= uSubEntry + 0.015 && pState.t <= uSubExit - 0.015);
+  if (window.metroPortalBlockerMeshes) {
+    for (var mbIdx = 0; mbIdx < window.metroPortalBlockerMeshes.length; mbIdx++) {
+      if (window.metroPortalBlockerMeshes[mbIdx]) {
+        window.metroPortalBlockerMeshes[mbIdx].visible = !isDeepInsideMetro;
+      }
+    }
+  }
+  var hideSurfaceGround = Boolean(pState.edge && pState.edge.isSubway && pState.t >= uSubEntry + 0.012 && pState.t <= uSubExit - 0.032);
   if (window.grassMesh) window.grassMesh.visible = !hideSurfaceGround;
   if (window.riverMesh) window.riverMesh.visible = !hideSurfaceGround;
+  if (window.tracksRiverMesh) window.tracksRiverMesh.visible = !hideSurfaceGround;
+  if (window.junctionSignsGroup) window.junctionSignsGroup.visible = !hideSurfaceGround;
+  if (window.boats) {
+    for (var bIdx = 0; bIdx < window.boats.length; bIdx++) {
+      if (window.boats[bIdx] && window.boats[bIdx].mesh) {
+        window.boats[bIdx].mesh.visible = !hideSurfaceGround;
+      }
+    }
+  }
+  if (window.surfaceHousesList) {
+    for (var hIdx = 0; hIdx < window.surfaceHousesList.length; hIdx++) {
+      if (window.surfaceHousesList[hIdx]) {
+        window.surfaceHousesList[hIdx].visible = !hideSurfaceGround;
+      }
+    }
+  }
+  if (window.allSurfaceSigns) {
+    for (var sgIdx = 0; sgIdx < window.allSurfaceSigns.length; sgIdx++) {
+      if (window.allSurfaceSigns[sgIdx]) {
+        window.allSurfaceSigns[sgIdx].visible = !hideSurfaceGround;
+      }
+    }
+  }
+  if (window.subwayEdges) {
+    var activeMetroOffsetZ = (pState.edge && pState.edge.isSubway) ? pState.edge.cavernOffsetZ : null;
+    for (var sIdx = 0; sIdx < window.subwayEdges.length; sIdx++) {
+      var seItem = window.subwayEdges[sIdx];
+      if (seItem.rampTunnelGroup) {
+        seItem.rampTunnelGroup.visible = (activeMetroOffsetZ === null || seItem.cavernOffsetZ === activeMetroOffsetZ);
+      }
+    }
+  }
 
   if (window.tunnelRoofMeshes) {
-    var uCavS = (pState.edge && pState.edge.uCavernStart) ? pState.edge.uCavernStart : 0.36;
-    var uCavE = (pState.edge && pState.edge.uCavernEnd)   ? pState.edge.uCavernEnd   : 0.64;
-    var inSubwayRamp = Boolean(pState.edge.isSubway && isUndergroundMetro && (pState.t < uCavS || pState.t > uCavE));
-    var targetRoofOpacity = (inDarkTunnel && !pState.edge.isSubway) ? 0.16 : (inSubwayRamp ? 0.22 : 1.0);
     window.tunnelRoofMeshes.forEach(function(rm) {
-      rm.opacity += (targetRoofOpacity - rm.opacity) * 0.18;
-      rm.depthWrite = rm.opacity > 0.85;
+      rm.opacity += (1.0 - rm.opacity) * 0.22;
+      rm.depthWrite = true;
     });
   }
 
@@ -430,7 +470,57 @@ window.handleInput = function(key) {
   }
 };
 
+window.openSettingsModal = function() {
+  if (window.applyPersonalizationToUI) window.applyPersonalizationToUI();
+  var modal = document.getElementById('settings-modal');
+  if (modal) modal.classList.add('show');
+};
+
+window.closeSettingsModal = function() {
+  var modal = document.getElementById('settings-modal');
+  if (modal) modal.classList.remove('show');
+};
+
+window.onLivePersonalizationInput = function() {
+  var cInput = document.getElementById('input-child-name');
+  var tInput = document.getElementById('input-train-name');
+  var vInput = document.getElementById('input-voice-addressing');
+  var newChild = cInput ? cInput.value : 'Daníček';
+  var newTrain = tInput ? tInput.value : 'Daníček';
+  var newVoice = vInput ? vInput.checked : true;
+  if (window.savePersonalizationSettings) {
+    window.savePersonalizationSettings(newChild, newTrain, newVoice);
+  }
+};
+
+window.saveSettingsFromModal = function() {
+  window.onLivePersonalizationInput();
+  window.closeSettingsModal();
+  playCollectSound();
+  speakCharacter(
+    'train',
+    '🚂 Little Train ' + (window.getTrainName ? window.getTrainName() : 'Daníček'),
+    '#0d9488',
+    'Yay! All aboard for a new adventure with train ' + (window.getTrainName ? window.getTrainName() : 'Daníček') + '!'
+  );
+};
+
 window.addEventListener('keydown', function(e) {
+  var activeTag = (document.activeElement && document.activeElement.tagName) ? document.activeElement.tagName.toUpperCase() : '';
+  var settingsModal = document.getElementById('settings-modal');
+  if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
+    if (e.key === 'Escape') {
+      window.closeSettingsModal();
+    }
+    return;
+  }
+  if (settingsModal && settingsModal.classList.contains('show')) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      window.closeSettingsModal();
+    }
+    return;
+  }
   if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', ' ', 'm', 'M', 'w', 'W'].indexOf(e.key) !== -1) {
     e.preventDefault();
     window.handleInput(e.key);
@@ -448,7 +538,7 @@ window.reverseFromGate = function() {
     pState.t = 0.18;
   }
   pState.speedStage = 2; pState.switchChoice = 'straight'; updateHUD();
-  speakCharacter('train', '🚂 Little Train Toby', '#ef4444', 'Turning back to our happy city!');
+  speakCharacter('train', '🚂 Little Train Toby', '#0d9488', 'Turning back to our happy city!');
 };
 
 window.unlockGateWorld = function() {
@@ -471,7 +561,19 @@ var smoothCamLook = new THREE.Vector3(-18, 6.5, -162);
 var lastFriendChatTime = 0;
 
 setTimeout(function() {
+  if (window.applyPersonalizationToUI) window.applyPersonalizationToUI();
   spawnSmokeAndBubbles(playerLoco.position, 3, false);
+  var initSpeakerEl = document.getElementById('speaker-tag');
+  var initSpeechEl = document.getElementById('speech-text');
+  if (initSpeakerEl && window.getTrainName) {
+    initSpeakerEl.textContent = '🚂 Little Train ' + window.getTrainName() + ' & Friends';
+  }
+  if (initSpeechEl && window.formatPersonalizedText) {
+    initSpeechEl.textContent = window.formatPersonalizedText(
+      'train',
+      'Welcome to our 2.5D Storybook World! Look at the red-brick viaduct, tunnels, Charlie the Helicopter & smiling cars!'
+    );
+  }
 }, 60);
 
 function animate() {
@@ -569,27 +671,38 @@ function animate() {
   // 2B. Animate Czech Railway Level Crossings (České železniční přejezdy AŽD se závorami a cinkáním!)
   if (window.levelCrossings) {
     var flashLeft = Math.floor(Date.now() / 260) % 2 === 0;
+    var playerIsUnderground = Boolean(pState.inSubway || (pState.edge && pState.edge.isSubway && pState.t >= 0.18 && pState.t <= 0.82) || playerLoco.position.y < -3.5);
+    var playerIsMoving = Math.abs(pState.currentVel) > 0.015;
+
     window.levelCrossings.forEach(function(lc) {
-      var minPlayerDist = lc.pos.distanceTo(playerLoco.position);
-      for (var ci = 0; ci < playerCoaches.length; ci++) {
-        var cd = lc.pos.distanceTo(playerCoaches[ci].position);
-        if (cd < minPlayerDist) minPlayerDist = cd;
-      }
-      var minAiDist = 999999;
-      for (var aiIdx = 0; aiIdx < aiTrains.length; aiIdx++) {
-        var ad1 = lc.pos.distanceTo(aiTrains[aiIdx].loco.position);
-        var ad2 = lc.pos.distanceTo(aiTrains[aiIdx].wagon.position);
-        if (ad1 < minAiDist) minAiDist = ad1;
-        if (ad2 < minAiDist) minAiDist = ad2;
+      var minPlayerDist = 999999;
+      if (!playerIsUnderground && Math.abs(playerLoco.position.y - lc.pos.y) < 6.0) {
+        minPlayerDist = lc.pos.distanceTo(playerLoco.position);
+        for (var ci = 0; ci < playerCoaches.length; ci++) {
+          var cd = lc.pos.distanceTo(playerCoaches[ci].position);
+          if (cd < minPlayerDist) minPlayerDist = cd;
+        }
       }
 
-      if (minPlayerDist < 66 || minAiDist < 16) {
+      var minAiDist = 999999;
+      for (var aiIdx = 0; aiIdx < aiTrains.length; aiIdx++) {
+        if (Math.abs(aiTrains[aiIdx].loco.position.y - lc.pos.y) < 6.0) {
+          var ad1 = lc.pos.distanceTo(aiTrains[aiIdx].loco.position);
+          var ad2 = lc.pos.distanceTo(aiTrains[aiIdx].wagon.position);
+          if (ad1 < minAiDist) minAiDist = ad1;
+          if (ad2 < minAiDist) minAiDist = ad2;
+        }
+      }
+
+      // Close barriers when an approaching train is within 78m (or stopped right on the crossing within 22m)
+      var closeThreshold = playerIsMoving ? 78 : 22;
+      if (minPlayerDist < closeThreshold || minAiDist < 24) {
         lc.isClosed = true;
         lc.currentAngle += (0.0 - lc.currentAngle) * 0.12;
         lc.leftLights.forEach(function(m) { m.color.setHex(flashLeft ? 0xff1111 : 0x3b0707); });
         lc.rightLights.forEach(function(m) { m.color.setHex(flashLeft ? 0x3b0707 : 0xff1111); });
 
-        if (minPlayerDist < 95 && Date.now() - (lc.lastBellTime || 0) > 420) {
+        if (!playerIsUnderground && minPlayerDist < 68 && Date.now() - (lc.lastBellTime || 0) > 420) {
           lc.lastBellTime = Date.now();
           if (window.playCzechCrossingBell) window.playCzechCrossingBell();
         }
@@ -622,7 +735,7 @@ function animate() {
   planeSky.position.set(295 + Math.sin(time * 0.3) * 45, 38 + Math.cos(time * 0.6) * 10, Math.cos(time * 0.3) * 180);
   planeSky.lookAt(295 + Math.sin(time * 0.3 + 0.1) * 45, 38, Math.cos(time * 0.3 + 0.1) * 180);
 
-  // 4. Animate the 6 Storybook Road Vehicles (Stopping at lowered Czech Level Crossing barriers & forming a neat multi-car queue!)
+  // 4. Animate the 18 Storybook Road Vehicles (Stopping at lowered Czech Level Crossing barriers & forming a neat multi-car queue without cross-loop deadlocks!)
   if (window.roadNetworkCurves && window.roadNetworkCurves.length > 0) {
     livingVehicles.forEach(function(lv, idx) {
       var roadCurve = window.roadNetworkCurves[lv.loopIdx % window.roadNetworkCurves.length];
@@ -638,7 +751,10 @@ function animate() {
           if (lc.isClosed || lc.currentAngle < 0.95) {
             var dCur = Math.hypot(curPt.x - lc.pos.x, curPt.z - lc.pos.z);
             var dNxt = Math.hypot(nxtPt.x - lc.pos.x, nxtPt.z - lc.pos.z);
-            if (dCur < 17.5 && dCur > 5.2 && dNxt < dCur) {
+            // Barrier boom sits at 8.6m from lc.pos and car front bumper extends ~2.8m forward:
+            // Stop strictly in the pre-barrier zone [12.2m .. 19.2m] behind the barrier!
+            // Any car already inside dCur < 12.2m continues across so it never stops past the barrier or on the rails.
+            if (dCur >= 12.2 && dCur <= 19.2 && dNxt < dCur) {
               waitingAtBarrier = true;
               break;
             }
@@ -646,7 +762,8 @@ function animate() {
         }
       }
 
-      // Check for any vehicle ahead to maintain safe bumper-to-bumper spacing and form a real queue at barriers!
+      // Check for any vehicle directly ahead on the SAME road loop to maintain safe bumper-to-bumper spacing
+      // and form a queue at barriers (no cross-loop circular deadlocks!)
       var waitingBehindCar = false;
       if (!waitingAtBarrier) {
         for (var oIdx = 0; oIdx < livingVehicles.length; oIdx++) {
@@ -657,14 +774,6 @@ function animate() {
             var arcDistAhead = progDiff * roadLen;
             var minQueueGap = (lv.kind === 'bus' || otherLv.kind === 'bus') ? 13.0 : 10.8;
             if (arcDistAhead > 0.05 && arcDistAhead < minQueueGap) {
-              waitingBehindCar = true;
-              break;
-            }
-          } else {
-            var otherPt = otherLv.mesh.position;
-            var d3Cur = Math.hypot(curPt.x - otherPt.x, curPt.z - otherPt.z);
-            var d3Nxt = Math.hypot(nxtPt.x - otherPt.x, nxtPt.z - otherPt.z);
-            if (d3Cur < 9.5 && d3Nxt < d3Cur && (otherLv.isStopped || oIdx < idx)) {
               waitingBehindCar = true;
               break;
             }
@@ -1037,33 +1146,16 @@ function animate() {
     desiredCam = new THREE.Vector3(pos.x, -19.2, viewSideZ);
     desiredLook = new THREE.Vector3(pos.x, -24.8, lookBackZ);
     camLerpSpeed = 0.18;
-  } else if (pState.edge.isSubway && inDarkTunnelCam) {
-    // Smooth 2.5D Elevated Follow Camera along the descending/ascending Subway Tunnel Ramp:
-    // Looks through the semi-transparent tunnel roof at Toby and his wagons (never inside the yellow wagon!),
-    // smoothly gliding from the surface 2.5D angle into the underground cavern diorama view!
-    var czRamp = pState.edge.cavernOffsetZ || -8.0;
-    var rampSideOffset = czRamp < 0 ? 22.0 : -22.0;
-    desiredCam = new THREE.Vector3(
-      pos.x - tan.x * 18.0,
-      Math.max(-18.5, pos.y + 14.5),
-      pos.z + rampSideOffset
-    );
-    desiredLook = new THREE.Vector3(
-      pos.x + tan.x * 6.0,
-      pos.y + 1.2,
-      pos.z
-    );
-    camLerpSpeed = 0.16;
   } else if (inDarkTunnelCam) {
-    // Surface Mountain Tunnel Camera: elevated 2.5D view looking through the semi-transparent hill roof!
-    desiredCam = pos.clone()
-      .sub(tan.clone().multiplyScalar(36))
-      .add(perpVec.clone().multiplyScalar(24))
-      .add(new THREE.Vector3(0, 24, 0));
+    // Inside-Tunnel Follow Camera (both Surface Mountain Tunnel & Descending/Ascending Metro Tunnel Ramp):
+    // Follows smoothly along the exact 3D track curve 13.5m behind Toby at +6.0m height above the rails
+    // (safely inside the tunnel arch vault and well above the wagons so Toby is clearly visible without any camera freeze!).
+    var tunnelFollowPose = getTrackPoseBehindPlayer(13.5);
+    desiredCam = tunnelFollowPose.pos.clone().add(new THREE.Vector3(0, 6.0, 0));
     desiredLook = pos.clone()
-      .add(tan.clone().multiplyScalar(10))
-      .add(new THREE.Vector3(0, 2.0, 0));
-    camLerpSpeed = 0.14;
+      .add(tan.clone().multiplyScalar(9.0))
+      .add(new THREE.Vector3(0, 1.8, 0));
+    camLerpSpeed = (pState.edge && pState.edge.isSubway) ? 0.24 : 0.18;
   } else if (isHeroViaduct) {
     desiredCam = new THREE.Vector3(pos.x * 0.45 - 8, 38.0, -36);
     desiredLook = new THREE.Vector3(pos.x * 0.45 - 6, 6.5, -162);

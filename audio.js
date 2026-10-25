@@ -1,6 +1,141 @@
 // ============================================================================
-// MODULE 1: AUDIO.JS (Multi-Voice System: Mom Narrator, Child Train, Friends & Suno MP3)
+// MODULE 1: AUDIO.JS (Multi-Voice System: Mom Narrator, Child Train, Friends,
+// Personalization State in localStorage & Suno MP3)
 // ============================================================================
+
+// --- PERSONALIZATION SETTINGS (Child Name, Train Name, Voice Addressing) ---
+var STORAGE_KEY_PERSONALIZATION = 'happyTrain_personalization_v1';
+window.personalizationSettings = {
+  childName: 'Daníček',
+  trainName: 'Daníček',
+  voiceAddressing: true
+};
+
+(function loadPersonalizationFromStorage() {
+  try {
+    var raw = window.localStorage ? window.localStorage.getItem(STORAGE_KEY_PERSONALIZATION) : null;
+    if (raw) {
+      var parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        if (typeof parsed.childName === 'string') {
+          window.personalizationSettings.childName = parsed.childName.trim();
+        }
+        if (typeof parsed.trainName === 'string' && parsed.trainName.trim().length > 0) {
+          window.personalizationSettings.trainName = parsed.trainName.trim();
+        }
+        if (typeof parsed.voiceAddressing === 'boolean') {
+          window.personalizationSettings.voiceAddressing = parsed.voiceAddressing;
+        }
+      }
+    }
+  } catch (e) {}
+})();
+
+window.getChildName = function() {
+  return (window.personalizationSettings && typeof window.personalizationSettings.childName === 'string')
+    ? window.personalizationSettings.childName.trim()
+    : 'Daníček';
+};
+
+window.getTrainName = function() {
+  var tName = (window.personalizationSettings && typeof window.personalizationSettings.trainName === 'string')
+    ? window.personalizationSettings.trainName.trim()
+    : '';
+  return tName.length > 0 ? tName : 'Daníček';
+};
+
+window.isVoiceAddressingEnabled = function() {
+  return Boolean(
+    window.personalizationSettings &&
+    window.personalizationSettings.voiceAddressing &&
+    window.getChildName().length > 0
+  );
+};
+
+window.applyPersonalizationToUI = function() {
+  var tName = window.getTrainName();
+  var cName = window.getChildName();
+  var vEnabled = Boolean(window.personalizationSettings && window.personalizationSettings.voiceAddressing);
+
+  var badgeEl = document.getElementById('train-name-badge-text');
+  if (badgeEl) badgeEl.textContent = tName;
+
+  var cInput = document.getElementById('input-child-name');
+  if (cInput && document.activeElement !== cInput) cInput.value = cName;
+
+  var tInput = document.getElementById('input-train-name');
+  if (tInput && document.activeElement !== tInput) tInput.value = tName;
+
+  var vInput = document.getElementById('input-voice-addressing');
+  if (vInput) vInput.checked = vEnabled;
+
+  if (window.updateTrainNameplates) {
+    window.updateTrainNameplates(tName);
+  }
+};
+
+window.savePersonalizationSettings = function(newChildName, newTrainName, newVoiceAddressing) {
+  window.personalizationSettings.childName = (typeof newChildName === 'string') ? newChildName.trim() : '';
+  var cleanTrain = (typeof newTrainName === 'string') ? newTrainName.trim() : '';
+  window.personalizationSettings.trainName = cleanTrain.length > 0 ? cleanTrain : 'Daníček';
+  window.personalizationSettings.voiceAddressing = Boolean(newVoiceAddressing);
+
+  try {
+    if (window.localStorage) {
+      window.localStorage.setItem(STORAGE_KEY_PERSONALIZATION, JSON.stringify(window.personalizationSettings));
+    }
+  } catch (e) {}
+
+  window.applyPersonalizationToUI();
+};
+
+window.formatPersonalizedText = function(role, rawText) {
+  var tName = window.getTrainName();
+  var text = String(rawText || '')
+    .replace(/Little Train Toby/g, 'Little Train ' + tName)
+    .replace(/\bToby\b/g, tName);
+
+  if (!window.isVoiceAddressingEnabled()) {
+    return text;
+  }
+
+  var cName = window.getChildName();
+  if (!cName || text.indexOf(cName) !== -1) {
+    return text;
+  }
+
+  if (text.indexOf('Welcome to our') === 0) {
+    return 'Hello ' + cName + '! ' + text;
+  }
+  if (text.indexOf('Wow! Welcome') === 0) {
+    return 'Wow, ' + cName + '! ' + text.slice(5);
+  }
+  if (text.indexOf('Yay!') === 0) {
+    return 'Yay, ' + cName + '!' + text.slice(4);
+  }
+  if (text.indexOf('Hooray!') === 0) {
+    return 'Hooray, ' + cName + '!' + text.slice(7);
+  }
+  if (text.indexOf('Hi friends!') === 0) {
+    return 'Hi ' + cName + ' and friends!' + text.slice(11);
+  }
+  if (text.indexOf('Entering the Metro') === 0) {
+    return 'Hold on tight, ' + cName + '! ' + text;
+  }
+  if (text.indexOf('Whoosh!') === 0) {
+    return 'Whoosh, ' + cName + '!' + text.slice(7);
+  }
+  if (text.indexOf('Chugga chugga!') === 0) {
+    return 'Chugga chugga, ' + cName + '!' + text.slice(14);
+  }
+  if (text.indexOf('Wonderful!') === 0) {
+    return 'Wonderful, ' + cName + '!' + text.slice(10);
+  }
+  if (text.indexOf('Welcome to ') === 0) {
+    return 'Look, ' + cName + '! ' + text;
+  }
+  return text;
+};
 
 var sunoCandidateFiles = [
   'song1.mp3',
@@ -48,7 +183,7 @@ window.nextMusicTrack = function() {
   currentSongIndex = (currentSongIndex + 1) % sunoCandidateFiles.length;
   if (!isMusicPlaying) window.toggleMusic();
   else playCurrentCandidate();
-  speakCharacter('train', 'Little Train Toby', '#ef4444', 'Yay! Let us listen to the next happy train song!');
+  speakCharacter('train', '🚂 Little Train ' + window.getTrainName(), '#0d9488', 'Yay! Let us listen to the next happy train song!');
 };
 
 window.changeMusicVolume = function(val) {
@@ -82,10 +217,17 @@ window.speakCharacter = function(role, speakerName, avatarColorHex, text) {
   var tag = document.getElementById('speaker-tag');
   var txtEl = document.getElementById('speech-text');
 
+  var tName = window.getTrainName();
+  var resolvedSpeaker = String(speakerName || '')
+    .replace(/Little Train Toby/g, 'Little Train ' + tName)
+    .replace(/\bToby\b/g, tName);
+  var resolvedText = window.formatPersonalizedText(role, text);
+  var resolvedColor = (role === 'train' && (!avatarColorHex || avatarColorHex === '#ef4444')) ? '#0d9488' : (avatarColorHex || '#0d9488');
+
   if (card) {
-    avatar.style.background = avatarColorHex || '#ef4444';
-    tag.textContent = speakerName;
-    txtEl.textContent = text;
+    avatar.style.background = resolvedColor;
+    tag.textContent = resolvedSpeaker;
+    txtEl.textContent = resolvedText;
     card.classList.add('visible', 'talking');
     clearTimeout(faceCardTimer);
     faceCardTimer = setTimeout(function() {
@@ -103,7 +245,7 @@ window.speakCharacter = function(role, speakerName, avatarColorHex, text) {
     try {
       window.speechSynthesis.cancel();
       window.speechSynthesis.resume();
-      var u = new SpeechSynthesisUtterance(text);
+      var u = new SpeechSynthesisUtterance(resolvedText);
 
       // Pick warm female voice for Mom, higher voice for Child Train
       var femalePrefs = ['Samantha', 'Victoria', 'Karen', 'Google US English', 'Microsoft Aria', 'Microsoft Jenny', 'Moira'];
@@ -133,7 +275,7 @@ window.speakCharacter = function(role, speakerName, avatarColorHex, text) {
   // Cloud English fallback if system has no English voices installed
   try {
     if (cloudFallbackAudio) cloudFallbackAudio.pause();
-    var url = 'https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=en-US&q=' + encodeURIComponent(text);
+    var url = 'https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=en-US&q=' + encodeURIComponent(resolvedText);
     cloudFallbackAudio = new Audio(url);
     cloudFallbackAudio.playbackRate = role === 'train' ? 1.14 : 0.96;
     cloudFallbackAudio.play().catch(function(){});
