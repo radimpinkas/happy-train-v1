@@ -1,7 +1,7 @@
 // ============================================================================
 // MODULE 1: AUDIO.JS (Web Audio API Voice Pack Engine, Conversational Turn-Taking
 // Queue, Authentic Steam Locomotive Whistle, Glossy Chimney Bubbles, Prague Metro
-// Emblem Renderer & Personalization State)
+// Entrance Emblem, Illustrated Station Signboards & Personalization State)
 // ============================================================================
 
 // --- PERSONALIZATION SETTINGS (Child Name, Train Name, Voice Addressing) ---
@@ -148,19 +148,17 @@ window.formatPersonalizedText = function(role, rawText) {
 };
 
 // ============================================================================
-// OFFICIAL PRAGUE METRO SYMBOL (ZNAK PRAŽSKÉHO METRA) VECTOR RENDERER
-// Used on both Railway Junction Direction Signposts AND the 4 Metro Entrances!
+// OFFICIAL PRAGUE METRO SYMBOL (ZNAK PRAŽSKÉHO METRA) — ONLY FOR METRO
+// SIGNPOST DIRECTIONS & THE 4 METRO TUNNEL ENTRANCES!
 // ============================================================================
 window.drawPragueMetroSymbol = function(ctx, cx, cy, r, primaryColor) {
   ctx.save();
 
-  // 1. Crisp white circular/emblem background plate
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
   ctx.arc(cx, cy, r - 2, 0, Math.PI * 2);
   ctx.fill();
 
-  // 2. Classic Prague Metro Tricolor Header Strip (Linka A Green, Linka B Yellow, Linka C Red)
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, r - 5, 0, Math.PI * 2);
@@ -176,29 +174,21 @@ window.drawPragueMetroSymbol = function(ctx, cx, cy, r, primaryColor) {
   ctx.fillRect(cx - r + (r * 4) / 3, barY, (r * 2) / 3, barH);
   ctx.restore();
 
-  // 3. Exact Official Geometry of the Prague Metro Symbol (Jiří Rathouský "Vrána" Winged M + Downward Arrow)
-  //    Original viewBox: 320.2 x 160.8, centered at (160.1, 80.4)
   var targetW = r * 1.56;
   var scale = targetW / 320.2;
   var ox = cx - 160.1 * scale;
   var oy = cy - 80.4 * scale + r * 0.14;
 
   var polygons = [
-    // Bottom downward arrow triangle
     [[96.94, 97.69], [222.5, 98.17], [159.5, 160.8]],
-    // Central letter M
     [
       [159.9, 36.94], [194.4, 0.75], [222.8, 0.85], [222.5, 90.71],
       [197.0, 90.61], [197.2, 35.0], [159.8, 72.84], [122.6, 34.72],
       [122.4, 90.33], [96.98, 90.23], [97.33, 0.38], [125.7, 0.49]
     ],
-    // Upper-left wing trapezoid
     [[0, 0], [89.86, 0.35], [89.71, 38.96], [38.46, 38.76]],
-    // Lower-left wing triangle
     [[45.89, 46.24], [89.69, 46.41], [89.5, 90.21]],
-    // Upper-right wing trapezoid
     [[320.2, 1.23], [230.3, 0.89], [230.1, 39.5], [281.5, 39.7]],
-    // Lower-right wing triangle
     [[274.0, 47.12], [230.1, 46.95], [229.9, 90.82]]
   ];
 
@@ -216,7 +206,6 @@ window.drawPragueMetroSymbol = function(ctx, cx, cy, r, primaryColor) {
     ctx.fill();
   }
 
-  // 4. Crisp outer ring border
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = Math.max(3, r * 0.07);
   ctx.beginPath();
@@ -226,14 +215,12 @@ window.drawPragueMetroSymbol = function(ctx, cx, cy, r, primaryColor) {
   ctx.restore();
 };
 
-// Creates the Large Prague Metro Entrance Emblem Canvas & 3D Sprite for the 4 Metro Station Portals!
 window.createPragueMetroEntranceCanvas = function(accentColor) {
   var c = document.createElement('canvas');
   c.width = 512;
   c.height = 512;
   var ctx = c.getContext('2d');
 
-  // Outer golden-rimmed dark station emblem shield
   ctx.fillStyle = '#0f172a';
   ctx.strokeStyle = '#facc15';
   ctx.lineWidth = 18;
@@ -242,14 +229,12 @@ window.createPragueMetroEntranceCanvas = function(accentColor) {
   ctx.fill();
   ctx.stroke();
 
-  // Inner colored station line ring
   ctx.strokeStyle = accentColor || '#d9261c';
   ctx.lineWidth = 12;
   ctx.beginPath();
   ctx.arc(256, 256, 214, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Giant Official Prague Metro Symbol inside the emblem
   window.drawPragueMetroSymbol(ctx, 256, 256, 198, '#d9261c');
   return c;
 };
@@ -261,6 +246,394 @@ window.createPragueMetroEntranceSign = function(themeHexStr) {
     new window.THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true })
   );
   sp.scale.set(11.5, 11.5, 1);
+  if (window.allSurfaceSigns) {
+    window.allSurfaceSigns.push(sp);
+  }
+  return sp;
+};
+
+// ============================================================================
+// DISNEY-STORYBOOK LANDMARK PICTOGRAM PAINTER & STATION SIGN GENERATOR
+// Used on both Station Platform Signs AND Junction Direction Signposts!
+// ============================================================================
+window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
+  ctx.save();
+  ctx.fillStyle = '#e0f2fe';
+  ctx.strokeStyle = '#facc15';
+  ctx.lineWidth = Math.max(5, r * 0.10);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r - 4, 0, Math.PI * 2);
+  ctx.clip();
+
+  if (iconType === 'metro') {
+    window.drawPragueMetroSymbol(ctx, cx, cy, r, '#d9261c');
+  } else if (iconType === 'eiffel') {
+    // Sunset Parisian sky + Golden-Bronze Eiffel Tower lattice silhouette
+    var eGrad = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
+    eGrad.addColorStop(0, '#38bdf8');
+    eGrad.addColorStop(1, '#fef08a');
+    ctx.fillStyle = eGrad;
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(cx - r, cy + r * 0.52, r * 2, r * 0.5);
+
+    ctx.fillStyle = '#b45309';
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.52, cy + r * 0.65);
+    ctx.quadraticCurveTo(cx - r * 0.16, cy + r * 0.10, cx - r * 0.07, cy - r * 0.78);
+    ctx.lineTo(cx + r * 0.07, cy - r * 0.78);
+    ctx.quadraticCurveTo(cx + r * 0.16, cy + r * 0.10, cx + r * 0.52, cy + r * 0.65);
+    ctx.lineTo(cx + r * 0.28, cy + r * 0.65);
+    ctx.arc(cx, cy + r * 0.65, r * 0.28, 0, Math.PI, true);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Observation decks & top beacon
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(cx - r * 0.36, cy + r * 0.15, r * 0.72, r * 0.11);
+    ctx.fillRect(cx - r * 0.22, cy - r * 0.22, r * 0.44, r * 0.10);
+    ctx.beginPath();
+    ctx.arc(cx, cy - r * 0.80, r * 0.11, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (iconType === 'bigben') {
+    // Sky + Golden Sandstone Big Ben Clock Tower with white clock dial
+    ctx.fillStyle = '#7dd3fc';
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.fillStyle = '#d97706';
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 4;
+    ctx.fillRect(cx - r * 0.36, cy - r * 0.32, r * 0.72, r * 1.25);
+    ctx.strokeRect(cx - r * 0.36, cy - r * 0.32, r * 0.72, r * 1.25);
+
+    // Spire roof
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.40, cy - r * 0.32);
+    ctx.lineTo(cx, cy - r * 0.88);
+    ctx.lineTo(cx + r * 0.40, cy - r * 0.32);
+    ctx.closePath();
+    ctx.fill();
+
+    // Clock face
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(cx, cy + r * 0.04, r * 0.26, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + r * 0.04);
+    ctx.lineTo(cx, cy - r * 0.12);
+    ctx.moveTo(cx, cy + r * 0.04);
+    ctx.lineTo(cx + r * 0.14, cy + r * 0.04);
+    ctx.stroke();
+  } else if (iconType === 'colosseum') {
+    // Sunny Roman sky + Tiered Golden Travertine Colosseum with Arches
+    ctx.fillStyle = '#bae6fd';
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(cx - r, cy + r * 0.50, r * 2, r * 0.55);
+
+    ctx.fillStyle = '#f59e0b';
+    ctx.strokeStyle = '#92400e';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.78, cy + r * 0.58);
+    ctx.lineTo(cx - r * 0.78, cy - r * 0.38);
+    ctx.lineTo(cx + r * 0.22, cy - r * 0.38);
+    ctx.lineTo(cx + r * 0.32, cy - r * 0.10);
+    ctx.lineTo(cx + r * 0.78, cy - r * 0.10);
+    ctx.lineTo(cx + r * 0.78, cy + r * 0.58);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Rows of dark Roman arches
+    ctx.fillStyle = '#451a03';
+    [-0.52, -0.18, 0.16, 0.50].forEach(function(ax) {
+      ctx.beginPath();
+      ctx.arc(cx + r * ax, cy + r * 0.42, r * 0.10, Math.PI, 0, false);
+      ctx.lineTo(cx + r * (ax + 0.10), cy + r * 0.55);
+      ctx.lineTo(cx + r * (ax - 0.10), cy + r * 0.55);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(cx + r * ax, cy + r * 0.12, r * 0.10, Math.PI, 0, false);
+      ctx.lineTo(cx + r * (ax + 0.10), cy + r * 0.25);
+      ctx.lineTo(cx + r * (ax - 0.10), cy + r * 0.25);
+      ctx.fill();
+    });
+  } else if (iconType === 'airport') {
+    // Control tower + soaring white airplane
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(cx - r, cy + r * 0.52, r * 2, r * 0.50);
+
+    // Control Tower on left
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(cx - r * 0.65, cy - r * 0.20, r * 0.24, r * 0.75);
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(cx - r * 0.74, cy - r * 0.44, r * 0.42, r * 0.26);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(cx - r * 0.70, cy - r * 0.52, r * 0.34, r * 0.08);
+
+    // White Airplane soaring up-right
+    ctx.save();
+    ctx.translate(cx + r * 0.18, cy - r * 0.08);
+    ctx.rotate(-0.35);
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r * 0.48, r * 0.16, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.08, 0);
+    ctx.lineTo(-r * 0.25, -r * 0.44);
+    ctx.lineTo(r * 0.12, 0);
+    ctx.lineTo(-r * 0.25, r * 0.44);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  } else if (iconType === 'jewel') {
+    // Jewel Changi Glass Dome + Giant Turquoise Rain Vortex Waterfall
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+
+    // Glass dome arch
+    ctx.fillStyle = '#0284c7';
+    ctx.strokeStyle = '#bae6fd';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(cx, cy + r * 0.35, r * 0.82, Math.PI, 0, false);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Lush green indoor forest terraces on left & right
+    ctx.fillStyle = '#16a34a';
+    ctx.beginPath();
+    ctx.arc(cx - r * 0.48, cy + r * 0.35, r * 0.35, 0, Math.PI * 2);
+    ctx.arc(cx + r * 0.48, cy + r * 0.35, r * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Central cascading Rain Vortex Waterfall
+    var wfGrad = ctx.createLinearGradient(cx, cy - r * 0.45, cx, cy + r * 0.65);
+    wfGrad.addColorStop(0, '#ffffff');
+    wfGrad.addColorStop(0.5, '#67e8f9');
+    wfGrad.addColorStop(1, '#22d3ee');
+    ctx.fillStyle = wfGrad;
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.28, cy - r * 0.42);
+    ctx.quadraticCurveTo(cx - r * 0.12, cy + r * 0.05, cx - r * 0.26, cy + r * 0.62);
+    ctx.lineTo(cx + r * 0.26, cy + r * 0.62);
+    ctx.quadraticCurveTo(cx + r * 0.12, cy + r * 0.05, cx + r * 0.28, cy - r * 0.42);
+    ctx.closePath();
+    ctx.fill();
+  } else if (iconType === 'skyscraper') {
+    // Gleaming Futuristic Glass Skyscraper with Golden Spire
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.fillStyle = '#38bdf8';
+    ctx.strokeStyle = '#e0f2fe';
+    ctx.lineWidth = 4;
+    ctx.fillRect(cx - r * 0.40, cy - r * 0.15, r * 0.80, r * 1.05);
+    ctx.strokeRect(cx - r * 0.40, cy - r * 0.15, r * 0.80, r * 1.05);
+    ctx.fillRect(cx - r * 0.28, cy - r * 0.52, r * 0.56, r * 0.38);
+    ctx.strokeRect(cx - r * 0.28, cy - r * 0.52, r * 0.56, r * 0.38);
+
+    // Golden Spire & glowing windows
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.08, cy - r * 0.52);
+    ctx.lineTo(cx, cy - r * 0.90);
+    ctx.lineTo(cx + r * 0.08, cy - r * 0.52);
+    ctx.closePath();
+    ctx.fill();
+
+    for (var wy = -0.02; wy <= 0.52; wy += 0.24) {
+      ctx.fillRect(cx - r * 0.26, cy + r * wy, r * 0.18, r * 0.12);
+      ctx.fillRect(cx + r * 0.08, cy + r * wy, r * 0.18, r * 0.12);
+    }
+  } else if (iconType === 'mom_house' || iconType === 'grandma_house') {
+    // Cozy Storybook Family House with Red/Warm Roof, Garden & Heart
+    ctx.fillStyle = '#bae6fd';
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(cx - r, cy + r * 0.42, r * 2, r * 0.60);
+
+    ctx.fillStyle = iconType === 'mom_house' ? '#fef08a' : '#fed7aa';
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 4;
+    ctx.fillRect(cx - r * 0.54, cy - r * 0.08, r * 1.08, r * 0.64);
+    ctx.strokeRect(cx - r * 0.54, cy - r * 0.08, r * 1.08, r * 0.64);
+
+    ctx.fillStyle = iconType === 'mom_house' ? '#ef4444' : '#9a3412';
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.68, cy - r * 0.06);
+    ctx.lineTo(cx, cy - r * 0.68);
+    ctx.lineTo(cx + r * 0.68, cy - r * 0.06);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(cx - r * 0.14, cy + r * 0.16, r * 0.28, r * 0.40);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(cx - r * 0.42, cy + r * 0.06, r * 0.20, r * 0.20);
+    ctx.fillRect(cx + r * 0.22, cy + r * 0.06, r * 0.20, r * 0.20);
+  } else if (iconType === 'fountain' || iconType === 'city') {
+    // Sparkling Blue Tiered Water Fountain in City Square
+    ctx.fillStyle = '#bae6fd';
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.fillStyle = '#0284c7';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + r * 0.42, r * 0.68, r * 0.24, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(cx - r * 0.12, cy - r * 0.20, r * 0.24, r * 0.62);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r * 0.20);
+    ctx.quadraticCurveTo(cx - r * 0.45, cy - r * 0.65, cx - r * 0.55, cy + r * 0.30);
+    ctx.moveTo(cx, cy - r * 0.20);
+    ctx.quadraticCurveTo(cx + r * 0.45, cy - r * 0.65, cx + r * 0.55, cy + r * 0.30);
+    ctx.stroke();
+  } else if (iconType === 'bridge') {
+    ctx.fillStyle = '#bae6fd';
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(cx - r, cy + r * 0.32, r * 2, r * 0.70);
+    ctx.fillStyle = '#dc2626';
+    ctx.fillRect(cx - r * 0.92, cy - r * 0.34, r * 1.84, r * 0.72);
+    ctx.fillStyle = '#fef3c7';
+    ctx.fillRect(cx - r * 0.92, cy - r * 0.42, r * 1.84, r * 0.10);
+    ctx.fillStyle = '#bae6fd';
+    ctx.beginPath();
+    ctx.arc(cx - r * 0.42, cy + r * 0.34, r * 0.28, Math.PI, 0, false);
+    ctx.arc(cx + r * 0.42, cy + r * 0.34, r * 0.28, Math.PI, 0, false);
+    ctx.fill();
+  } else if (iconType === 'stadium') {
+    ctx.fillStyle = '#16a34a';
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(cx - r * 0.68, cy - r * 0.48, r * 1.36, r * 0.96);
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.48, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.18, 0, Math.PI * 2);
+    ctx.arc(cx - r * 0.30, cy - r * 0.20, r * 0.11, 0, Math.PI * 2);
+    ctx.arc(cx + r * 0.30, cy - r * 0.20, r * 0.11, 0, Math.PI * 2);
+    ctx.arc(cx - r * 0.24, cy + r * 0.28, r * 0.11, 0, Math.PI * 2);
+    ctx.arc(cx + r * 0.24, cy + r * 0.28, r * 0.11, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (iconType === 'alps') {
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.fillStyle = '#64748b';
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.95, cy + r * 0.75);
+    ctx.lineTo(cx - r * 0.18, cy - r * 0.72);
+    ctx.lineTo(cx + r * 0.55, cy + r * 0.75);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.45, cy - r * 0.15);
+    ctx.lineTo(cx - r * 0.18, cy - r * 0.72);
+    ctx.lineTo(cx + r * 0.10, cy - r * 0.15);
+    ctx.closePath();
+    ctx.fill();
+  } else if (iconType === 'egypt') {
+    ctx.fillStyle = '#7dd3fc';
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(cx - r, cy + r * 0.35, r * 2, r * 0.7);
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.80, cy + r * 0.48);
+    ctx.lineTo(cx - r * 0.10, cy - r * 0.58);
+    ctx.lineTo(cx + r * 0.65, cy + r * 0.48);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.fillStyle = '#bae6fd';
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.fillStyle = '#0d9488';
+    ctx.fillRect(cx - r * 0.62, cy - r * 0.20, r * 1.24, r * 0.62);
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(cx - r * 0.62, cy - r * 0.52, r * 0.52, r * 0.35);
+  }
+  ctx.restore();
+};
+
+// Creates an Illustrated Station Signboard (Large Picture Badge on Left + Simple Bold Name on Right!)
+window.makeStationSign = function(titleText, iconType, bgHex, w, h) {
+  var c = document.createElement('canvas');
+  c.width = 640;
+  c.height = 180;
+  var ctx = c.getContext('2d');
+
+  ctx.fillStyle = bgHex || '#0f172a';
+  ctx.strokeStyle = '#facc15';
+  ctx.lineWidth = 12;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(10, 10, 620, 160, 42);
+  else ctx.rect(10, 10, 620, 160);
+  ctx.fill();
+  ctx.stroke();
+
+  // Draw the landmark illustration badge on the left
+  window.drawLandmarkPictogram(ctx, iconType || 'city', 102, 90, 68);
+
+  // Draw the clean, bold station name on the right
+  var cleanLabel = String(titleText || '')
+    .replace(/^[^\wA-Za-z]+/, '')
+    .trim()
+    .toUpperCase();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 42px "Segoe UI", system-ui, sans-serif';
+  var maxW = 410;
+  if (ctx.measureText(cleanLabel).width > maxW) {
+    ctx.font = '900 33px "Segoe UI", system-ui, sans-serif';
+  }
+  if (ctx.measureText(cleanLabel).width > maxW) {
+    ctx.font = '900 27px "Segoe UI", system-ui, sans-serif';
+  }
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur = 6;
+  ctx.fillText(cleanLabel, 392, 92);
+
+  var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new window.THREE.CanvasTexture(c);
+  var sp = new window.THREE.Sprite(
+    new window.THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true })
+  );
+  sp.scale.set((w || 22) * 0.68, (h || 6.2) * 0.68, 1);
   if (window.allSurfaceSigns) {
     window.allSurfaceSigns.push(sp);
   }
@@ -334,12 +707,8 @@ window.changeMusicVolume = function(val) {
 
 // ============================================================================
 // NATURAL CHARACTER VOICE PACK (20 Authentic Studio WAV Files in /voices/)
-// Played directly through Web Audio API (`audioCtx.destination` — the exact same
-// hardware output channel as `playTrainHorn`!) with automatic SpeechSynthesis
-// fallback if `/voices/` files are not yet uploaded to GitHub Pages.
 // ============================================================================
 window.VOICE_PACK = {
-  // --- STORYTELLER (Achernar) ---
   'storyteller-hello': {
     file: 'voices/storyteller-hello.wav',
     role: 'mom',
@@ -412,8 +781,6 @@ window.VOICE_PACK = {
     priority: 2,
     text: 'The sun is shining brightly over our fairytale world!'
   },
-
-  // --- DANÍČEK, THE LITTLE TRAIN (Sulafat) ---
   'danicek-ready': {
     file: 'voices/danicek-ready.wav',
     role: 'train',
@@ -478,8 +845,6 @@ window.VOICE_PACK = {
     priority: 3,
     text: 'Hooray! Into the underground metro tunnel we go! Look at the gnomes and waterfalls!'
   },
-
-  // --- CHARLIE, THE HELICOPTER (Zephyr) ---
   'charlie-takeoff': {
     file: 'voices/charlie-takeoff.wav',
     role: 'charlie',
@@ -508,8 +873,6 @@ window.VOICE_PACK = {
 
 // ============================================================================
 // WEB AUDIO CONTEXT & DIRECT PCM WAV BUFFER DECODER
-// Uses the exact same `audioCtx` output channel as `playTrainHorn` so voices
-// are 100% guaranteed audible in Gemini AI Studio and Smart TV browsers!
 // ============================================================================
 var audioCtx = null;
 var hasUserGesture = false;
@@ -528,7 +891,6 @@ window.initAudio = function() {
   }
 };
 
-// Synchronous RIFF WAVE 16-bit PCM parser -> Web Audio API `AudioBuffer`
 function parsePcm16WavToAudioBuffer(ctx, arrayBuffer) {
   if (!ctx || !arrayBuffer || arrayBuffer.byteLength < 44) return null;
   try {
@@ -637,7 +999,6 @@ function fetchVoiceWavBuffer(clipKey) {
   return loadingVoicePromises[clipKey];
 }
 
-// Preload all 20 WAV files into memory right away so playback is instantaneous on keypress
 (function preloadAllVoiceWavs() {
   var keys = Object.keys(window.VOICE_PACK);
   keys.forEach(function(k, idx) {
@@ -647,7 +1008,7 @@ function fetchVoiceWavBuffer(clipKey) {
   });
 })();
 
-// --- ENGLISH SPEECH SYNTHESIS & CLOUD FALLBACK ENGINE ---
+// --- ENGLISH SPEECH SYNTHESIS FALLBACK ENGINE ---
 var verifiedEnVoices = [];
 function loadEnglishVoices() {
   if (!('speechSynthesis' in window)) return;
@@ -668,7 +1029,6 @@ if ('speechSynthesis' in window) {
 // CONVERSATIONAL TURN-TAKING QUEUE WITH WEB AUDIO API PLAYBACK
 // ============================================================================
 var activeBufferSource = null;
-var activeVoiceAudio = null;
 var activeVoiceKey = null;
 var activeVoiceEndTime = 0;
 var activeWatchdogTimer = null;
@@ -724,7 +1084,6 @@ function onCurrentVoiceFinished() {
   clearTimeout(activeWatchdogTimer);
   activeWatchdogTimer = null;
   activeBufferSource = null;
-  activeVoiceAudio = null;
   activeVoiceKey = null;
   activeVoiceEndTime = 0;
 
@@ -755,7 +1114,6 @@ function onCurrentVoiceFinished() {
   }
 }
 
-// Fallback speech synthesis ONLY if the WAV file is missing (e.g., when only audio.js is copied to GitHub Pages)
 function speakFallbackTTS(role, textToSpeak, estDurationMs) {
   var resolvedText = window.formatPersonalizedText(role, textToSpeak);
   if (!verifiedEnVoices.length) loadEnglishVoices();
@@ -853,7 +1211,6 @@ function startVoiceClipImmediate(clipKey, customSubtitleText, customSpeaker) {
 
   showFaceCamBanner(entry.role, speakerToShow, entry.color, subtitleToShow, estDurMs);
 
-  // CRITICAL FIX: Never lock the voice queue before the user has pressed a key or clicked!
   if (!hasUserGesture) {
     deferredWelcomeClip = clipKey;
     return false;
@@ -870,7 +1227,6 @@ function startVoiceClipImmediate(clipKey, customSubtitleText, customSpeaker) {
   clearTimeout(activeWatchdogTimer);
   activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, estDurMs + 900);
 
-  // 1. Instantaneous synchronous playback if the WAV ArrayBuffer is already in memory!
   if (audioCtx && rawWavArrayBuffers[clipKey] && !decodedVoiceBuffers[clipKey]) {
     decodedVoiceBuffers[clipKey] = parsePcm16WavToAudioBuffer(audioCtx, rawWavArrayBuffers[clipKey]);
   }
@@ -878,7 +1234,6 @@ function startVoiceClipImmediate(clipKey, customSubtitleText, customSpeaker) {
     return playDecodedWebAudioBuffer(decodedVoiceBuffers[clipKey], entry, subtitleToShow, speakerToShow);
   }
 
-  // 2. Fetch WAV -> decode into Web Audio Buffer -> play through `audioCtx.destination`
   fetchVoiceWavBuffer(clipKey).then(function(buf) {
     if (activeVoiceKey !== clipKey) return;
     if (audioCtx && !buf && rawWavArrayBuffers[clipKey]) {
@@ -899,7 +1254,6 @@ function startVoiceClipImmediate(clipKey, customSubtitleText, customSpeaker) {
   return true;
 }
 
-// Plays or queues a clip from window.VOICE_PACK without cutting off the current speaker
 window.playVoicePackClip = function(clipKey, customSubtitleText, customSpeaker, overridePriority) {
   var entry = window.VOICE_PACK[clipKey];
   if (!entry) return false;
@@ -935,7 +1289,6 @@ window.playVoicePackClip = function(clipKey, customSubtitleText, customSpeaker, 
   return false;
 };
 
-// Maps any game event / speakCharacter call to the exact studio WAV clip & priority
 function resolveVoiceClipInfo(role, speakerName, rawText, explicitClipKey) {
   if (explicitClipKey && window.VOICE_PACK[explicitClipKey]) {
     return { key: explicitClipKey, priority: window.VOICE_PACK[explicitClipKey].priority || 2, dropIfBusy: false };
@@ -976,22 +1329,13 @@ function resolveVoiceClipInfo(role, speakerName, rawText, explicitClipKey) {
     if (s.indexOf('hello') !== -1 || s.indexOf('welcome to our') !== -1) {
       return { key: 'storyteller-hello', priority: 3, dropIfBusy: false };
     }
-    if (
-      s.indexOf('school') !== -1 ||
-      s.indexOf('stadium') !== -1 ||
-      s.indexOf('fountain') !== -1 ||
-      s.indexOf('station') !== -1 ||
-      s.indexOf('grand central') !== -1
-    ) {
-      stationAlternateIdx++;
-      var stKey = (stationAlternateIdx % 2 === 1) ? 'storyteller-station' : 'storyteller-discovery';
-      return { key: stKey, priority: 3, dropIfBusy: false };
-    }
-    return { key: 'storyteller-discovery', priority: 2, dropIfBusy: false };
+    stationAlternateIdx++;
+    var stKey = (stationAlternateIdx % 2 === 1) ? 'storyteller-station' : 'storyteller-discovery';
+    return { key: stKey, priority: 3, dropIfBusy: false };
   }
 
   if (role === 'train') {
-    if (s.indexOf('gnome cavern') !== -1 || s.indexOf('crystals') !== -1 || s.indexOf('magic mushrooms') !== -1) {
+    if (s.indexOf('gnome cavern') !== -1 || s.indexOf('crystals') !== -1 || s.indexOf('magic mushrooms') !== -1 || s.indexOf('jewel') !== -1 || s.indexOf('vortex') !== -1) {
       metroCycleIdx++;
       var mKey = (metroCycleIdx % 2 === 1) ? 'danicek-crystals' : 'danicek-metro';
       return { key: mKey, priority: 3, dropIfBusy: false };
@@ -1053,7 +1397,8 @@ window.speakCharacter = function(role, speakerName, avatarColorHex, text, explic
     return;
   }
 
-  window.playVoicePackClip(info.key, null, null, info.priority);
+  // Keep the authentic subtitle text in the banner while playing the studio voice clip!
+  window.playVoicePackClip(info.key, text || null, speakerName || null, info.priority);
 };
 
 window.speakPureEnglish = function(emoji, text) {
@@ -1238,11 +1583,9 @@ function playTone(freqs, dur, type) {
   });
 }
 
-// Authentic Fairytale Steam Locomotive Two-Chime Whistle ("Húúú - húúúúú!") + Steam Puff Hiss + Bubbles
 window.playTrainHorn = function() {
   window.initAudio();
 
-  // Launch multi-wave fountain of glossy colorful chimney soap bubbles!
   spawnGlossyChimneyBurst(16);
   setTimeout(function() { spawnGlossyChimneyBurst(12); }, 140);
   setTimeout(function() { spawnGlossyChimneyBurst(10); }, 280);
@@ -1282,7 +1625,6 @@ window.playTrainHorn = function() {
     });
   });
 
-  // Soft white-noise steam chuff/hiss accompanying the whistle and bubbles
   try {
     var bufferSize = Math.floor(audioCtx.sampleRate * 0.9);
     var noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
@@ -1323,7 +1665,6 @@ window.playCarBeepBeep = function() { playTone([480, 620], 0.18, 'square'); };
 window.playHappyLaugh = function() { playTone([523, 659, 587, 784, 659], 0.14, 'sine'); };
 window.playMagicSubwaySound = function() { playTone([440, 554.37, 659.25, 880, 1108.73], 0.35, 'sine'); };
 
-// Authentic Czech Railway Crossing Bell (AŽD 71 / 97 "cink-cink-cink")
 window.playCzechCrossingBell = function() {
   window.initAudio();
   if (!audioCtx) return;
@@ -1342,415 +1683,3 @@ window.playCzechCrossingBell = function() {
     osc.stop(now + 0.25);
   });
 };
-
-// ============================================================================
-// RUNTIME ENHANCEMENT BRIDGE (Upgrades Metro Turnouts, Signpost Icons &
-// Large Prague Metro Entrance Symbols even when copying only `audio.js`!)
-// ============================================================================
-window.addEventListener('load', function() {
-  setTimeout(function() {
-    if (!window.edges || !window.nodes || !window.turnoutCurves || !window.THREE) return;
-
-    // 1. Allow turning into all 4 Metro Stations from both incoming directions
-    window.getBranches = function(currentEdge) {
-      var baseEdge = currentEdge.isTurnout ? currentEdge.targetEdge : currentEdge;
-      var node = baseEdge.to;
-      var p1 = baseEdge.curve.getPointAt(0.84);
-      var inDir = baseEdge.curve.getTangentAt(0.84).normalize();
-
-      var candidates = window.edges.filter(function(e) {
-        if (e.from !== node || e.to === baseEdge.from) return false;
-        return true;
-      });
-      if (candidates.length === 0) {
-        candidates = window.edges.filter(function(e) { return e.from === node && !e.isSubway; });
-      }
-
-      var scored = candidates.map(function(e) {
-        var p2 = e.curve.getPointAt(0.18);
-        var outDir = p2.clone().sub(p1).normalize();
-        var cross = inDir.x * outDir.z - inDir.z * outDir.x;
-        var dot = inDir.x * outDir.x + inDir.z * outDir.z;
-        var angle = Math.atan2(cross, dot);
-        return { edge: e, angle: angle };
-      });
-
-      scored.sort(function(a, b) { return a.angle - b.angle; });
-
-      var straight = scored.reduce(function(best, cur) {
-        return Math.abs(cur.angle) < Math.abs(best.angle) ? cur : best;
-      }, scored[0]).edge;
-
-      return {
-        left: scored[0].edge,
-        straight: straight,
-        right: scored[scored.length - 1].edge
-      };
-    };
-
-    // 2. Build any missing turnout curves into Metro edges
-    window.edges.forEach(function(edgeIn) {
-      if (edgeIn.to.indexOf('EXIT_') === 0) return;
-      var nodePos = window.nodes[edgeIn.to].pos;
-      window.edges.forEach(function(edgeOut) {
-        if (edgeOut.from !== edgeIn.to || edgeOut.to === edgeIn.from) return;
-        if (edgeIn.isSubway && edgeOut.isSubway) return;
-        var key = edgeIn.id + '=>' + edgeOut.id;
-        if (!window.turnoutCurves[key]) {
-          var p0 = edgeIn.curve.getPointAt(0.84);
-          var t0 = edgeIn.curve.getTangentAt(0.84).normalize();
-          var p4 = edgeOut.curve.getPointAt(0.16);
-          var t4 = edgeOut.curve.getTangentAt(0.16).normalize();
-          var chord = p0.distanceTo(p4);
-          var handleLen = Math.max(4.0, chord * 0.34);
-          var p1 = p0.clone().add(t0.clone().multiplyScalar(handleLen));
-          var p3 = p4.clone().sub(t4.clone().multiplyScalar(handleLen));
-          var p2 = p1.clone().lerp(p3, 0.5).lerp(nodePos, 0.22);
-          p2.y = (p1.y + p3.y) * 0.5;
-          var mainFillet = new window.THREE.CatmullRomCurve3([p0, p1, p2, p3, p4], false);
-          window.turnoutCurves[key] = {
-            id: 'TURNOUT_' + key,
-            from: edgeIn.to,
-            to: edgeOut.to,
-            isTurnout: true,
-            isSubway: false,
-            sourceEdge: edgeIn,
-            targetEdge: edgeOut,
-            curve: mainFillet,
-            parallelCurve: mainFillet,
-            station: edgeOut.isSubway ? edgeOut.station : edgeIn.station
-          };
-          if (typeof window.renderSingleTrackCurve === 'function') {
-            window.renderSingleTrackCurve(mainFillet, true, window.turnoutCurves[key], 0.0, 1.0);
-          }
-        }
-      });
-    });
-
-    // 3. Upgrade the 4 Surface Metro Entrance Signs to the Large Prague Metro Symbol (`Znak pražského metra`)
-    if (window.allSurfaceSigns && window.allSurfaceSigns.length > 0) {
-      var lineColors = ['#2563eb', '#9333ea', '#16a34a', '#ea580c'];
-      window.allSurfaceSigns.forEach(function(sp, idx) {
-        if (!sp || !sp.material) return;
-        var mCanvas = window.createPragueMetroEntranceCanvas(lineColors[idx % lineColors.length]);
-        var mTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(mCanvas) : new window.THREE.CanvasTexture(mCanvas);
-        sp.material.map = mTex;
-        sp.material.needsUpdate = true;
-        sp.scale.set(11.5, 11.5, 1);
-      });
-    }
-
-    // 4. Rebuild Railway Junction Direction Signposts so all Metro branches show the Prague Metro Symbol!
-    if (window.junctionSignsGroup && window.scene) {
-      while (window.junctionSignsGroup.children.length > 0) {
-        window.junctionSignsGroup.remove(window.junctionSignsGroup.children[0]);
-      }
-
-      function getBranchInfo(bEdge) {
-        if (!bEdge) return { icon: 'city', badgeCol: '#0284c7' };
-        if (bEdge.isSubway) return { icon: 'metro', badgeCol: '#2563eb' };
-        var stType = bEdge.station ? bEdge.station.type : '';
-        var stName = bEdge.station ? (bEdge.station.name || '') : '';
-        if (stType === 'bridge_suspension' || stType === 'hero_viaduct' || stType === 'viaduct') {
-          return { icon: 'bridge', badgeCol: '#dc2626' };
-        }
-        if (stType === 'tunnel') return { icon: 'tunnel', badgeCol: '#475569' };
-        if (stType === 'depot') return { icon: 'depot', badgeCol: '#d97706' };
-        if (bEdge.to === 'EXIT_ALPS') return { icon: 'alps', badgeCol: '#0284c7' };
-        if (bEdge.to === 'EXIT_EGYPT') return { icon: 'egypt', badgeCol: '#ca8a04' };
-        if (bEdge.to === 'J_CENTER' || stName.indexOf('Fountain') !== -1) return { icon: 'city', badgeCol: '#0284c7' };
-        if (bEdge.to === 'J_WEST' || bEdge.to === 'J_EAST') return { icon: 'bridge', badgeCol: '#dc2626' };
-        if (bEdge.to === 'J_NORTH' || stName.indexOf('School') !== -1) return { icon: 'school', badgeCol: '#16a34a' };
-        if (bEdge.to === 'J_SW' || stName.indexOf('Stadium') !== -1) return { icon: 'stadium', badgeCol: '#15803d' };
-        if (bEdge.to === 'J_NE') return { icon: 'city', badgeCol: '#db2777' };
-        if (bEdge.to === 'J_SE') return { icon: 'city', badgeCol: '#7c3aed' };
-        return { icon: 'city', badgeCol: '#0284c7' };
-      }
-
-      function drawArrow(ctx, dirType, cx, cy, size) {
-        ctx.save();
-        ctx.translate(cx, cy);
-        if (dirType === 'left') ctx.rotate(-Math.PI * 0.5);
-        else if (dirType === 'right') ctx.rotate(Math.PI * 0.5);
-
-        var s = size * 0.52;
-        ctx.fillStyle = '#fde047';
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 10;
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        ctx.moveTo(0, -s);
-        ctx.lineTo(s * 0.92, -s * 0.05);
-        ctx.lineTo(s * 0.42, -s * 0.05);
-        ctx.lineTo(s * 0.42, s * 0.92);
-        ctx.lineTo(-s * 0.42, s * 0.92);
-        ctx.lineTo(-s * 0.42, -s * 0.05);
-        ctx.lineTo(-s * 0.92, -s * 0.05);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.strokeStyle = '#fef9c3';
-        ctx.lineWidth = 4;
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      function drawIcon(ctx, iconType, cx, cy, r) {
-        ctx.save();
-        ctx.fillStyle = '#e0f2fe';
-        ctx.strokeStyle = '#facc15';
-        ctx.lineWidth = 7;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(cx, cy, r - 4, 0, Math.PI * 2);
-        ctx.clip();
-
-        if (iconType === 'metro') {
-          window.drawPragueMetroSymbol(ctx, cx, cy, r, '#d9261c');
-        } else if (iconType === 'bridge') {
-          ctx.fillStyle = '#bae6fd';
-          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-          ctx.fillStyle = '#0284c7';
-          ctx.fillRect(cx - r, cy + r * 0.32, r * 2, r * 0.70);
-          ctx.fillStyle = '#dc2626';
-          ctx.fillRect(cx - r * 0.92, cy - r * 0.34, r * 1.84, r * 0.72);
-          ctx.fillStyle = '#fef3c7';
-          ctx.fillRect(cx - r * 0.92, cy - r * 0.42, r * 1.84, r * 0.10);
-          ctx.fillStyle = '#bae6fd';
-          ctx.beginPath();
-          ctx.arc(cx - r * 0.42, cy + r * 0.34, r * 0.28, Math.PI, 0, false);
-          ctx.arc(cx + r * 0.42, cy + r * 0.34, r * 0.28, Math.PI, 0, false);
-          ctx.fill();
-        } else if (iconType === 'tunnel') {
-          ctx.fillStyle = '#bae6fd';
-          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-          ctx.fillStyle = '#16a34a';
-          ctx.beginPath();
-          ctx.moveTo(cx - r * 0.98, cy + r * 0.85);
-          ctx.lineTo(cx, cy - r * 0.82);
-          ctx.lineTo(cx + r * 0.98, cy + r * 0.85);
-          ctx.closePath();
-          ctx.fill();
-          ctx.strokeStyle = '#14532d';
-          ctx.lineWidth = 5;
-          ctx.stroke();
-          ctx.fillStyle = '#0f172a';
-          ctx.strokeStyle = '#cbd5e1';
-          ctx.lineWidth = 8;
-          ctx.beginPath();
-          ctx.arc(cx, cy + r * 0.25, r * 0.42, Math.PI, 0, false);
-          ctx.lineTo(cx + r * 0.42, cy + r * 0.85);
-          ctx.lineTo(cx - r * 0.42, cy + r * 0.85);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-        } else if (iconType === 'school') {
-          ctx.fillStyle = '#bae6fd';
-          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-          ctx.fillStyle = '#4ade80';
-          ctx.fillRect(cx - r, cy + r * 0.45, r * 2, r * 0.6);
-          ctx.fillStyle = '#fb923c';
-          ctx.fillRect(cx - r * 0.68, cy - r * 0.12, r * 0.85, r * 0.65);
-          ctx.fillStyle = '#dc2626';
-          ctx.beginPath();
-          ctx.moveTo(cx - r * 0.76, cy - r * 0.12);
-          ctx.lineTo(cx - r * 0.25, cy - r * 0.64);
-          ctx.lineTo(cx + r * 0.25, cy - r * 0.12);
-          ctx.closePath();
-          ctx.fill();
-          ctx.strokeStyle = '#ec4899';
-          ctx.lineWidth = 5;
-          ctx.beginPath();
-          ctx.arc(cx + r * 0.42, cy - r * 0.05, r * 0.34, 0, Math.PI * 2);
-          ctx.stroke();
-        } else if (iconType === 'stadium') {
-          ctx.fillStyle = '#16a34a';
-          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 4;
-          ctx.strokeRect(cx - r * 0.68, cy - r * 0.48, r * 1.36, r * 0.96);
-          ctx.fillStyle = '#ffffff';
-          ctx.strokeStyle = '#0f172a';
-          ctx.lineWidth = 5;
-          ctx.beginPath();
-          ctx.arc(cx, cy, r * 0.48, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-          ctx.fillStyle = '#0f172a';
-          ctx.beginPath();
-          ctx.arc(cx, cy, r * 0.18, 0, Math.PI * 2);
-          ctx.arc(cx - r * 0.30, cy - r * 0.20, r * 0.11, 0, Math.PI * 2);
-          ctx.arc(cx + r * 0.30, cy - r * 0.20, r * 0.11, 0, Math.PI * 2);
-          ctx.arc(cx - r * 0.24, cy + r * 0.28, r * 0.11, 0, Math.PI * 2);
-          ctx.arc(cx + r * 0.24, cy + r * 0.28, r * 0.11, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (iconType === 'alps') {
-          ctx.fillStyle = '#38bdf8';
-          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-          ctx.fillStyle = '#64748b';
-          ctx.beginPath();
-          ctx.moveTo(cx - r * 0.95, cy + r * 0.75);
-          ctx.lineTo(cx - r * 0.18, cy - r * 0.72);
-          ctx.lineTo(cx + r * 0.55, cy + r * 0.75);
-          ctx.closePath();
-          ctx.fill();
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath();
-          ctx.moveTo(cx - r * 0.45, cy - r * 0.15);
-          ctx.lineTo(cx - r * 0.18, cy - r * 0.72);
-          ctx.lineTo(cx + r * 0.10, cy - r * 0.15);
-          ctx.closePath();
-          ctx.fill();
-        } else if (iconType === 'egypt') {
-          ctx.fillStyle = '#7dd3fc';
-          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-          ctx.fillStyle = '#fde047';
-          ctx.fillRect(cx - r, cy + r * 0.35, r * 2, r * 0.7);
-          ctx.fillStyle = '#f59e0b';
-          ctx.beginPath();
-          ctx.moveTo(cx - r * 0.80, cy + r * 0.48);
-          ctx.lineTo(cx - r * 0.10, cy - r * 0.58);
-          ctx.lineTo(cx + r * 0.65, cy + r * 0.48);
-          ctx.closePath();
-          ctx.fill();
-        } else if (iconType === 'city') {
-          ctx.fillStyle = '#bae6fd';
-          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-          ctx.fillStyle = '#4ade80';
-          ctx.fillRect(cx - r, cy + r * 0.45, r * 2, r * 0.6);
-          ctx.fillStyle = '#fef08a';
-          ctx.fillRect(cx - r * 0.72, cy - r * 0.15, r * 0.64, r * 0.68);
-          ctx.fillStyle = '#ef4444';
-          ctx.beginPath();
-          ctx.moveTo(cx - r * 0.78, cy - r * 0.15);
-          ctx.lineTo(cx - r * 0.40, cy - r * 0.68);
-          ctx.lineTo(cx - r * 0.02, cy - r * 0.15);
-          ctx.closePath();
-          ctx.fill();
-          ctx.fillStyle = '#3b82f6';
-          ctx.fillRect(cx + r * 0.04, cy - r * 0.38, r * 0.64, r * 0.92);
-          ctx.fillStyle = '#fef08a';
-          ctx.fillRect(cx + r * 0.16, cy - r * 0.22, r * 0.16, r * 0.16);
-          ctx.fillRect(cx + r * 0.40, cy - r * 0.22, r * 0.16, r * 0.16);
-          ctx.fillRect(cx + r * 0.16, cy + r * 0.06, r * 0.16, r * 0.16);
-          ctx.fillRect(cx + r * 0.40, cy + r * 0.06, r * 0.16, r * 0.16);
-        } else {
-          ctx.fillStyle = '#bae6fd';
-          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-          ctx.fillStyle = '#ef4444';
-          ctx.fillRect(cx - r * 0.62, cy - r * 0.20, r * 1.24, r * 0.62);
-          ctx.fillStyle = '#facc15';
-          ctx.fillRect(cx - r * 0.62, cy - r * 0.52, r * 0.52, r * 0.35);
-          ctx.fillStyle = '#1e293b';
-          ctx.fillRect(cx + r * 0.20, cy - r * 0.58, r * 0.24, r * 0.40);
-          ctx.fillStyle = '#facc15';
-          ctx.beginPath();
-          ctx.arc(cx - r * 0.34, cy + r * 0.46, r * 0.18, 0, Math.PI * 2);
-          ctx.arc(cx + r * 0.34, cy + r * 0.46, r * 0.18, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-      }
-
-      function makeSignBoardCanvas(rows) {
-        var rowH = 168;
-        var padY = 20;
-        var c = document.createElement('canvas');
-        c.width = 520;
-        c.height = padY * 2 + rows.length * rowH;
-        var ctx = c.getContext('2d');
-
-        ctx.fillStyle = '#0f172a';
-        ctx.strokeStyle = '#facc15';
-        ctx.lineWidth = 12;
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(8, 8, c.width - 16, c.height - 16, 34);
-        else ctx.rect(8, 8, c.width - 16, c.height - 16);
-        ctx.fill();
-        ctx.stroke();
-
-        for (var i = 0; i < rows.length; i++) {
-          var r = rows[i];
-          var ry = padY + i * rowH;
-          var cardH = rowH - 12;
-          var cy = ry + cardH * 0.5;
-
-          ctx.fillStyle = r.info.badgeCol;
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 5;
-          ctx.beginPath();
-          if (ctx.roundRect) ctx.roundRect(24, ry + 6, c.width - 48, cardH, 26);
-          else ctx.rect(24, ry + 6, c.width - 48, cardH);
-          ctx.fill();
-          ctx.stroke();
-
-          drawArrow(ctx, r.dirType, 130, cy + 6, 98);
-          drawIcon(ctx, r.info.icon, 355, cy + 6, 68);
-        }
-        return c;
-      }
-
-      var postMat = new window.THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.5, roughness: 0.4 });
-      var trimMat = new window.THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
-
-      window.edges.forEach(function(e) {
-        if (e.isSubway || e.isTurnout) return;
-        if (e.to.indexOf('EXIT_') === 0) return;
-
-        var br = window.getBranches(e);
-        if (!br) return;
-
-        var rows = [];
-        var usedIds = {};
-        if (br.left && (!br.straight || br.left.id !== br.straight.id)) {
-          usedIds[br.left.id] = true;
-          rows.push({ dirType: 'left', info: getBranchInfo(br.left) });
-        }
-        if (br.straight && !usedIds[br.straight.id]) {
-          usedIds[br.straight.id] = true;
-          rows.push({ dirType: 'straight', info: getBranchInfo(br.straight) });
-        }
-        if (br.right && !usedIds[br.right.id]) {
-          usedIds[br.right.id] = true;
-          rows.push({ dirType: 'right', info: getBranchInfo(br.right) });
-        }
-        if (rows.length === 0) return;
-
-        var uSign = 0.81;
-        var pt = e.curve.getPointAt(uSign);
-        var tan = e.curve.getTangentAt(uSign).normalize();
-        var rightVec = new window.THREE.Vector3(-tan.z, 0, tan.x).normalize();
-        var signPos = pt.clone().add(rightVec.clone().multiplyScalar(7.8));
-
-        var signG = new window.THREE.Group();
-        signG.position.copy(signPos);
-
-        var pole = new window.THREE.Mesh(new window.THREE.CylinderGeometry(0.24, 0.32, 9.6, 10), postMat);
-        pole.position.y = 1.4;
-        var cap = new window.THREE.Mesh(new window.THREE.CylinderGeometry(0.45, 0.45, 0.35, 10), trimMat);
-        cap.position.y = 6.2;
-        signG.add(pole, cap);
-
-        var signCanvas = makeSignBoardCanvas(rows);
-        var signTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(signCanvas) : new window.THREE.CanvasTexture(signCanvas);
-        var signSprite = new window.THREE.Sprite(
-          new window.THREE.SpriteMaterial({ map: signTex, transparent: true, depthTest: true })
-        );
-        var signH = 2.4 * rows.length;
-        signSprite.scale.set(7.4, signH, 1);
-        signSprite.position.set(0, 6.4 + signH * 0.45, 0);
-        signG.add(signSprite);
-
-        window.junctionSignsGroup.add(signG);
-      });
-    }
-
-    if (typeof window.updateHUD === 'function') {
-      window.updateHUD();
-    }
-  }, 50);
-});

@@ -80,31 +80,32 @@ scene.add(storybookFillLight);
 // SMOOTH 3D ROLLING TERRAIN HEIGHT FUNCTION (`window.getTerrainHeight`)
 // ============================================================================
 window.getTerrainHeight = function(x, z) {
-  // 1. River Valley channel around z = -85 (Carved below water level y = -1.6)
+  // 1. River Valley channel around z = -85 (Carved below water level y = -1.6, tapering off before the Airport Apron at x > 225)
   var distRiver = Math.abs(z + 85);
   var riverCut = 0;
-  if (distRiver < 34) {
-    riverCut = -3.8 * Math.cos((distRiver / 34) * (Math.PI * 0.5));
+  if (distRiver < 34 && x < 238) {
+    var eastRiverFade = x > 205 ? Math.max(0, (238 - x) / 33) : 1.0;
+    riverCut = -3.8 * Math.cos((distRiver / 34) * (Math.PI * 0.5)) * eastRiverFade;
   }
 
-  // 2. Northern Storybook Hill Ridge (z < -135)
+  // 2. Northern Storybook Hill Ridge (z < -135, tapering off on the eastern Airport plateau x > 235)
   var northHill = 0;
   if (z < -135) {
     var zn = Math.min(1.0, (-135 - z) / 115);
-    northHill = 7.5 * (zn * zn * (3 - 2 * zn)) * (0.65 + 0.35 * Math.cos(x * 0.009));
+    var airportNorthFade = x > 230 ? Math.max(0, (265 - x) / 35) : 1.0;
+    northHill = 7.5 * (zn * zn * (3 - 2 * zn)) * (0.65 + 0.35 * Math.cos(x * 0.009)) * airportNorthFade;
   }
 
-  // 3. Eastern Mountain Ridge (around x = 235, z = 95) for Mountain Tunnel
-  var dEastMt = Math.hypot((x - 238) * 0.85, (z - 95) * 0.65);
-  var eastHill = dEastMt < 95 ? 9.0 * Math.pow(Math.cos((dEastMt / 95) * (Math.PI * 0.5)), 1.6) : 0;
+  // 3. Gentle Eastern Terrace (around x = 235, z = 95) for the Drive-Through Jewel Waterfall Hypermarket Dome
+  var eastHill = 0;
 
-  // 4. Western Forest Hill (around x = -235, z = -95) for Forest Tunnel
-  var dWestMt = Math.hypot((x + 235) * 0.85, (z + 95) * 0.65);
-  var westHill = dWestMt < 95 ? 8.5 * Math.pow(Math.cos((dWestMt / 95) * (Math.PI * 0.5)), 1.6) : 0;
+  // 4. Gentle Western Garden Terrace (around x = -235, z = -95) for Mom & Dad's House Station
+  var westHill = 0;
 
-  // 5. Gentle rolling meadow waves (kept low in the central city so at-grade crossings are flat & clear!)
+  // 5. Gentle rolling meadow waves (kept flat in the central city and on the eastern Airport & Parking Lot plateau!)
   var cityRadius = Math.hypot(x, z - 60);
-  var cityFlatFactor = cityRadius < 185 ? 0.18 : 1.0;
+  var isAirportPlateau = (x > 235 && z > -185 && z < 45);
+  var cityFlatFactor = isAirportPlateau ? 0.04 : (cityRadius < 185 ? 0.18 : 1.0);
   var meadowWave = (Math.sin(x * 0.014) * Math.cos(z * 0.014) * 1.4 + Math.sin((x + z) * 0.008) * 0.9) * cityFlatFactor;
   if (distRiver < 42) {
     meadowWave *= Math.max(0, (distRiver - 22) / 20);
@@ -178,11 +179,11 @@ function createWaterRippleTexture() {
 }
 
 var river = new THREE.Mesh(
-  new THREE.PlaneGeometry(1800, 52),
+  new THREE.PlaneGeometry(1140, 52),
   new THREE.MeshStandardMaterial({ map: createWaterRippleTexture(), roughness: 0.25, metalness: 0.1 })
 );
 river.rotation.x = -Math.PI / 2;
-river.position.set(0, -1.6, -85);
+river.position.set(-335, -1.6, -85);
 river.receiveShadow = true;
 scene.add(river);
 window.riverMesh = river;
@@ -383,58 +384,64 @@ function addBidirectionalTrack(nodeA, nodeB, ox, oy, oz, stationCfg) {
   }
 }
 
-// 1. Outer Ring with Hills, Bridges, Viaducts & Drive-Through Tunnels
+// 1. Outer Ring with Iconic 3D Landmarks, Bridges, Viaducts & Jewel Singapore Drive-Through Waterfall Dome
 addBidirectionalTrack('J_NW', 'J_NORTH', 0, 0.0, 8, {
-  type: 'hero_viaduct', name: "🧱 Storybook Brick Viaduct", emoji: "🚂",
-  voice: "Look! Toby is crossing the grand red-brick viaduct high above the road!"
+  type: 'hero_viaduct', icon: 'eiffel', name: "🗼 Eiffel Tower", emoji: "🗼",
+  voice: "Look! The magnificent Eiffel Tower rising high above the grand viaduct!"
 });
 addBidirectionalTrack('J_NORTH', 'J_NE', 14, 0.5, -18, {
-  type: 'station', name: "🏫 Sunny School Hilltop", emoji: "🏫",
-  voice: "Sunny School and Kindergarten on the green hill! Now we roll gently down toward Metro Station 2!"
+  type: 'station', icon: 'grandma_house', name: "👵 Grandma's House", emoji: "👵",
+  voice: "Grandma and Grandpa are waving hello from their cozy country cottage!"
 });
 addBidirectionalTrack('J_NE', 'J_EAST', 22, 2.0, 0, {
-  type: 'bridge_suspension', name: "🌉 Grand River Bridge", emoji: "🌉",
-  voice: "Crossing the high brick bridge over the sparkling blue river!"
+  type: 'bridge_suspension', icon: 'airport', name: "✈️ Airport", emoji: "✈️",
+  voice: "International Airport! Look at the tall control tower, airplanes, and helicopters!"
 });
-addBidirectionalTrack('J_EAST', 'J_SE', 24, 1.5, 0, {
-  type: 'tunnel', name: "⛰️ Dark Mountain Tunnel", emoji: "⛰️",
-  voice: "Entering the dark Mountain Tunnel! Toby turns on his bright headlight!"
+addBidirectionalTrack('J_EAST', 'J_SE', 24, 0.0, 0, {
+  type: 'jewel_dome', icon: 'jewel', name: "💎 Jewel Hypermarket", emoji: "💎",
+  voice: "Wow! Driving right inside the Jewel Hypermarket around the giant indoor waterfall!"
 });
 addBidirectionalTrack('J_SE', 'J_SOUTH', 0, 0.0, 18, {
-  type: 'depot', name: "🏗️ Central Train Depot", emoji: "🏗️",
-  voice: "Rolling through the Central Train Depot and across the Czech railway crossing!"
+  type: 'station', icon: 'colosseum', name: "🏛️ Colosseum", emoji: "🏛️",
+  voice: "Welcome to the grand ancient Roman Colosseum station!"
 });
 addBidirectionalTrack('J_SOUTH', 'J_SW', 0, 0.0, 18, {
-  type: 'station', name: "⚽ City Football Stadium", emoji: "⚽",
-  voice: "City Football Stadium and Metro Station 4!"
+  type: 'station', icon: 'stadium', name: "⚽ Football Stadium", emoji: "⚽",
+  voice: "City Football Stadium! Look at the players kicking the ball on the green pitch!"
 });
 addBidirectionalTrack('J_SW', 'J_WEST', -20, 1.8, 0, {
-  type: 'viaduct', name: "🧱 West Red-Brick Viaduct", emoji: "🧱",
-  voice: "Climbing up the West Red-Brick Arch Viaduct!"
+  type: 'viaduct', icon: 'bigben', name: "🕰️ Big Ben", emoji: "🕰️",
+  voice: "Big Ben Clock Tower! Hear the golden clock chiming beside the viaduct!"
 });
-addBidirectionalTrack('J_WEST', 'J_NW', -22, 1.2, -15, {
-  type: 'tunnel', name: "🌲 Forest Tunnel & Mom's House", emoji: "🏡",
-  voice: "Driving through the Forest Hill Tunnel toward Mom's House and Metro Station 1!"
+addBidirectionalTrack('J_WEST', 'J_NW', -22, 0.0, -15, {
+  type: 'station', icon: 'mom_house', name: "🏡 Mom & Dad's House", emoji: "🏡",
+  voice: "Mom and Dad's cozy family house! They are waving to us from the garden!"
 });
 
 // 2. Cross-Town Tracks meeting at Grand Central Fountain Square (J_CENTER)
 addBidirectionalTrack('J_NORTH', 'J_CENTER', 14, 0.4, 0, {
-  type: 'station', name: "⛲ Fountain Central Square North", emoji: "⛲",
-  voice: "Rolling down the hill to Grand Central Square!"
+  type: 'station', icon: 'skyscraper', name: "🏙️ Skyscraper", emoji: "🏙️",
+  voice: "Downtown Skyscraper Station! Look how tall the gleaming glass tower reaches into the sky!"
 });
 addBidirectionalTrack('J_CENTER', 'J_SOUTH', 0, 0.0, 0, {
-  type: 'station', name: "⛲ Fountain Central Square South", emoji: "⛲",
-  voice: "Grand Central Square with the big water fountain and railway crossing!"
+  type: 'station', icon: 'fountain', name: "⛲ Fountain Square", emoji: "⛲",
+  voice: "Grand Central Fountain Square with the sparkling water fountain!"
 });
-addBidirectionalTrack('J_WEST', 'J_CENTER', 0, 0.0, 0, null);
-addBidirectionalTrack('J_CENTER', 'J_EAST', 0, 0.0, 0, null);
+addBidirectionalTrack('J_WEST', 'J_CENTER', 0, 0.0, 0, {
+  type: 'cross_west', icon: 'fountain', name: "⛲ Fountain Square", emoji: "⛲",
+  voice: "Approaching Grand Central Fountain Square!"
+});
+addBidirectionalTrack('J_CENTER', 'J_EAST', 0, 0.0, 0, {
+  type: 'cross_east', icon: 'jewel', name: "💎 Jewel Hypermarket", emoji: "💎",
+  voice: "Heading toward the Jewel Waterfall Hypermarket and Airport!"
+});
 
 // 3. Paid World Exit Spurs
 addBidirectionalTrack('J_NORTH', 'EXIT_ALPS', 0, 0, 0, {
-  type: 'exit_portal', name: "🏔️ Alpine Tunnel Portal", emoji: "🏔️"
+  type: 'exit_portal', icon: 'alps', name: "🏔️ Alpine Tunnel Portal", emoji: "🏔️"
 });
 addBidirectionalTrack('J_SE', 'EXIT_EGYPT', 0, 0, 0, {
-  type: 'exit_portal', name: "🐪 Egypt Tunnel Portal", emoji: "🐪"
+  type: 'exit_portal', icon: 'egypt', name: "🐪 Egypt Tunnel Portal", emoji: "🐪"
 });
 
 // ============================================================================
@@ -857,7 +864,20 @@ function buildCzechLevelCrossing(crossPos, roadAng, trackTan) {
     new THREE.Vector3(  68, 0, -118)
   ];
 
-  [mainLoopPts, innerLoopPts].forEach(function(rawPts) {
+  // Airport & Parking Lot Connected Road Loop: branches off the eastern city road (x = 175, z = -25),
+  // passes cleanly beneath the high viaduct near J_EAST, loops around the Airport Parking Lot (x = 290, z = 14)
+  // and along the Airport Terminal Drop-Off & Apron Service Road!
+  var airportLoopPts = [
+    new THREE.Vector3( 175, 0,  -25),
+    new THREE.Vector3( 228, 0,  -16),
+    new THREE.Vector3( 272, 0,   14),
+    new THREE.Vector3( 322, 0,   16),
+    new THREE.Vector3( 336, 0,  -22),
+    new THREE.Vector3( 285, 0,  -24),
+    new THREE.Vector3( 228, 0,  -20)
+  ];
+
+  [mainLoopPts, innerLoopPts, airportLoopPts].forEach(function(rawPts) {
     rawPts.forEach(function(p) {
       p.y = window.getRoadHeight(p.x, p.z);
     });
@@ -2989,20 +3009,10 @@ scene.add(window.junctionSignsGroup);
 
 (function buildJunctionDirectionSigns() {
   function getBranchDestinationInfo(bEdge) {
-    if (!bEdge) return { icon: 'city', badgeCol: '#0284c7' };
+    if (!bEdge) return { icon: 'fountain', badgeCol: '#0284c7' };
+    // ONLY Metro branches get the Prague Metro symbol!
     if (bEdge.isSubway) {
       return { icon: 'metro', badgeCol: '#2563eb' };
-    }
-    var stType = bEdge.station ? bEdge.station.type : '';
-    var stName = bEdge.station ? (bEdge.station.name || '') : '';
-    if (stType === 'bridge_suspension' || stType === 'hero_viaduct' || stType === 'viaduct') {
-      return { icon: 'bridge', badgeCol: '#dc2626' };
-    }
-    if (stType === 'tunnel') {
-      return { icon: 'tunnel', badgeCol: '#475569' };
-    }
-    if (stType === 'depot') {
-      return { icon: 'depot', badgeCol: '#d97706' };
     }
     if (bEdge.to === 'EXIT_ALPS') {
       return { icon: 'alps', badgeCol: '#0284c7' };
@@ -3010,25 +3020,23 @@ scene.add(window.junctionSignsGroup);
     if (bEdge.to === 'EXIT_EGYPT') {
       return { icon: 'egypt', badgeCol: '#ca8a04' };
     }
-    if (bEdge.to === 'J_CENTER' || stName.indexOf('Fountain') !== -1) {
-      return { icon: 'city', badgeCol: '#0284c7' };
+    var stIcon = (bEdge.station && bEdge.station.icon) ? bEdge.station.icon : '';
+    var badgeColors = {
+      eiffel: '#b45309',
+      grandma_house: '#be185d',
+      airport: '#0284c7',
+      jewel: '#0d9488',
+      colosseum: '#c2410c',
+      stadium: '#15803d',
+      bigben: '#a16207',
+      mom_house: '#e11d48',
+      skyscraper: '#1d4ed8',
+      fountain: '#0369a1'
+    };
+    if (stIcon && badgeColors[stIcon]) {
+      return { icon: stIcon, badgeCol: badgeColors[stIcon] };
     }
-    if (bEdge.to === 'J_WEST' || bEdge.to === 'J_EAST') {
-      return { icon: 'bridge', badgeCol: '#dc2626' };
-    }
-    if (bEdge.to === 'J_NORTH' || stName.indexOf('School') !== -1) {
-      return { icon: 'school', badgeCol: '#16a34a' };
-    }
-    if (bEdge.to === 'J_SW' || stName.indexOf('Stadium') !== -1) {
-      return { icon: 'stadium', badgeCol: '#15803d' };
-    }
-    if (bEdge.to === 'J_NE') {
-      return { icon: 'city', badgeCol: '#db2777' };
-    }
-    if (bEdge.to === 'J_SE') {
-      return { icon: 'city', badgeCol: '#7c3aed' };
-    }
-    return { icon: 'city', badgeCol: '#0284c7' };
+    return { icon: 'fountain', badgeCol: '#0284c7' };
   }
 
   function drawBigDirectionArrow(ctx, dirType, cx, cy, size) {
@@ -3064,6 +3072,10 @@ scene.add(window.junctionSignsGroup);
   }
 
   function drawPictogramIcon(ctx, iconType, cx, cy, r) {
+    if (window.drawLandmarkPictogram) {
+      window.drawLandmarkPictogram(ctx, iconType, cx, cy, r);
+      return;
+    }
     ctx.save();
     // Large white circular picture plate with golden rim
     ctx.fillStyle = '#e0f2fe';

@@ -827,19 +827,20 @@ function animate() {
 
   // 3. Animate Best Friend #1: Charlie the Helicopter
   heliCharlie.userData.rotor.rotation.y += 0.38;
-  var heliTargetX = playerLoco.position.x + 28 + Math.cos(time * 0.35) * 14;
-  var heliTargetZ = playerLoco.position.z - 22 + Math.sin(time * 0.35) * 12;
-  var heliTargetY = Math.max(26, playerLoco.position.y + 18.5 + Math.sin(time * 1.4) * 1.2);
+  var onAirportBridge = Boolean(pState.edge && (pState.edge.id === 'J_NE->J_EAST' || pState.edge.id === 'J_EAST->J_NE'));
+  var heliTargetX = playerLoco.position.x + (onAirportBridge ? -22 : 28) + Math.cos(time * 0.35) * 10;
+  var heliTargetZ = playerLoco.position.z + (onAirportBridge ? 18 : -22) + Math.sin(time * 0.35) * 10;
+  var heliTargetY = Math.max(26, playerLoco.position.y + (onAirportBridge ? 24.0 : 18.5) + Math.sin(time * 1.4) * 1.2);
   heliCharlie.position.lerp(new THREE.Vector3(heliTargetX, heliTargetY, heliTargetZ), 0.08);
-  heliCharlie.lookAt(
-    playerLoco.position.x,
-    heliCharlie.position.y - 4.0,
-    playerLoco.position.z
-  );
+  heliCharlie.rotation.set(0, Math.atan2(playerLoco.position.x - heliCharlie.position.x, playerLoco.position.z - heliCharlie.position.z), 0);
 
-  // Animate Best Friend #4: Sky the Airplane flying between the 2 Airports
-  planeSky.position.set(295 + Math.sin(time * 0.3) * 45, 38 + Math.cos(time * 0.6) * 10, Math.cos(time * 0.3) * 180);
-  planeSky.lookAt(295 + Math.sin(time * 0.3 + 0.1) * 45, 38, Math.cos(time * 0.3 + 0.1) * 180);
+  // Animate Best Friend #4: Sky the Airplane flying level high over the eastern horizon
+  var skyX = 345 + Math.sin(time * 0.22) * 55;
+  var skyZ = 65 + Math.cos(time * 0.22) * 155;
+  var skyNextX = 345 + Math.sin(time * 0.22 + 0.05) * 55;
+  var skyNextZ = 65 + Math.cos(time * 0.22 + 0.05) * 155;
+  planeSky.position.set(skyX, 54 + Math.sin(time * 0.5) * 3.5, skyZ);
+  planeSky.rotation.set(0, Math.atan2(skyNextX - skyX, skyNextZ - skyZ), 0);
 
   // 4. Animate the 18 Storybook Road Vehicles (Stopping at lowered Czech Level Crossing barriers & forming a neat multi-car queue without cross-loop deadlocks!)
   if (window.roadNetworkCurves && window.roadNetworkCurves.length > 0) {
@@ -937,7 +938,7 @@ function animate() {
   windmillBlades.rotation.z -= 0.022;
   boats.forEach(function(b) {
     b.x += b.speed * b.dir;
-    if (b.x > 260) b.dir = -1;
+    if (b.x > 215) b.dir = -1;
     if (b.x < -260) b.dir = 1;
     b.mesh.position.set(b.x, -1.6, -85 + b.dir * 5);
     b.mesh.rotation.y = b.dir === 1 ? Math.PI / 2 : -Math.PI / 2;
@@ -950,6 +951,77 @@ function animate() {
   wavingHumans.forEach(function(h) {
     h.armPivot.rotation.z = Math.sin(time * 2.5 + h.phase) * 0.55;
   });
+
+  // Animate Airport Control Tower Radars, Propellers/Rotors, Windsock, Shuttle Buses, Flying Helicopters & Planes!
+  if (window.airportRadars) {
+    window.airportRadars.forEach(function(r) { r.rotation.y += 0.045; });
+  }
+  if (window.airportPropellers) {
+    window.airportPropellers.forEach(function(p) {
+      if (p.position.y > 3.0) p.rotation.y += 0.42; // Helicopter main rotor
+      else p.rotation.z += 0.45; // Airplane nose propeller
+    });
+  }
+  if (window.airportWindsocks) {
+    window.airportWindsocks.forEach(function(ws) {
+      ws.rotation.y = Math.sin(time * 1.8) * 0.28;
+      ws.rotation.z = Math.cos(time * 3.2) * 0.08;
+    });
+  }
+  if (window.airportShuttleBuses) {
+    window.airportShuttleBuses.forEach(function(sb) {
+      sb.progress = (sb.progress + sb.speed) % 1.0;
+      var curP = sb.curve.getPointAt(sb.progress);
+      var nxtP = sb.curve.getPointAt((sb.progress + 0.015) % 1.0);
+      sb.mesh.position.copy(curP);
+      sb.mesh.lookAt(nxtP.x, curP.y, nxtP.z);
+    });
+  }
+  if (window.airportFlyingHelis) {
+    window.airportFlyingHelis.forEach(function(fh) {
+      var tH = time * fh.speed + fh.phase;
+      var hx = fh.centerX + Math.sin(tH) * fh.radiusX;
+      var hz = fh.centerZ + Math.cos(tH * 0.8) * fh.radiusZ;
+      var hy = fh.baseY + Math.sin(tH * 1.8) * 1.6;
+      var nx = fh.centerX + Math.sin(tH + 0.08) * fh.radiusX;
+      var nz = fh.centerZ + Math.cos((tH + 0.08) * 0.8) * fh.radiusZ;
+      fh.mesh.position.set(hx, hy, hz);
+      fh.mesh.rotation.order = 'YXZ';
+      fh.mesh.rotation.set(0.05, Math.atan2(nx - hx, nz - hz), 0);
+    });
+  }
+  if (window.airportFlyingPlanes) {
+    window.airportFlyingPlanes.forEach(function(fp) {
+      var tP = time * fp.speed + fp.phase;
+      var px = fp.centerX + Math.cos(tP) * fp.radiusX;
+      var pz = fp.centerZ + Math.sin(tP) * fp.radiusZ;
+      var py = fp.baseY + Math.sin(tP * 1.2) * 2.2;
+      var npx = fp.centerX + Math.cos(tP + 0.06) * fp.radiusX;
+      var npz = fp.centerZ + Math.sin(tP + 0.06) * fp.radiusZ;
+      fp.mesh.position.set(px, py, pz);
+      fp.mesh.rotation.order = 'YXZ';
+      fp.mesh.rotation.set(-(fp.climbPitch || 0.08), Math.atan2(npx - px, npz - pz), 0);
+    });
+  }
+  if (window.eiffelBeacon) {
+    var bScale = 1.0 + Math.sin(time * 5.0) * 0.22;
+    window.eiffelBeacon.scale.set(bScale, bScale, bScale);
+  }
+  if (window.jewelWaterfallDrops) {
+    window.jewelWaterfallDrops.forEach(function(jd) {
+      jd.progress = (jd.progress + jd.speed) % 1.0;
+      var py = 31.5 * (1.0 - jd.progress);
+      var funnelR = jd.progress < 0.5
+        ? (6.2 - jd.progress * 6.8)
+        : (2.8 + (jd.progress - 0.5) * 4.5);
+      var a = jd.angle + jd.progress * 3.5;
+      jd.mesh.position.set(
+        jd.centerX + Math.cos(a) * funnelR,
+        Math.max(1.2, py),
+        Math.sin(a) * funnelR
+      );
+    });
+  }
 
   // ==========================================================================
   // 6. AI TRAINS ON PARALLEL SECOND TRACK WITH RIGHT-OF-WAY YIELDING (`Přednost v jízdě`)!
@@ -1139,8 +1211,12 @@ function animate() {
     wheelMeshes.forEach(function(w) { w.rotation.x += pState.currentVel * 0.42; });
     if (Math.random() < 0.18) spawnSmokeAndBubbles(playerLoco.position, 1, false);
 
-    if (stCfg && stCfg.type !== 'station' && Math.abs(pState.t - 0.50) < 0.015) {
+    if (stCfg && stCfg.type !== 'station' && Math.abs(pState.t - 0.46) < 0.03) {
       document.getElementById('place-label').textContent = stCfg.name;
+      if (stCfg.voice && pState.lastAnnouncedLandmarkEdge !== pState.edge.id) {
+        pState.lastAnnouncedLandmarkEdge = pState.edge.id;
+        speakCharacter('mom', (stCfg.emoji || '✨') + ' Storyteller', '#ec4899', stCfg.voice);
+      }
     }
 
     // Forward transition: Smoothly enter Curved Turnout at t = 0.84, and exit Turnout onto targetEdge at t = 0.16!
@@ -1229,9 +1305,7 @@ function animate() {
     });
   }
 
-  // 11. 2.5D STORYBOOK CAMERA CHOREOGRAPHY
-  var activeStationCfg = pState.edge.isTurnout ? (pState.edge.targetEdge.station || pState.edge.sourceEdge.station) : stCfg;
-  var isHeroViaduct = activeStationCfg && activeStationCfg.type === 'hero_viaduct';
+  // 11. 2.5D STORYBOOK & 3D DISNEY LANDMARK CAMERA CHOREOGRAPHY
   var inDarkTunnelCam = window.isPlayerInDarkTunnel ? window.isPlayerInDarkTunnel(pState.edge, pState.t) : false;
   var uCavStart = (pState.edge && pState.edge.uCavernStart) ? pState.edge.uCavernStart : 0.39;
   var uCavEnd   = (pState.edge && pState.edge.uCavernEnd)   ? pState.edge.uCavernEnd   : 0.61;
@@ -1242,10 +1316,13 @@ function animate() {
   var desiredLook;
   var camLerpSpeed = 0.075;
 
+  var landmarkShowcase = (!pState.edge.isTurnout && window.landmarkShowcases)
+    ? window.landmarkShowcases[pState.edge.id]
+    : null;
+  var inLandmarkZone = Boolean(landmarkShowcase && pState.t >= 0.22 && pState.t <= 0.78);
+
   if (inMetroCavernCam) {
     // 2.5D Fairy-Tale Underground Diorama Camera:
-    // Tracks `pos.x` 1:1 so Toby NEVER drives out of the camera frame, positioned on the
-    // unobstructed near side of the active viaduct (`z = ±6.2`) looking across Toby toward the panorama!
     var cz = pState.edge.cavernOffsetZ || -8.0;
     var viewSideZ = cz < 0 ? 6.2 : -6.2;
     var lookBackZ = cz < 0 ? -26.0 : 26.0;
@@ -1253,18 +1330,53 @@ function animate() {
     desiredLook = new THREE.Vector3(pos.x, -24.8, lookBackZ);
     camLerpSpeed = 0.18;
   } else if (inDarkTunnelCam) {
-    // Inside-Tunnel Follow Camera (both Surface Mountain Tunnel & Descending/Ascending Metro Tunnel Ramp):
-    // Follows smoothly along the exact 3D track curve 13.5m behind Toby at +6.0m height above the rails
-    // (safely inside the tunnel arch vault and well above the wagons so Toby is clearly visible without any camera freeze!).
+    // Inside-Tunnel Follow Camera (Descending/Ascending Metro Tunnel Ramp):
     var tunnelFollowPose = getTrackPoseBehindPlayer(13.5);
     desiredCam = tunnelFollowPose.pos.clone().add(new THREE.Vector3(0, 6.0, 0));
     desiredLook = pos.clone()
       .add(tan.clone().multiplyScalar(9.0))
       .add(new THREE.Vector3(0, 1.8, 0));
     camLerpSpeed = (pState.edge && pState.edge.isSubway) ? 0.24 : 0.18;
-  } else if (isHeroViaduct) {
-    desiredCam = new THREE.Vector3(pos.x * 0.45 - 8, 38.0, -36);
-    desiredLook = new THREE.Vector3(pos.x * 0.45 - 6, 6.5, -162);
+  } else if (inLandmarkZone && landmarkShowcase.isInteriorDome) {
+    // Inside Jewel Singapore Waterfall Hypermarket Dome 3D Camera:
+    // Glides right inside the glass grid-shell dome alongside the train, looking across the train
+    // at the giant cascading indoor Rain Vortex waterfall and lush indoor forest terraces!
+    var toVortex = landmarkShowcase.lookTarget.clone().sub(pos);
+    toVortex.y = 0;
+    if (toVortex.lengthSq() < 0.001) toVortex.set(1, 0, 0);
+    toVortex.normalize();
+
+    desiredCam = pos.clone()
+      .sub(tan.clone().multiplyScalar(22.0))
+      .sub(toVortex.clone().multiplyScalar(8.5))
+      .add(new THREE.Vector3(0, 9.8, 0));
+    desiredLook = pos.clone()
+      .add(tan.clone().multiplyScalar(8.0))
+      .lerp(landmarkShowcase.lookTarget, 0.52);
+    camLerpSpeed = 0.09;
+  } else if (inLandmarkZone && landmarkShowcase.lookTarget) {
+    // Dynamic 3D Landmark Perspective Camera (Eiffel Tower, Big Ben, Colosseum, Airport, Stadium, Skyscraper, Houses):
+    // Positions camera on the opposite side of the track from the 3D landmark at a lower cinematic 3D angle
+    // so both the train and the towering 3D landmark are framed together!
+    var toLandmark = landmarkShowcase.lookTarget.clone().sub(pos);
+    var horizToLandmark = new THREE.Vector3(toLandmark.x, 0, toLandmark.z);
+    if (horizToLandmark.lengthSq() < 0.001) horizToLandmark.copy(perpVec);
+    horizToLandmark.normalize();
+
+    var camBackDist = landmarkShowcase.camBack || 42;
+    var camSideDist = Math.abs(landmarkShowcase.camSide || 30);
+    var camHeight   = landmarkShowcase.camHeight || 22;
+
+    desiredCam = pos.clone()
+      .sub(tan.clone().multiplyScalar(camBackDist))
+      .sub(horizToLandmark.clone().multiplyScalar(camSideDist))
+      .add(new THREE.Vector3(0, camHeight, 0));
+    var lookLerpFactor = landmarkShowcase.lookLerp || 0.46;
+    desiredLook = pos.clone()
+      .add(tan.clone().multiplyScalar(10.0))
+      .add(new THREE.Vector3(0, 3.5, 0))
+      .lerp(landmarkShowcase.lookTarget, lookLerpFactor);
+    camLerpSpeed = 0.065;
   } else {
     desiredCam = pos.clone()
       .sub(tan.clone().multiplyScalar(54))
@@ -1276,7 +1388,7 @@ function animate() {
   }
 
   smoothCamPos.lerp(desiredCam, camLerpSpeed);
-  smoothCamLook.lerp(desiredLook, 0.14);
+  smoothCamLook.lerp(desiredLook, 0.12);
   camera.position.copy(smoothCamPos);
   camera.lookAt(smoothCamLook);
 
