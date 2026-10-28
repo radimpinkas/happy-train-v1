@@ -284,27 +284,196 @@ window.spawnStorybookBlossomTree = function(x, y, z, style, scale) {
   });
 })();
 
-window.spawnPerson = function(x, y, z, shirtCol, hatCol, showHello, scale) {
+// Shared cached materials & geometries for high-detail 3D cartoon characters (`window.spawnPerson`)
+var _personShared = null;
+function getPersonShared() {
+  if (_personShared) return _personShared;
+  _personShared = {
+    skinMat: new THREE.MeshStandardMaterial({ color: 0xfdba74, roughness: 0.45, emissive: 0x7c2d12, emissiveIntensity: 0.04 }),
+    shoeMat: new THREE.MeshStandardMaterial({ color: 0x3b1909, roughness: 0.55 }),
+    soleMat: new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.40 }),
+    buckleMat: new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.65, roughness: 0.25 }),
+    scleraMat: new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    pupilMat: new THREE.MeshBasicMaterial({ color: 0x0f172a }),
+    blushMat: new THREE.MeshBasicMaterial({ color: 0xfb7185 }),
+    mouthMat: new THREE.MeshBasicMaterial({ color: 0xe11d48 }),
+    irisMats: [
+      new THREE.MeshBasicMaterial({ color: 0x78350f }),
+      new THREE.MeshBasicMaterial({ color: 0x1d4ed8 }),
+      new THREE.MeshBasicMaterial({ color: 0x15803d })
+    ],
+    pantsMats: [
+      new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.52 }),
+      new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.52 }),
+      new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.52 }),
+      new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.52 })
+    ],
+    hairMats: [
+      new THREE.MeshStandardMaterial({ color: 0x5c280e, roughness: 0.55 }),
+      new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.55 }),
+      new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.55 }),
+      new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.55 })
+    ],
+    legGeo: new THREE.CylinderGeometry(0.18, 0.15, 1.05, 10),
+    shoeGeo: new THREE.SphereGeometry(0.20, 10, 8),
+    hipsGeo: new THREE.CylinderGeometry(0.42, 0.40, 0.34, 12),
+    skirtGeo: new THREE.CylinderGeometry(0.38, 0.68, 1.08, 16),
+    torsoGeo: new THREE.CylinderGeometry(0.44, 0.39, 1.18, 14),
+    shoulderGeo: new THREE.SphereGeometry(0.46, 12, 10),
+    neckGeo: new THREE.CylinderGeometry(0.15, 0.18, 0.28, 10),
+    headGeo: new THREE.SphereGeometry(0.52, 20, 16),
+    earGeo: new THREE.SphereGeometry(0.12, 8, 8),
+    noseGeo: new THREE.SphereGeometry(0.09, 10, 8),
+    scleraGeo: new THREE.SphereGeometry(0.10, 10, 8),
+    irisGeo: new THREE.SphereGeometry(0.062, 8, 8),
+    pupilGeo: new THREE.SphereGeometry(0.038, 8, 8),
+    catchGeo: new THREE.SphereGeometry(0.019, 6, 6),
+    browGeo: new THREE.BoxGeometry(0.15, 0.038, 0.04),
+    blushGeo: new THREE.SphereGeometry(0.075, 8, 6),
+    smileGeo: new THREE.TorusGeometry(0.12, 0.032, 6, 12, Math.PI),
+    teethGeo: new THREE.BoxGeometry(0.15, 0.045, 0.035),
+    hairCapGeo: new THREE.SphereGeometry(0.55, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.48),
+    quiffGeo: new THREE.SphereGeometry(0.28, 10, 8),
+    armGeo: new THREE.CylinderGeometry(0.13, 0.11, 0.88, 10),
+    handGeo: new THREE.SphereGeometry(0.14, 10, 8)
+  };
+  return _personShared;
+}
+
+window.spawnPerson = function(x, y, z, shirtCol, hatCol, showHello, scale, rotY) {
+  var S = getPersonShared();
   var g = new THREE.Group();
   var groundH = (y !== null && y !== undefined) ? y : terrainY(x, z);
   g.position.set(x, groundH, z);
-  var sc = (scale || 1.35) * 0.82;
+  var sc = (scale || 1.35) * 0.86;
   g.scale.set(sc, sc, sc);
-  var torso = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 1.5, 12), new THREE.MeshStandardMaterial({ color: shirtCol }));
-  torso.position.y = 1.2;
-  var head = new THREE.Mesh(new THREE.SphereGeometry(0.44, 12, 12), new THREE.MeshStandardMaterial({ color: 0xfde68a }));
-  head.position.y = 2.3;
-  var armPivot = new THREE.Group();
-  armPivot.position.set(0.5, 1.7, 0);
-  var arm = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 1.0, 8), new THREE.MeshStandardMaterial({ color: shirtCol }));
-  arm.position.set(0.25, 0.4, 0);
-  armPivot.add(arm);
-  g.add(torso, head, armPivot);
-  if (hatCol) {
-    var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.25, 10), new THREE.MeshStandardMaterial({ color: hatCol }));
-    cap.position.y = 2.7;
-    g.add(cap);
+
+  var seed = Math.abs(Math.round(x * 7 + z * 13));
+  var isSkirt = (seed % 3 === 1);
+  var pantsMat = S.pantsMats[seed % S.pantsMats.length];
+  var hairMat = S.hairMats[seed % S.hairMats.length];
+  var irisMat = S.irisMats[seed % S.irisMats.length];
+  var topMat = new THREE.MeshStandardMaterial({ color: shirtCol || 0x38bdf8, roughness: 0.48 });
+
+  // 1. Legs / Skirt & Shoes
+  if (isSkirt) {
+    var skirt = new THREE.Mesh(S.skirtGeo, pantsMat);
+    skirt.position.y = 0.82;
+    g.add(skirt);
+  } else {
+    var hips = new THREE.Mesh(S.hipsGeo, pantsMat);
+    hips.position.y = 1.18;
+    g.add(hips);
   }
+  [-0.20, 0.20].forEach(function(lx) {
+    var leg = new THREE.Mesh(S.legGeo, isSkirt ? S.skinMat : pantsMat);
+    leg.position.set(lx, 0.62, 0);
+    var shoe = new THREE.Mesh(S.shoeGeo, S.shoeMat);
+    shoe.scale.set(0.92, 0.62, 1.45);
+    shoe.position.set(lx, 0.13, 0.12);
+    g.add(leg, shoe);
+  });
+
+  // 2. Sculpted Torso, Shoulders, Collar & Neck
+  var torso = new THREE.Mesh(S.torsoGeo, topMat);
+  torso.position.y = 1.82;
+  torso.castShadow = true;
+  var shoulders = new THREE.Mesh(S.shoulderGeo, topMat);
+  shoulders.scale.set(1.18, 0.45, 0.85);
+  shoulders.position.y = 2.30;
+  var collar = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.12, 12), S.soleMat);
+  collar.position.y = 2.42;
+  var neck = new THREE.Mesh(S.neckGeo, S.skinMat);
+  neck.position.y = 2.52;
+  g.add(torso, shoulders, collar, neck);
+
+  // 3. Expressive 3D Cartoon Head with 3D Eyes, Irises, Pupils, Specular Catchlights, Eyebrows, Rosy Cheeks, Nose & Smile
+  var headGroup = new THREE.Group();
+  headGroup.position.y = 2.98;
+  var head = new THREE.Mesh(S.headGeo, S.skinMat);
+  head.scale.set(0.96, 1.03, 0.96);
+  headGroup.add(head);
+
+  [-1, 1].forEach(function(side) {
+    var ex = side * 0.175;
+    var sclera = new THREE.Mesh(S.scleraGeo, S.scleraMat);
+    sclera.scale.set(0.95, 1.15, 0.45);
+    sclera.position.set(ex, 0.08, 0.465);
+    var iris = new THREE.Mesh(S.irisGeo, irisMat);
+    iris.scale.set(1.0, 1.08, 0.45);
+    iris.position.set(ex, 0.08, 0.495);
+    var pupil = new THREE.Mesh(S.pupilGeo, S.pupilMat);
+    pupil.scale.set(1.0, 1.05, 0.45);
+    pupil.position.set(ex, 0.08, 0.512);
+    var catchlight = new THREE.Mesh(S.catchGeo, S.scleraMat);
+    catchlight.position.set(ex - 0.02, 0.11, 0.528);
+    var brow = new THREE.Mesh(S.browGeo, hairMat);
+    brow.position.set(ex, 0.23, 0.475);
+    brow.rotation.z = side * -0.14;
+    var blush = new THREE.Mesh(S.blushGeo, S.blushMat);
+    blush.scale.set(1.22, 0.72, 0.35);
+    blush.position.set(side * 0.25, -0.04, 0.44);
+    var ear = new THREE.Mesh(S.earGeo, S.skinMat);
+    ear.scale.set(0.55, 0.92, 0.70);
+    ear.position.set(side * 0.48, 0.02, -0.02);
+    headGroup.add(sclera, iris, pupil, catchlight, brow, blush, ear);
+  });
+
+  var nose = new THREE.Mesh(S.noseGeo, S.skinMat);
+  nose.scale.set(0.90, 0.85, 1.15);
+  nose.position.set(0, -0.01, 0.515);
+  var smileMouth = new THREE.Mesh(S.smileGeo, S.mouthMat);
+  smileMouth.rotation.x = Math.PI;
+  smileMouth.position.set(0, -0.13, 0.475);
+  var smileTeeth = new THREE.Mesh(S.teethGeo, S.scleraMat);
+  smileTeeth.position.set(0, -0.14, 0.48);
+  headGroup.add(nose, smileMouth, smileTeeth);
+
+  // 4. Sculpted 3D Hair & Optional Hat
+  var hairCap = new THREE.Mesh(S.hairCapGeo, hairMat);
+  hairCap.position.set(0, 0.07, -0.04);
+  hairCap.rotation.x = -0.24;
+  var quiff = new THREE.Mesh(S.quiffGeo, hairMat);
+  quiff.scale.set(1.32, 0.48, 0.82);
+  quiff.position.set(0.04, 0.46, 0.22);
+  quiff.rotation.z = -0.12;
+  headGroup.add(hairCap, quiff);
+
+  if (hatCol) {
+    var hatMat = new THREE.MeshStandardMaterial({ color: hatCol, roughness: 0.42 });
+    var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.50, 0.26, 14), hatMat);
+    cap.position.set(0, 0.48, 0);
+    var visor = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.06, 14, 1, false, -Math.PI * 0.4, Math.PI * 0.8), hatMat);
+    visor.position.set(0, 0.38, 0.16);
+    headGroup.add(cap, visor);
+  }
+  g.add(headGroup);
+
+  // 5. Left Resting Arm + Animated Right Waving Arm with Hand
+  var leftArm = new THREE.Mesh(S.armGeo, topMat);
+  leftArm.position.set(-0.54, 1.82, 0);
+  leftArm.rotation.z = 0.20;
+  var leftHand = new THREE.Mesh(S.handGeo, S.skinMat);
+  leftHand.position.set(-0.63, 1.34, 0.05);
+  g.add(leftArm, leftHand);
+
+  var armPivot = new THREE.Group();
+  armPivot.position.set(0.50, 2.22, 0);
+  var arm = new THREE.Mesh(S.armGeo, topMat);
+  arm.position.set(0.24, 0.36, 0.04);
+  arm.rotation.z = -0.35;
+  var rightHand = new THREE.Mesh(S.handGeo, S.skinMat);
+  rightHand.position.set(0.40, 0.78, 0.08);
+  armPivot.add(arm, rightHand);
+  g.add(armPivot);
+
+  if (rotY !== undefined && rotY !== null) {
+    g.rotation.y = rotY;
+  } else {
+    // Orient naturally toward nearest track center so characters face the train
+    g.rotation.y = Math.atan2(-x, -z);
+  }
+
   scene.add(g);
   var obj = { group: g, armPivot: armPivot, phase: Math.random() * 6 };
   wavingHumans.push(obj);
@@ -314,6 +483,9 @@ window.spawnPerson = function(x, y, z, shirtCol, hatCol, showHello, scale) {
 // Registry of 3D Landmark Camera Showcases keyed by edge ID ('A->B' and 'B->A')
 window.landmarkShowcases = {};
 window.registerLandmarkShowcase = function(edgeA, edgeB, config) {
+  if (config && config.lookTarget && !(config.lookTarget instanceof THREE.Vector3)) {
+    config.lookTarget = new THREE.Vector3(config.lookTarget.x, config.lookTarget.y, config.lookTarget.z);
+  }
   window.landmarkShowcases[edgeA + '->' + edgeB] = config;
   window.landmarkShowcases[edgeB + '->' + edgeA] = config;
 };
@@ -387,12 +559,13 @@ physicalTracksToRender.forEach(function(e) {
     scene.add(sg);
 
     var pax = [];
+    var faceTrackRotY = Math.atan2(perp.x, perp.z);
     for (var pi = 0; pi < 4; pi++) {
       var startDist = -7.6;
       var along = (pi - 1.5) * 2.6;
       var baseTrackPt = midPt.clone().add(tan.clone().multiplyScalar(along));
       var pPos = baseTrackPt.clone().add(perp.clone().multiplyScalar(startDist));
-      var p = spawnPerson(pPos.x, midPt.y, pPos.z, [0xf472b6, 0x22c55e, 0xfacc15, 0x38bdf8][pi], null, false, 1.25);
+      var p = spawnPerson(pPos.x, midPt.y, pPos.z, [0xf472b6, 0x22c55e, 0xfacc15, 0x38bdf8][pi], [null, 0xef4444, null, 0x1d4ed8][pi], false, 1.32, faceTrackRotY);
       pax.push({ human: p, baseTrackPt: baseTrackPt, perp: perp.clone(), dist: startDist, boarded: false });
     }
     stationPhysicals[e.station.name] = { pax: pax, visitedThisEdge: false };
@@ -1421,52 +1594,48 @@ function buildAirportShuttleBusMesh() {
   ctGroup.add(ctBase, ctShaft, ctCollarBlue, ctCollar1, ctBalcony, ctGlassCab, ctCap, ctDome, radarPivot);
   termGroup.add(ctGroup);
 
-  // 4. 3 Telescopic Glass Jet Bridges (Aerobridges) extending from the Terminal to the Airliners
+  // 4. 3 Telescopic Glass Jet Bridges (Aerobridges) extending from the Terminal Rotundas toward the Apron
   [-36, 0, 32].forEach(function(jbz) {
     var jbG = new THREE.Group();
-    jbG.position.set(-22.5, 4.8, jbz);
-    var tubeGlass = new THREE.Mesh(new THREE.BoxGeometry(16.5, 2.8, 2.6), cyanGlassMat);
-    var tubeRoof = new THREE.Mesh(new THREE.BoxGeometry(16.8, 0.42, 2.85), whiteRoofMat);
+    jbG.position.set(-19.2, 4.8, jbz);
+    var tubeGlass = new THREE.Mesh(new THREE.BoxGeometry(10.5, 2.8, 2.6), cyanGlassMat);
+    var tubeRoof = new THREE.Mesh(new THREE.BoxGeometry(10.8, 0.42, 2.85), whiteRoofMat);
     tubeRoof.position.y = 1.5;
     var tubeFloor = tubeRoof.clone();
     tubeFloor.position.y = -1.5;
     var accordionHood = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 2.9, 16), new THREE.MeshStandardMaterial({ color: 0x334155 }));
     accordionHood.rotation.z = Math.PI / 2;
-    accordionHood.position.set(-8.2, 0, 0);
+    accordionHood.position.set(-5.2, 0, 0);
     var supportLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 4.8, 10), mullionMat);
-    supportLeg.position.set(-5.8, -2.4, 0);
+    supportLeg.position.set(-3.8, -2.4, 0);
     var wheelPair = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.8, 10), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
     wheelPair.rotation.x = Math.PI / 2;
-    wheelPair.position.set(-5.8, -4.4, 0);
+    wheelPair.position.set(-3.8, -4.4, 0);
     jbG.add(tubeGlass, tubeRoof, tubeFloor, accordionHood, supportLeg, wheelPair);
     termGroup.add(jbG);
   });
 
   ag.add(termGroup);
 
-  // 5. 4 Branded Wide-Body Passenger Airliners ("Emirates", "scoot", and two "QATAR" Jets!)
-  //    Angled so their full 3/4 side profiles & tail fins are clearly legible from the railway camera (`image_7985496f.png`!)
-  var emiratesJet = buildBrandedWidebodyJet('emirates', 1.06);
-  emiratesJet.position.set(-3, 0.35, -30);
-  emiratesJet.rotation.y = 0.32; // Shows crisp left side "Emirates" + UAE tail fin toward camera!
+  // 5. Branded Wide-Body Passenger Airliners ("Emirates", "scoot", and "QATAR")
+  //    Parked cleanly side-by-side on the open apron in front of the terminal so Qatar stands right beside Scoot
+  //    and zero part of any aircraft touches or clips the terminal building!
+  var emiratesJet = buildBrandedWidebodyJet('emirates', 1.04);
+  emiratesJet.position.set(-6, 0.35, -30);
+  emiratesJet.rotation.y = 0.28; // Crisp 3/4 side profile showing "Emirates" + UAE tail fin
   ag.add(emiratesJet);
 
-  var scootJet = buildBrandedWidebodyJet('scoot', 0.96);
-  scootJet.position.set(2, 0.35, 2);
-  scootJet.rotation.y = 0.24; // Shows crisp yellow/white "scoot" / "flyscoot.com" side profile toward camera!
+  var scootJet = buildBrandedWidebodyJet('scoot', 0.98);
+  scootJet.position.set(-12, 0.35, -2);
+  scootJet.rotation.y = 0.24; // Crisp yellow/white "scoot" side profile in the center stand
   ag.add(scootJet);
 
-  var qatarJet1 = buildBrandedWidebodyJet('qatar', 1.02);
-  qatarJet1.position.set(12, 0.35, 34);
-  qatarJet1.rotation.y = -0.35; // Shows crisp burgundy "QATAR" side profile & Oryx tail fin!
+  var qatarJet1 = buildBrandedWidebodyJet('qatar', 1.00);
+  qatarJet1.position.set(-18, 0.35, 26);
+  qatarJet1.rotation.y = 0.22; // Parked neatly beside the Scoot airplane on the open apron, 100% clear of the terminal!
   ag.add(qatarJet1);
 
-  var qatarJet2 = buildBrandedWidebodyJet('qatar', 0.90);
-  qatarJet2.position.set(34, 0.35, 56);
-  qatarJet2.rotation.y = -0.28;
-  ag.add(qatarJet2);
-
-  // Mobile Passenger Boarding Stairs Truck docked beside the Emirates & Scoot Jets (`image_7985496f.png`!)
+  // Mobile Passenger Boarding Stairs Trucks docked beside the Emirates, Scoot & Qatar Jets
   function buildBoardingStairsTruck(x, z, rotY) {
     var stG = new THREE.Group();
     stG.position.set(x, 0.36, z);
@@ -1490,8 +1659,9 @@ function buildAirportShuttleBusMesh() {
     stG.add(base, ramp, carpet, railL, railR);
     return stG;
   }
-  ag.add(buildBoardingStairsTruck(-11, -22, 1.8));
-  ag.add(buildBoardingStairsTruck(-6, 10, 1.7));
+  ag.add(buildBoardingStairsTruck(-14, -22, 1.8));
+  ag.add(buildBoardingStairsTruck(-20,   6, 1.7));
+  ag.add(buildBoardingStairsTruck(-26,  34, 1.7));
 
   // 6. Foreground Apron Helipads ("H") & Small Propeller Planes (`image_7985496f.png` foreground!)
   var redHeliParked = buildAirportHelicopter('red');
@@ -1797,16 +1967,107 @@ function buildAirportShuttleBusMesh() {
     }
   });
 
-  var kiosk = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.4, 2.6), new THREE.MeshStandardMaterial({ color: 0x0284c7 }));
-  kiosk.position.set(-26, 1.8, 0);
-  var kioskWin = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.3, 2.7), new THREE.MeshBasicMaterial({ color: 0xbae6fd }));
-  kioskWin.position.set(-26, 2.2, 0);
-  var gatePed = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.6, 0.9), new THREE.MeshStandardMaterial({ color: 0xfacc15 }));
-  gatePed.position.set(-24, 0.9, -4.5);
-  var gateBoom = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 5.5, 8), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
-  gateBoom.rotation.x = Math.PI * 0.32;
-  gateBoom.position.set(-24, 2.8, -6.5);
-  parkG.add(kiosk, kioskWin, gatePed, gateBoom);
+  // 12B. Automatic Parking Entrance Barrier Boom & Blue Attendant Booth BESIDE the Road!
+  //      ("1. Auta při vjezdu na letiště projíždějí budkou, měly by projíždět závorou, která se vždy zvedne, když auta přijedou.")
+  //      The airport road (`loopIdx = 2`) passes through `world (272, py, 14)` (= `local (-24, 0, 0)` in `parkG`)
+  //      heading East-Southeast (`roadYaw ~ 1.48 rad`). We place the blue attendant booth safely OFF the asphalt
+  //      road at `local (-25.5, _, -8.4)` and the yellow barrier pedestal on the road curb at `local (-22.5, _, -4.8)`,
+  //      with a red-and-white striped boom arm extending across the road lane (`z = -4.8 .. +3.8`) that raises
+  //      automatically whenever any car/bus/tractor approaches!
+  var boothGroup = new THREE.Group();
+  boothGroup.position.set(-25.5, 0.2, -8.4);
+
+  var kioskBody = new THREE.Mesh(
+    new THREE.BoxGeometry(3.6, 3.5, 2.8),
+    new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.32 })
+  );
+  kioskBody.position.y = 1.75;
+  kioskBody.castShadow = true;
+
+  var kioskRoof = new THREE.Mesh(
+    new THREE.BoxGeometry(4.2, 0.42, 3.4),
+    new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.28 })
+  );
+  kioskRoof.position.y = 3.65;
+
+  var kioskWin = new THREE.Mesh(
+    new THREE.BoxGeometry(2.9, 1.35, 2.92),
+    new THREE.MeshBasicMaterial({ color: 0xbae6fd })
+  );
+  kioskWin.position.y = 2.15;
+
+  var ticketKioskMachine = new THREE.Mesh(
+    new THREE.BoxGeometry(0.75, 1.65, 0.75),
+    new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.35 })
+  );
+  ticketKioskMachine.position.set(2.4, 0.85, 1.8);
+  boothGroup.add(kioskBody, kioskRoof, kioskWin, ticketKioskMachine);
+  parkG.add(boothGroup);
+
+  // Automatic Barrier Pedestal on the Southern Curb of the Entrance Road (`local x = -22.5, z = -4.8`)
+  var gatePedGroup = new THREE.Group();
+  gatePedGroup.position.set(-22.5, 0.2, -4.8);
+
+  var gatePedBase = new THREE.Mesh(
+    new THREE.BoxGeometry(1.15, 0.35, 1.15),
+    new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6 })
+  );
+  gatePedBase.position.y = 0.18;
+
+  var gatePed = new THREE.Mesh(
+    new THREE.BoxGeometry(0.95, 1.85, 0.95),
+    new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.32 })
+  );
+  gatePed.position.y = 1.10;
+
+  var gatePedCap = new THREE.Mesh(
+    new THREE.BoxGeometry(1.05, 0.28, 1.05),
+    new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.35 })
+  );
+  gatePedCap.position.y = 2.12;
+
+  var gateStatusLightMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+  var gateStatusLight = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 10), gateStatusLightMat);
+  gateStatusLight.position.set(0, 2.42, 0);
+
+  // Rotating Barrier Boom Pivot (rotates around X axis: 0 = horizontal across road lane `z = -4.8 .. +3.8`,
+  // -Math.PI * 0.44 = raised vertically when a vehicle approaches!)
+  var gateBoomPivot = new THREE.Group();
+  gateBoomPivot.position.set(0, 1.68, 0);
+
+  // Red-and-White Striped Barrier Boom Arm (8.6m long spanning across the entire road width!)
+  var boomArmGroup = new THREE.Group();
+  var numBoomSegs = 8;
+  var segLenBoom = 1.06;
+  var redBoomMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+  var whiteBoomMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  for (var bsi = 0; bsi < numBoomSegs; bsi++) {
+    var bSeg = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.13, 0.13, segLenBoom, 10),
+      bsi % 2 === 0 ? redBoomMat : whiteBoomMat
+    );
+    bSeg.rotation.x = Math.PI / 2;
+    bSeg.position.z = 0.55 + bsi * segLenBoom;
+    boomArmGroup.add(bSeg);
+  }
+  // Glowing red LED safety lights along the barrier boom
+  [2.5, 5.2, 8.0].forEach(function(lz) {
+    var bLed = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), redBoomMat);
+    bLed.position.set(0, 0.18, lz);
+    boomArmGroup.add(bLed);
+  });
+
+  gateBoomPivot.add(boomArmGroup);
+  gatePedGroup.add(gatePedBase, gatePed, gatePedCap, gateStatusLight, gateBoomPivot);
+  parkG.add(gatePedGroup);
+
+  // Export barrier state for automatic vehicle-proximity animation in the frame loop!
+  window.airportParkingBarrier = {
+    worldPos: new THREE.Vector3(px - 22.5, py + 0.5, pz - 0.5),
+    pivot: gateBoomPivot,
+    statusMat: gateStatusLightMat,
+    openAmount: 0.0
+  };
 
   function buildParkedCarMesh(colHex) {
     var cg = new THREE.Group();
@@ -2055,42 +2316,206 @@ function createLivingRoadVehicle(name, colHex, vehicleKind, loopIdx, startProgre
     addContactShadow(g, 4.4, 6.6, 0.06);
 
   } else if (vehicleKind === 'bus') {
-    var cabinBox = new THREE.Mesh(new THREE.BoxGeometry(3.5, 3.2, 6.8), bodyMat);
-    cabinBox.position.set(0, 2.2, -0.6);
+    var isSchoolBus = (colHex === 0xfacc15 || colHex === 0xeab308 || colHex === 0xf59e0b);
+    var cabinBox = new THREE.Mesh(new THREE.BoxGeometry(3.55, 3.25, 7.1), bodyMat);
+    cabinBox.position.set(0, 2.25, -0.5);
     cabinBox.castShadow = true;
-    var roofCap = new THREE.Mesh(new THREE.CylinderGeometry(1.72, 1.72, 6.7, 16, 1, false, 0, Math.PI), bodyMat);
+    var roofCap = new THREE.Mesh(new THREE.CylinderGeometry(1.74, 1.74, 7.0, 16, 1, false, 0, Math.PI), bodyMat);
     roofCap.rotation.z = Math.PI / 2;
     roofCap.rotation.y = Math.PI / 2;
-    roofCap.position.set(0, 3.7, -0.6);
+    roofCap.position.set(0, 3.75, -0.5);
 
-    var noseHood = new THREE.Mesh(new THREE.BoxGeometry(3.1, 1.75, 2.1), bodyMat);
-    noseHood.position.set(0, 1.48, 3.4);
+    var noseHood = new THREE.Mesh(new THREE.BoxGeometry(3.15, 1.78, 2.15), bodyMat);
+    noseHood.position.set(0, 1.50, 3.55);
 
-    var stripe1 = new THREE.Mesh(new THREE.BoxGeometry(3.58, 0.22, 6.82), darkTrimMat);
-    stripe1.position.set(0, 1.85, -0.6);
+    var stripe1 = new THREE.Mesh(new THREE.BoxGeometry(3.64, 0.24, 7.12), darkTrimMat);
+    stripe1.position.set(0, 1.90, -0.5);
     var stripe2 = stripe1.clone();
-    stripe2.position.set(0, 1.45, -0.6);
+    stripe2.position.set(0, 1.48, -0.5);
+
+    if (isSchoolBus) {
+      // Iconic Yellow School Bus Header Board, Flashing Roof Beacons & Red Stop Sign Arm
+      var schoolSignCanv = document.createElement('canvas');
+      schoolSignCanv.width = 256; schoolSignCanv.height = 64;
+      var sctx = schoolSignCanv.getContext('2d');
+      sctx.fillStyle = '#facc15';
+      sctx.fillRect(0, 0, 256, 64);
+      sctx.strokeStyle = '#0f172a';
+      sctx.lineWidth = 6;
+      sctx.strokeRect(3, 3, 250, 58);
+      sctx.fillStyle = '#0f172a';
+      sctx.font = 'bold 34px sans-serif';
+      sctx.textAlign = 'center';
+      sctx.textBaseline = 'middle';
+      sctx.fillText('SCHOOL BUS', 128, 34);
+      var schoolSignTex = new THREE.CanvasTexture(schoolSignCanv);
+      var signPlate = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.56), new THREE.MeshBasicMaterial({ map: schoolSignTex }));
+      signPlate.position.set(0, 4.05, 3.05);
+      var signPlateBack = signPlate.clone();
+      signPlateBack.rotation.y = Math.PI;
+      signPlateBack.position.set(0, 4.05, -4.06);
+      g.add(signPlate, signPlateBack);
+
+      [-1.1, 1.1].forEach(function(bx) {
+        var beacon = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 10), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+        beacon.position.set(bx, 4.35, 2.75);
+        g.add(beacon);
+      });
+
+      var stopSign = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.08, 8), new THREE.MeshBasicMaterial({ color: 0xdc2626 }));
+      stopSign.rotation.z = Math.PI / 2;
+      stopSign.position.set(-1.86, 2.15, 1.85);
+      g.add(stopSign);
+    }
 
     for (var wi = 0; wi < 5; wi++) {
-      var wPane = new THREE.Mesh(new THREE.BoxGeometry(3.62, 1.05, 0.98), cyanGlassMat);
-      wPane.position.set(0, 2.75, -3.1 + wi * 1.25);
+      var wPane = new THREE.Mesh(new THREE.BoxGeometry(3.66, 1.05, 0.98), cyanGlassMat);
+      wPane.position.set(0, 2.78, -3.1 + wi * 1.28);
       g.add(wPane);
     }
 
-    var busWin = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 1.15), cyanGlassMat);
-    busWin.position.set(0, 2.85, 2.84);
+    var busWin = new THREE.Mesh(new THREE.PlaneGeometry(2.95, 1.18), cyanGlassMat);
+    busWin.position.set(0, 2.88, 3.08);
     g.add(busWin);
 
-    var busFace = createCartoonFacePlane(2.9, 1.75, 'transparent', 'bus_grille');
-    busFace.position.set(0, 1.45, 4.52);
+    var busFace = createCartoonFacePlane(2.95, 1.75, 'transparent', 'bus_grille');
+    busFace.position.set(0, 1.48, 4.66);
     g.add(cabinBox, roofCap, noseHood, stripe1, stripe2, busFace);
 
-    [[-1.75, 2.5], [1.75, 2.5], [-1.75, -2.4], [1.75, -2.4]].forEach(function(wp) {
-      var wh = createCarWheelGroup(0.95, 0.6);
-      wh.position.set(wp[0], 0.95, wp[1]);
+    [[-1.78, 2.6], [1.78, 2.6], [-1.78, -2.4], [1.78, -2.4]].forEach(function(wp) {
+      var wh = createCarWheelGroup(0.96, 0.62);
+      wh.position.set(wp[0], 0.96, wp[1]);
       g.add(wh);
     });
-    addContactShadow(g, 5.2, 9.8, 0.06);
+    addContactShadow(g, 5.2, 10.0, 0.06);
+
+  } else if (vehicleKind === 'excavator') {
+    // 3D Construction Excavator (Bagr) with Caterpillar Tracks, Rotating Cab & Articulated Hydraulic Arm + Toothed Bucket!
+    var trackMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.75 });
+    var steelMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.4, metalness: 0.55 });
+    var pistonMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.2, metalness: 0.85 });
+
+    var chassisBase = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.75, 4.4), darkTrimMat);
+    chassisBase.position.set(0, 0.95, 0);
+    g.add(chassisBase);
+
+    [-1.55, 1.55].forEach(function(tx) {
+      var tread = new THREE.Mesh(new THREE.BoxGeometry(0.82, 1.15, 5.2), trackMat);
+      tread.position.set(tx, 0.62, 0);
+      var fSprocket = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.58, 0.86, 14), trackMat);
+      fSprocket.rotation.z = Math.PI / 2;
+      fSprocket.position.set(tx, 0.62, 2.55);
+      var rSprocket = fSprocket.clone();
+      rSprocket.position.set(tx, 0.62, -2.55);
+      g.add(tread, fSprocket, rSprocket);
+      for (var rwi = -2; rwi <= 2; rwi++) {
+        var roller = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.90, 10), steelMat);
+        roller.rotation.z = Math.PI / 2;
+        roller.position.set(tx, 0.45, rwi * 1.05);
+        g.add(roller);
+      }
+    });
+
+    var upperDeck = new THREE.Mesh(new THREE.BoxGeometry(3.35, 1.25, 4.8), bodyMat);
+    upperDeck.position.set(0, 1.95, -0.25);
+    upperDeck.castShadow = true;
+    var counterweight = new THREE.Mesh(new THREE.BoxGeometry(3.42, 1.45, 1.25), darkTrimMat);
+    counterweight.position.set(0, 2.05, -2.35);
+    var cabFrame = new THREE.Mesh(new THREE.BoxGeometry(1.75, 2.15, 2.45), bodyMat);
+    cabFrame.position.set(-0.72, 3.35, 0.45);
+    var cabGlass = new THREE.Mesh(new THREE.BoxGeometry(1.82, 1.65, 2.15), cyanGlassMat);
+    cabGlass.position.set(-0.72, 3.42, 0.52);
+    var roofBeacon = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.38, 10), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
+    roofBeacon.position.set(-0.72, 4.62, 0.45);
+    var exFace = createCartoonFacePlane(3.1, 1.35, 'transparent', 'car_smile');
+    exFace.position.set(0, 1.95, 2.22);
+    g.add(upperDeck, counterweight, cabFrame, cabGlass, roofBeacon, exFace);
+
+    var boomGroup = new THREE.Group();
+    boomGroup.position.set(0.75, 2.35, 1.45);
+    var lowerBoom = new THREE.Mesh(new THREE.BoxGeometry(0.58, 3.8, 0.68), bodyMat);
+    lowerBoom.position.set(0, 1.65, 1.05);
+    lowerBoom.rotation.x = 0.52;
+    var hydCylinder1 = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 2.4, 8), pistonMat);
+    hydCylinder1.position.set(0, 1.15, 1.45);
+    hydCylinder1.rotation.x = 0.42;
+    var dipperStick = new THREE.Mesh(new THREE.BoxGeometry(0.48, 3.1, 0.56), bodyMat);
+    dipperStick.position.set(0, 2.45, 3.25);
+    dipperStick.rotation.x = 1.85;
+    var bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 1.35, 10, 1, false, 0, Math.PI * 1.15), darkTrimMat);
+    bucket.rotation.z = Math.PI / 2;
+    bucket.rotation.x = 0.45;
+    bucket.position.set(0, 1.25, 4.55);
+    for (var bti = -2; bti <= 2; bti++) {
+      var tooth = new THREE.Mesh(new THREE.ConeGeometry(0.10, 0.38, 6), pistonMat);
+      tooth.rotation.x = Math.PI * 0.65;
+      tooth.position.set(bti * 0.25, 0.92, 5.18);
+      boomGroup.add(tooth);
+    }
+    boomGroup.add(lowerBoom, hydCylinder1, dipperStick, bucket);
+    g.add(boomGroup);
+    addContactShadow(g, 5.0, 8.8, 0.06);
+
+  } else if (vehicleKind === 'tractor') {
+    // 3D Farm Tractor (Traktor) with Giant Rear Treaded Tires, Smaller Front Wheels, Chimney Exhaust & Glazed Cab!
+    var yellowRimMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3, metalness: 0.2 });
+    var tireBlackMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.85 });
+    var exhaustMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.35, metalness: 0.7 });
+
+    var engineHood = new THREE.Mesh(new THREE.BoxGeometry(1.95, 1.65, 3.35), bodyMat);
+    engineHood.position.set(0, 2.05, 1.55);
+    engineHood.castShadow = true;
+    var hoodTop = new THREE.Mesh(new THREE.CylinderGeometry(0.96, 0.96, 3.32, 12, 1, false, 0, Math.PI), bodyMat);
+    hoodTop.rotation.z = Math.PI / 2;
+    hoodTop.rotation.y = Math.PI / 2;
+    hoodTop.position.set(0, 2.85, 1.55);
+
+    var tractorCab = new THREE.Mesh(new THREE.BoxGeometry(2.55, 2.55, 2.55), bodyMat);
+    tractorCab.position.set(0, 3.15, -1.05);
+    tractorCab.castShadow = true;
+    var cabWinGlass = new THREE.Mesh(new THREE.BoxGeometry(2.62, 1.75, 2.25), cyanGlassMat);
+    cabWinGlass.position.set(0, 3.35, -1.02);
+    var cabRoof = new THREE.Mesh(new THREE.BoxGeometry(2.85, 0.32, 2.85), bodyMat);
+    cabRoof.position.set(0, 4.52, -1.05);
+    var rearFenderL = new THREE.Mesh(new THREE.CylinderGeometry(1.62, 1.62, 0.82, 16, 1, false, 0, Math.PI), bodyMat);
+    rearFenderL.rotation.z = Math.PI / 2;
+    rearFenderL.position.set(-1.55, 1.58, -1.25);
+    var rearFenderR = rearFenderL.clone();
+    rearFenderR.position.x = 1.55;
+
+    var exhaustPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 2.15, 10), exhaustMat);
+    exhaustPipe.position.set(-0.72, 3.65, 1.95);
+    var exhaustTip = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.14, 0.35, 10), exhaustMat);
+    exhaustTip.position.set(-0.72, 4.75, 2.02);
+    exhaustTip.rotation.x = -0.35;
+
+    var trFace = createCartoonFacePlane(1.92, 1.58, 'transparent', 'car_smile');
+    trFace.position.set(0, 2.05, 3.28);
+    g.add(engineHood, hoodTop, tractorCab, cabWinGlass, cabRoof, rearFenderL, rearFenderR, exhaustPipe, exhaustTip, trFace);
+
+    [-1.68, 1.68].forEach(function(rx) {
+      var rearW = new THREE.Group();
+      rearW.position.set(rx, 1.48, -1.25);
+      var rTire = new THREE.Mesh(new THREE.CylinderGeometry(1.48, 1.48, 0.86, 20), tireBlackMat);
+      rTire.rotation.z = Math.PI / 2;
+      var rRim = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.92, 0.90, 16), yellowRimMat);
+      rRim.rotation.z = Math.PI / 2;
+      var rHub = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.94, 12), darkTrimMat);
+      rHub.rotation.z = Math.PI / 2;
+      rearW.add(rTire, rRim, rHub);
+      g.add(rearW);
+    });
+    [-1.32, 1.32].forEach(function(fx) {
+      var frontW = new THREE.Group();
+      frontW.position.set(fx, 0.88, 2.15);
+      var fTire = new THREE.Mesh(new THREE.CylinderGeometry(0.88, 0.88, 0.56, 16), tireBlackMat);
+      fTire.rotation.z = Math.PI / 2;
+      var fRim = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.60, 14), yellowRimMat);
+      fRim.rotation.z = Math.PI / 2;
+      frontW.add(fTire, fRim);
+      g.add(frontW);
+    });
+    addContactShadow(g, 4.8, 7.8, 0.06);
 
   } else {
     var vanCargo = new THREE.Mesh(new THREE.BoxGeometry(3.4, 3.35, 5.4), bodyMat);
@@ -2130,32 +2555,34 @@ function createLivingRoadVehicle(name, colHex, vehicleKind, loopIdx, startProgre
   };
 }
 
-// Spawn 18 Friendly Storybook Vehicles across the Complete Connected Road Network (9 per loop)!
-livingVehicles.push(createLivingRoadVehicle("🚗 Ruby Red Car",       0xef4444, 'mini', 0, 0.02));
-livingVehicles.push(createLivingRoadVehicle("🚌 Buster School Bus",  0xfacc15, 'bus',  0, 0.13));
-livingVehicles.push(createLivingRoadVehicle("🚐 Willy White Van",    0xf8fafc, 'van',  0, 0.24));
-livingVehicles.push(createLivingRoadVehicle("🚕 Sunny City Taxi",    0xf97316, 'mini', 0, 0.35));
-livingVehicles.push(createLivingRoadVehicle("🚙 Sky Blue Coupe",     0x38bdf8, 'mini', 0, 0.46));
-livingVehicles.push(createLivingRoadVehicle("🚐 Berry Ice-Cream Van",0xf472b6, 'van',  0, 0.57));
-livingVehicles.push(createLivingRoadVehicle("🚗 Minty Green Mini",   0x10b981, 'mini', 0, 0.68));
-livingVehicles.push(createLivingRoadVehicle("🚌 City Express Bus",   0xf59e0b, 'bus',  0, 0.79));
-livingVehicles.push(createLivingRoadVehicle("🚙 Violet Roadster",    0xa855f7, 'mini', 0, 0.90));
+// Spawn 24 Friendly Storybook Vehicles across the Complete Connected Road Network (including Yellow School Buses, Excavators & Tractors)!
+livingVehicles.push(createLivingRoadVehicle("🚗 Ruby Red Car",        0xef4444, 'mini',      0, 0.02));
+livingVehicles.push(createLivingRoadVehicle("🚌 Yellow School Bus",   0xfacc15, 'bus',       0, 0.11));
+livingVehicles.push(createLivingRoadVehicle("🚜 Green Farm Tractor",  0x16a34a, 'tractor',   0, 0.21));
+livingVehicles.push(createLivingRoadVehicle("🚜 Mighty Yellow Digger",0xf59e0b, 'excavator', 0, 0.31));
+livingVehicles.push(createLivingRoadVehicle("🚙 Sky Blue Coupe",      0x38bdf8, 'mini',      0, 0.41));
+livingVehicles.push(createLivingRoadVehicle("🚌 Sunny School Bus",    0xeab308, 'bus',       0, 0.51));
+livingVehicles.push(createLivingRoadVehicle("🚜 Red Country Tractor", 0xdc2626, 'tractor',   0, 0.61));
+livingVehicles.push(createLivingRoadVehicle("🚜 Builder Excavator",   0xfacc15, 'excavator', 0, 0.71));
+livingVehicles.push(createLivingRoadVehicle("🚐 Berry Ice-Cream Van", 0xf472b6, 'van',       0, 0.81));
+livingVehicles.push(createLivingRoadVehicle("🚌 Happy School Bus",    0xfacc15, 'bus',       0, 0.91));
 
-livingVehicles.push(createLivingRoadVehicle("🚙 Barnaby Blue Car",   0x0284c7, 'mini', 1, 0.05));
-livingVehicles.push(createLivingRoadVehicle("🚐 Postman Red Van",    0xdc2626, 'van',  1, 0.16));
-livingVehicles.push(createLivingRoadVehicle("🚌 Sunny School Bus",   0xeab308, 'bus',  1, 0.27));
-livingVehicles.push(createLivingRoadVehicle("🚗 Pippa Green Car",    0x22c55e, 'mini', 1, 0.38));
-livingVehicles.push(createLivingRoadVehicle("🚕 Golden Cab",         0xfbbf24, 'mini', 1, 0.49));
-livingVehicles.push(createLivingRoadVehicle("🚐 Bakery Delivery Van",0xfed7aa, 'van',  1, 0.60));
-livingVehicles.push(createLivingRoadVehicle("🚗 Coral Pink Mini",    0xfb7185, 'mini', 1, 0.71));
-livingVehicles.push(createLivingRoadVehicle("🚌 Meadow Tour Bus",    0x4ade80, 'bus',  1, 0.82));
-livingVehicles.push(createLivingRoadVehicle("🚙 Indigo Family Car",  0x6366f1, 'mini', 1, 0.93));
+livingVehicles.push(createLivingRoadVehicle("🚙 Barnaby Blue Car",    0x0284c7, 'mini',      1, 0.04));
+livingVehicles.push(createLivingRoadVehicle("🚌 Buster School Bus",   0xfacc15, 'bus',       1, 0.14));
+livingVehicles.push(createLivingRoadVehicle("🚜 Big Yellow Excavator",0xeab308, 'excavator', 1, 0.24));
+livingVehicles.push(createLivingRoadVehicle("🚜 Johnny Green Tractor",0x15803d, 'tractor',   1, 0.34));
+livingVehicles.push(createLivingRoadVehicle("🚗 Pippa Green Car",     0x22c55e, 'mini',      1, 0.44));
+livingVehicles.push(createLivingRoadVehicle("🚌 Golden School Bus",   0xfacc15, 'bus',       1, 0.54));
+livingVehicles.push(createLivingRoadVehicle("🚜 Orange Power Digger", 0xf97316, 'excavator', 1, 0.64));
+livingVehicles.push(createLivingRoadVehicle("🚜 Blue Holland Tractor",0x2563eb, 'tractor',   1, 0.74));
+livingVehicles.push(createLivingRoadVehicle("🚐 Postman Red Van",     0xdc2626, 'van',       1, 0.84));
+livingVehicles.push(createLivingRoadVehicle("🚙 Indigo Family Car",   0x6366f1, 'mini',      1, 0.94));
 
 // Spawn 4 vehicles on the Connected Airport & Parking Lot Road Loop (loopIdx = 2)!
-livingVehicles.push(createLivingRoadVehicle("🚌 Airport Shuttle Bus",0x2563eb, 'bus',  2, 0.08));
-livingVehicles.push(createLivingRoadVehicle("🚕 Airport Yellow Taxi",0xfacc15, 'mini', 2, 0.34));
-livingVehicles.push(createLivingRoadVehicle("🚙 Holiday Family Car", 0xef4444, 'mini', 2, 0.60));
-livingVehicles.push(createLivingRoadVehicle("🚐 Airport Hotel Van",  0x38bdf8, 'van',  2, 0.84));
+livingVehicles.push(createLivingRoadVehicle("🚌 Airport School Bus",  0xfacc15, 'bus',       2, 0.08));
+livingVehicles.push(createLivingRoadVehicle("🚜 Airport Crew Tractor",0x16a34a, 'tractor',   2, 0.34));
+livingVehicles.push(createLivingRoadVehicle("🚙 Holiday Family Car",  0xef4444, 'mini',      2, 0.60));
+livingVehicles.push(createLivingRoadVehicle("🚜 Runway Excavator",    0xf59e0b, 'excavator', 2, 0.84));
 
 // --- FLOWERS, BEES & BUTTERFLIES (Grounded on 3D Terrain!) ---
 var flowerPositions = [];
@@ -2307,232 +2734,582 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
 
 // 1. EIFFEL TOWER (`J_NW -> J_NORTH` at x = -108, z = -246)
 (function buildEiffelTowerLandmark() {
-  var ex = -108, ez = -246;
-  var ey = terrainY(ex, ez);
+  // Positioned at ez = -266 so the 32m Champ de Mars plaza sits strictly north of the road at (-95, -225),
+  // keeping the asphalt road 100% uncovered and continuous!
+  var ex = -108, ez = -266;
+  var flatPlainY = 7.35; // Matches natural terrain height so the road at z = -225 is never buried!
+
+  // Push the 3 giant northern backdrop hill spheres (created in tracks.js at z = -260..-285) 150m further north
+  // so they stand majestically on the distant horizon and NEVER swallow the Eiffel Tower or Grandma's House + Kaufland!
+  scene.traverse(function(obj) {
+    if (obj.isMesh && obj.scale && obj.scale.x >= 90 && obj.position.z <= -220 && !obj.userData._shiftedNorthHorizon) {
+      obj.userData._shiftedNorthHorizon = true;
+      obj.position.z -= 150;
+    }
+  });
+
+  // Flatten the 3D terrain mesh & height function strictly under the Eiffel Tower plaza (z < -231, clear of the road!)
+  // AND under Grandma's House + Kaufland in Bohumín (z < -204, clear of the J_NORTH->J_NE railway tracks!)
+  var origGetTerrainHeight = window.getTerrainHeight;
+  if (origGetTerrainHeight && !window._eiffelTerrainFlattened) {
+    window._eiffelTerrainFlattened = true;
+    window.getTerrainHeight = function(x, z) {
+      var rawH = origGetTerrainHeight(x, z);
+      // 1) Eiffel Tower level plain (strictly north of z = -231 so the road at z = -225 is 100% untouched!)
+      if (z < -231.0) {
+        var dxE = (x - ex) / 48.0;
+        var dzE = (z - ez) / 34.0;
+        var dE = Math.hypot(dxE, dzE);
+        if (dE < 1.0) {
+          var blendE = dE <= 0.68 ? 0.0 : (dE - 0.68) / 0.32;
+          var sBlendE = blendE * blendE * (3.0 - 2.0 * blendE);
+          return flatPlainY * (1.0 - sBlendE) + rawH * sBlendE;
+        }
+      }
+      // 2) Bohumín level plain for Grandma's 3-story house (z = -226) & Kaufland 50m behind it (z = -292),
+      //    kept strictly north of z = -202 so the railway track J_NORTH->J_NE is NEVER buried!
+      if (z < -202.0) {
+        var dxG = (x - 150.0) / 68.0;
+        var dzG = (z - (-262.0)) / 58.0;
+        var dG = Math.hypot(dxG, dzG);
+        if (dG < 1.0) {
+          var blendG = dG <= 0.72 ? 0.0 : (dG - 0.72) / 0.28;
+          var sBlendG = blendG * blendG * (3.0 - 2.0 * blendG);
+          return 3.20 * (1.0 - sBlendG) + rawH * sBlendG;
+        }
+      }
+      return rawH;
+    };
+
+    scene.children.forEach(function(ch) {
+      if (ch.isMesh && ch.geometry && ch.geometry.attributes && ch.geometry.attributes.position && ch.geometry.attributes.position.count > 10000) {
+        var pAttr = ch.geometry.attributes.position;
+        var cAttr = ch.geometry.attributes.color;
+        var meadowCol = new THREE.Color(0x4ade80);
+        for (var vi = 0; vi < pAttr.count; vi++) {
+          var vx = pAttr.getX(vi);
+          var vz = pAttr.getZ(vi);
+          var dE = (vz < -231.0) ? Math.hypot((vx - ex) / 48.0, (vz - ez) / 34.0) : 99.0;
+          var dG = (vz < -202.0) ? Math.hypot((vx - 150.0) / 68.0, (vz - (-262.0)) / 58.0) : 99.0;
+          if (dE < 1.0 || dG < 1.0) {
+            var newVy = window.getTerrainHeight(vx, vz);
+            pAttr.setY(vi, newVy);
+            if (cAttr && newVy < 16.5) {
+              cAttr.setXYZ(vi, meadowCol.r, meadowCol.g, meadowCol.b);
+            }
+          }
+        }
+        pAttr.needsUpdate = true;
+        if (cAttr) cAttr.needsUpdate = true;
+        ch.geometry.computeVertexNormals();
+      }
+    });
+  }
+
+  var ey = flatPlainY;
   var g = new THREE.Group();
   g.position.set(ex, ey, ez);
 
-  var bronzeMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.36, metalness: 0.62 });
-  var goldTrimMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.28, metalness: 0.68 });
-  var deckMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.45, metalness: 0.4 });
+  // Expansive Flat Champ de Mars Park Lawn & Stone Promenade Terrace Pad (radius 32m -> ends at z = -234, clear of road!)
+  var parkLawnPad = new THREE.Mesh(
+    new THREE.CylinderGeometry(31.5, 33.0, 0.5, 44),
+    new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.75 })
+  );
+  parkLawnPad.position.y = 0.15;
+  g.add(parkLawnPad);
+
+  // Procedural Wrought-Iron Lattice Truss Texture for Authentic Eiffel Filigree
+  function createEiffelLatticeTex() {
+    var c = document.createElement('canvas');
+    c.width = 256; c.height = 256;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#9a4406';
+    ctx.fillRect(0, 0, 256, 256);
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 10;
+    for (var y = 0; y < 256; y += 64) {
+      ctx.strokeRect(4, y + 4, 248, 56);
+      ctx.beginPath();
+      ctx.moveTo(0, y); ctx.lineTo(256, y + 64);
+      ctx.moveTo(256, y); ctx.lineTo(0, y + 64);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 4;
+    for (var y2 = 0; y2 < 256; y2 += 32) {
+      ctx.beginPath();
+      ctx.moveTo(0, y2); ctx.lineTo(256, y2);
+      ctx.stroke();
+    }
+    var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c, 2, 6) : new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+
+  var latticeTex = createEiffelLatticeTex();
+  var bronzeMat = new THREE.MeshStandardMaterial({ map: latticeTex, color: 0xd97706, roughness: 0.34, metalness: 0.58 });
+  var solidBronzeMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.36, metalness: 0.62 });
+  var goldTrimMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.26, metalness: 0.68 });
+  var deckMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.42, metalness: 0.42 });
+  var stoneMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.55 });
+  var warmStoneMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.48 });
   var glowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
 
-  // Stone promenade plaza & 4 corner plinths
-  var plaza = new THREE.Mesh(new THREE.CylinderGeometry(24, 26, 1.2, 32), new THREE.MeshStandardMaterial({ color: 0xe2e8f0 }));
-  plaza.position.y = 0.5;
-  g.add(plaza);
+  // Grand Parisian Champ de Mars Promenade Plaza with Concentric Cobblestone Rings & Parterres
+  var outerPlaza = new THREE.Mesh(new THREE.CylinderGeometry(28.5, 30.0, 0.7, 40), stoneMat);
+  outerPlaza.position.y = 0.35;
+  var innerPlaza = new THREE.Mesh(new THREE.CylinderGeometry(22.0, 22.8, 0.9, 36), warmStoneMat);
+  innerPlaza.position.y = 0.48;
+  var centerMedallion = new THREE.Mesh(new THREE.CylinderGeometry(8.5, 9.0, 1.05, 28), new THREE.MeshStandardMaterial({ color: 0xfde68a, roughness: 0.45 }));
+  centerMedallion.position.y = 0.54;
+  g.add(outerPlaza, innerPlaza, centerMedallion);
 
-  var legSpreadBot = 12.5;
-  var legSpreadMid1 = 6.8;
+  // 8 Parisian Garden Parterres with Manicured Hedges, Trees & Colorful Blossoms
+  var flowerPalette = [0xf43f5e, 0xfacc15, 0xa855f7, 0x38bdf8, 0xfb7185];
+  for (var pi = 0; pi < 8; pi++) {
+    var pAng = (pi / 8) * Math.PI * 2 + Math.PI * 0.125;
+    var px = Math.cos(pAng) * 24.5;
+    var pz = Math.sin(pAng) * 24.5;
+    var bed = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.9, 0.65, 14), new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.6 }));
+    bed.position.set(px, 0.85, pz);
+    g.add(bed);
+    for (var fi = 0; fi < 6; fi++) {
+      var fa = (fi / 6) * Math.PI * 2;
+      var flw = new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 8), new THREE.MeshBasicMaterial({ color: flowerPalette[(pi + fi) % flowerPalette.length] }));
+      flw.position.set(px + Math.cos(fa) * 1.4, 1.32, pz + Math.sin(fa) * 1.4);
+      g.add(flw);
+    }
+    if (pi % 2 === 0) {
+      // Classic Black & Gold Parisian Wrought-Iron Streetlamp
+      var lampG = new THREE.Group();
+      lampG.position.set(Math.cos(pAng) * 20.5, 0.8, Math.sin(pAng) * 20.5);
+      var post = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.24, 5.2, 10), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.6 }));
+      post.position.y = 2.6;
+      var globe = new THREE.Mesh(new THREE.SphereGeometry(0.52, 12, 12), glowMat);
+      globe.position.y = 5.4;
+      var crown = new THREE.Mesh(new THREE.ConeGeometry(0.38, 0.55, 8), goldTrimMat);
+      crown.position.y = 5.95;
+      lampG.add(post, globe, crown);
+      g.add(lampG);
+    }
+  }
+
+  var legSpreadBot = 12.6;
+  var legSpreadMid1 = 6.9;
   var legSpreadMid2 = 3.5;
 
-  // 4 Tapered Lattice Legs (Lower & Middle sections) + Base Decorative Arches
+  // 4 Tapered Lattice Legs with Masonry Plinths & 3D Cross-Braced Struts
   [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function(c) {
-    var plinth = new THREE.Mesh(new THREE.BoxGeometry(5.2, 2.8, 5.2), new THREE.MeshStandardMaterial({ color: 0x94a3b8 }));
-    plinth.position.set(c[0] * legSpreadBot, 1.4, c[1] * legSpreadBot);
-    g.add(plinth);
+    var plinthBase = new THREE.Mesh(new THREE.BoxGeometry(5.8, 1.6, 5.8), stoneMat);
+    plinthBase.position.set(c[0] * legSpreadBot, 0.8, c[1] * legSpreadBot);
+    var plinthTop = new THREE.Mesh(new THREE.BoxGeometry(5.0, 2.2, 5.0), warmStoneMat);
+    plinthTop.position.set(c[0] * legSpreadBot, 2.2, c[1] * legSpreadBot);
+    g.add(plinthBase, plinthTop);
 
-    // Lower leg (y = 2 -> 18)
-    var p0 = new THREE.Vector3(c[0] * legSpreadBot, 2.0, c[1] * legSpreadBot);
+    // Lower leg (y = 2.5 -> 18.5)
+    var p0 = new THREE.Vector3(c[0] * legSpreadBot, 2.5, c[1] * legSpreadBot);
     var p1 = new THREE.Vector3(c[0] * legSpreadMid1, 18.5, c[1] * legSpreadMid1);
     var dir1 = p1.clone().sub(p0);
-    var leg1 = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 2.1, dir1.length(), 8), bronzeMat);
+    var leg1 = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 2.25, dir1.length(), 8), bronzeMat);
     leg1.position.copy(p0.clone().lerp(p1, 0.5));
     leg1.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir1.clone().normalize());
     leg1.castShadow = true;
     g.add(leg1);
 
-    // Middle leg (y = 19 -> 36)
+    // Horizontal truss collars along lower leg
+    for (var s1 = 1; s1 <= 4; s1++) {
+      var lp = p0.clone().lerp(p1, s1 / 5);
+      var collar = new THREE.Mesh(new THREE.BoxGeometry(3.2 - s1 * 0.25, 0.38, 3.2 - s1 * 0.25), goldTrimMat);
+      collar.position.copy(lp);
+      g.add(collar);
+    }
+
+    // Middle leg (y = 19.0 -> 36.5)
     var p2 = new THREE.Vector3(c[0] * legSpreadMid2, 36.5, c[1] * legSpreadMid2);
     var dir2 = p2.clone().sub(p1);
-    var leg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 1.2, dir2.length(), 8), bronzeMat);
+    var leg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 1.32, dir2.length(), 8), bronzeMat);
     leg2.position.copy(p1.clone().lerp(p2, 0.5));
     leg2.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir2.clone().normalize());
     leg2.castShadow = true;
     g.add(leg2);
   });
 
-  // 4 Grand Base Arches between the legs
+  // 4 Grand Decorative Base Arches with Dual Filigree Rings & Spandrel Struts
   [0, Math.PI * 0.5, Math.PI, Math.PI * 1.5].forEach(function(rotY) {
     var archG = new THREE.Group();
     archG.rotation.y = rotY;
-    var archTorus = new THREE.Mesh(new THREE.TorusGeometry(9.2, 0.65, 10, 24, Math.PI), goldTrimMat);
-    archTorus.position.set(0, 2.5, legSpreadBot * 0.86);
-    archG.add(archTorus);
+    var archOuter = new THREE.Mesh(new THREE.TorusGeometry(9.6, 0.55, 10, 28, Math.PI), goldTrimMat);
+    archOuter.position.set(0, 2.6, legSpreadBot * 0.86);
+    var archInner = new THREE.Mesh(new THREE.TorusGeometry(8.4, 0.38, 8, 24, Math.PI), solidBronzeMat);
+    archInner.position.set(0, 2.6, legSpreadBot * 0.86);
+    archG.add(archOuter, archInner);
+    for (var ai = 1; ai < 8; ai++) {
+      var aTheta = (ai / 8) * Math.PI;
+      var spoke = new THREE.Mesh(new THREE.BoxGeometry(0.26, 1.3, 0.26), goldTrimMat);
+      spoke.position.set(Math.cos(aTheta) * 9.0, 2.6 + Math.sin(aTheta) * 9.0, legSpreadBot * 0.86);
+      spoke.rotation.z = aTheta - Math.PI * 0.5;
+      archG.add(spoke);
+    }
     g.add(archG);
   });
 
-  // 1st Grand Observation Deck (y = 18.5)
-  var deck1 = new THREE.Mesh(new THREE.BoxGeometry(17.5, 2.2, 17.5), deckMat);
+  // 1st Grand Observation Deck (y = 18.5) with Panoramic Restaurant Windows & Golden Frieze
+  var deck1 = new THREE.Mesh(new THREE.BoxGeometry(18.2, 2.4, 18.2), deckMat);
   deck1.position.y = 18.5;
-  var rail1 = new THREE.Mesh(new THREE.BoxGeometry(18.4, 0.65, 18.4), goldTrimMat);
-  rail1.position.y = 19.8;
-  g.add(deck1, rail1);
+  var deck1Win = new THREE.Mesh(new THREE.BoxGeometry(16.8, 1.2, 16.8), glowMat);
+  deck1Win.position.y = 20.1;
+  var rail1 = new THREE.Mesh(new THREE.BoxGeometry(19.0, 0.65, 19.0), goldTrimMat);
+  rail1.position.y = 20.8;
+  g.add(deck1, deck1Win, rail1);
 
-  // 2nd Observation Deck (y = 36.5)
-  var deck2 = new THREE.Mesh(new THREE.BoxGeometry(10.2, 1.8, 10.2), deckMat);
+  // 2nd Observation Deck (y = 36.5) with Double-Tier Viewing Gallery
+  var deck2 = new THREE.Mesh(new THREE.BoxGeometry(10.8, 2.0, 10.8), deckMat);
   deck2.position.y = 36.5;
-  var rail2 = new THREE.Mesh(new THREE.BoxGeometry(11.0, 0.55, 11.0), goldTrimMat);
-  rail2.position.y = 37.6;
-  g.add(deck2, rail2);
+  var deck2Win = new THREE.Mesh(new THREE.BoxGeometry(9.6, 1.0, 9.6), glowMat);
+  deck2Win.position.y = 37.8;
+  var rail2 = new THREE.Mesh(new THREE.BoxGeometry(11.6, 0.58, 11.6), goldTrimMat);
+  rail2.position.y = 38.4;
+  g.add(deck2, deck2Win, rail2);
 
-  // Upper Lattice Spire Tower (y = 37 -> 62) with Horizontal Filigree Rings
-  var upperSpire = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 3.8, 25.0, 8), bronzeMat);
-  upperSpire.position.y = 49.5;
+  // Upper Lattice Spire Tower (y = 37.5 -> 62.5) with Cross-Braced Filigree Rings
+  var upperSpire = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 3.9, 25.0, 8), bronzeMat);
+  upperSpire.position.y = 50.0;
   upperSpire.castShadow = true;
   g.add(upperSpire);
 
-  for (var ry = 22; ry <= 58; ry += 4.5) {
-    var ringW = ry < 36 ? (15.0 - (ry - 20) * 0.35) : (7.2 - (ry - 36) * 0.20);
+  for (var ry = 22; ry <= 60; ry += 3.8) {
+    var ringW = ry < 36 ? (15.4 - (ry - 20) * 0.36) : (7.6 - (ry - 36) * 0.19);
     var ring = new THREE.Mesh(new THREE.BoxGeometry(ringW, 0.42, ringW), goldTrimMat);
     ring.position.y = ry;
     g.add(ring);
   }
 
-  // 3rd Summit Cupola & Glowing Golden Lighthouse Beacon (y = 62 -> 74)
-  var deck3 = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 2.8, 1.8, 16), deckMat);
-  deck3.position.y = 62.5;
-  var cupola = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.4, 4.2, 16), goldTrimMat);
-  cupola.position.y = 65.2;
-  var antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.45, 9.5, 10), glowMat);
-  antenna.position.y = 71.5;
-  var beacon = new THREE.Mesh(new THREE.SphereGeometry(1.25, 14, 14), glowMat);
-  beacon.position.y = 68.0;
+  // 3rd Summit Gustave Eiffel Cupola, Glowing Lighthouse Beacon & French Tricolor Flag
+  var deck3 = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 3.1, 1.9, 18), deckMat);
+  deck3.position.y = 62.8;
+  var cupola = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 2.6, 4.4, 18), goldTrimMat);
+  cupola.position.y = 65.6;
+  var cupolaDome = new THREE.Mesh(new THREE.SphereGeometry(1.75, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), goldTrimMat);
+  cupolaDome.position.y = 67.8;
+  var antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.42, 9.5, 10), glowMat);
+  antenna.position.y = 72.5;
+  var beacon = new THREE.Mesh(new THREE.SphereGeometry(1.28, 14, 14), glowMat);
+  beacon.position.y = 69.2;
   window.eiffelBeacon = beacon;
-  g.add(deck3, cupola, antenna, beacon);
+  g.add(deck3, cupola, cupolaDome, antenna, beacon);
 
   scene.add(g);
 
-  window.registerLandmarkShowcase('J_NW', 'J_NORTH', {
-    lookTarget: new THREE.Vector3(ex, ey + 28.0, ez),
-    camHeight: 24,
-    camBack: 46,
-    camSide: 32
-  });
+  // Cheerful Parisian Visitors waving near the plaza on the flat plain
+  spawnPerson(ex + 18, ey, ez + 18, 0xef4444, 0x1e3a8a, false, 1.45, 0.4);
+  spawnPerson(ex - 16, ey, ez + 20, 0x38bdf8, null, false, 1.42, -0.3);
+
+  // Wide panoramic perspective framing the ENTIRE 77m Eiffel Tower from base legs to top spire + the train!
+  // Handled with a smooth 5-second timer (`5000 ms`) in `installModelsFrameEnhancer()` so it never stays locked too long!
+  window.eiffelWorldCenter = new THREE.Vector3(ex, ey, ez);
 })();
 
-// 2. BIG BEN CLOCK TOWER (`J_SW -> J_WEST` at x = -286, z = 92)
+// 2. BIG BEN & PALACE OF WESTMINSTER (`J_SW -> J_WEST` at x = -286, z = 92)
 (function buildBigBenLandmark() {
   var bx = -286, bz = 92;
   var by = terrainY(bx, bz);
   var g = new THREE.Group();
   g.position.set(bx, by, bz);
 
-  var sandstoneMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.55, metalness: 0.12 });
-  var creamStoneMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.45 });
-  var goldMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.25, metalness: 0.65 });
-  var slateRoofMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.3 });
-
-  // Custom High-Resolution Big Ben Clock Face Canvas Texture
-  function createBigBenClockTex() {
+  // Procedural Neo-Gothic Honey-Limestone Vertical Fluting & Tracery Texture
+  function createGothicLimestoneTex() {
     var c = document.createElement('canvas');
     c.width = 256; c.height = 256;
     var ctx = c.getContext('2d');
-    ctx.fillStyle = '#fef3c7';
+    ctx.fillStyle = '#eab308';
     ctx.fillRect(0, 0, 256, 256);
-    ctx.strokeStyle = '#d97706';
-    ctx.lineWidth = 14;
-    ctx.strokeRect(10, 10, 236, 236);
+    for (var x = 0; x < 256; x += 16) {
+      ctx.fillStyle = (x % 32 === 0) ? '#ca8a04' : '#fde047';
+      ctx.fillRect(x, 0, 6, 256);
+      ctx.fillStyle = '#713f12';
+      ctx.fillRect(x + 12, 0, 2, 256);
+    }
+    for (var y = 0; y < 256; y += 64) {
+      ctx.fillStyle = '#fef3c7';
+      ctx.fillRect(0, y, 256, 8);
+      ctx.fillStyle = '#854d0e';
+      ctx.fillRect(0, y + 8, 256, 4);
+    }
+    var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c, 2, 4) : new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
 
-    ctx.fillStyle = '#ffffff';
+  // High-Resolution 512x512 Big Ben Great Clock of Westminster Dial Texture
+  function createBigBenClockTex() {
+    var c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    var ctx = c.getContext('2d');
+    // Ornate Neo-Gothic Gilded Frame & Spandrels
+    ctx.fillStyle = '#fef3c7';
+    ctx.fillRect(0, 0, 512, 512);
     ctx.strokeStyle = '#b45309';
+    ctx.lineWidth = 24;
+    ctx.strokeRect(14, 14, 484, 484);
+    ctx.strokeStyle = '#facc15';
     ctx.lineWidth = 10;
+    ctx.strokeRect(30, 30, 452, 452);
+
+    // Corner Gothic quatrefoil spandrel ornaments
+    [[72, 72], [440, 72], [72, 440], [440, 440]].forEach(function(sp) {
+      ctx.fillStyle = '#d97706';
+      ctx.beginPath();
+      ctx.arc(sp[0], sp[1], 28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(sp[0], sp[1], 14, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Illuminated Opal-Glass Clock Dial
+    var dialGrad = ctx.createRadialGradient(256, 256, 20, 256, 256, 205);
+    dialGrad.addColorStop(0.0, '#ffffff');
+    dialGrad.addColorStop(0.75, '#fefce8');
+    dialGrad.addColorStop(1.0, '#fde68a');
+    ctx.fillStyle = dialGrad;
     ctx.beginPath();
-    ctx.arc(128, 128, 96, 0, Math.PI * 2);
+    ctx.arc(256, 256, 202, 0, Math.PI * 2);
     ctx.fill();
+
+    // Outer & Inner Gilded Chapter Rings
+    ctx.strokeStyle = '#92400e';
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.arc(256, 256, 202, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(256, 256, 152, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(256, 256, 86, 0, Math.PI * 2);
     ctx.stroke();
 
-    for (var m = 0; m < 12; m++) {
-      var a = (m / 12) * Math.PI * 2;
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 6;
+    // 60 Minute Ticks & 12 Bold Gothic Hour Numerals
+    for (var m = 0; m < 60; m++) {
+      var a = (m / 60) * Math.PI * 2 - Math.PI * 0.5;
+      var isHour = (m % 5 === 0);
+      ctx.strokeStyle = isHour ? '#0f172a' : '#78350f';
+      ctx.lineWidth = isHour ? 11 : 4;
       ctx.beginPath();
-      ctx.moveTo(128 + Math.cos(a) * 74, 128 + Math.sin(a) * 74);
-      ctx.lineTo(128 + Math.cos(a) * 88, 128 + Math.sin(a) * 88);
+      ctx.moveTo(256 + Math.cos(a) * (isHour ? 156 : 182), 256 + Math.sin(a) * (isHour ? 156 : 182));
+      ctx.lineTo(256 + Math.cos(a) * 194, 256 + Math.sin(a) * 194);
       ctx.stroke();
     }
+
+    // Ornate Copper/Gold Minute & Hour Hands
     ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 9;
+    ctx.lineWidth = 16;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(128, 128); ctx.lineTo(128, 62);
-    ctx.moveTo(128, 128); ctx.lineTo(178, 128);
+    ctx.moveTo(256, 256); ctx.lineTo(256, 108);
+    ctx.moveTo(256, 256); ctx.lineTo(366, 256);
     ctx.stroke();
-    ctx.fillStyle = '#d97706';
+
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 6;
     ctx.beginPath();
-    ctx.arc(128, 128, 9, 0, Math.PI * 2);
+    ctx.moveTo(256, 256); ctx.lineTo(256, 114);
+    ctx.moveTo(256, 256); ctx.lineTo(360, 256);
+    ctx.stroke();
+
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.arc(256, 256, 22, 0, Math.PI * 2);
     ctx.fill();
     return window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new THREE.CanvasTexture(c);
   }
-  var clockFaceMat = new THREE.MeshBasicMaterial({ map: createBigBenClockTex() });
 
-  // Palace of Westminster Gothic Base Wing beside the Tower
-  var wing = new THREE.Mesh(new THREE.BoxGeometry(26, 12, 14), sandstoneMat);
-  wing.position.set(0, 6, -16);
-  var wingRoof = new THREE.Mesh(new THREE.BoxGeometry(27, 1.8, 15), slateRoofMat);
-  wingRoof.position.set(0, 12.6, -16);
+  var gothicStoneMat = new THREE.MeshStandardMaterial({ map: createGothicLimestoneTex(), roughness: 0.48, metalness: 0.14 });
+  var sandstoneMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.50, metalness: 0.12 });
+  var creamStoneMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.42 });
+  var goldMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.24, metalness: 0.68 });
+  var slateRoofMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.36, metalness: 0.35 });
+  var clockFaceMat = new THREE.MeshBasicMaterial({ map: createBigBenClockTex() });
+  var londonRedMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.32, metalness: 0.18 });
+
+  // Westminster Cobblestone Embankment Terrace & Parapet Wall
+  var terrace = new THREE.Mesh(new THREE.BoxGeometry(44, 1.2, 42), new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.6 }));
+  terrace.position.set(4, 0.6, -4);
+  g.add(terrace);
+
+  // Palace of Westminster Gothic Wing with Rhythmic Golden Buttresses, Tall Arched Windows & Crenellations
+  var wing = new THREE.Mesh(new THREE.BoxGeometry(28, 13.5, 15.5), gothicStoneMat);
+  wing.position.set(0, 6.75, -17.5);
+  wing.castShadow = true;
+  var wingRoof = new THREE.Mesh(new THREE.BoxGeometry(29.2, 2.2, 16.5), slateRoofMat);
+  wingRoof.position.set(0, 14.2, -17.5);
   g.add(wing, wingRoof);
 
-  // Main Neo-Gothic Tower Shaft (y = 0 -> 36) with 4 Corner Buttress Piers & Gothic Fluting
-  var shaft = new THREE.Mesh(new THREE.BoxGeometry(12.2, 36, 12.2), sandstoneMat);
-  shaft.position.y = 18;
-  shaft.castShadow = true;
-  g.add(shaft);
+  for (var wb = -12; wb <= 12; wb += 4.8) {
+    var buttress = new THREE.Mesh(new THREE.BoxGeometry(1.1, 15.2, 16.8), creamStoneMat);
+    buttress.position.set(wb, 7.6, -17.5);
+    var bPin = new THREE.Mesh(new THREE.ConeGeometry(0.75, 2.8, 4), goldMat);
+    bPin.position.set(wb, 16.5, -9.4);
+    bPin.rotation.y = Math.PI / 4;
+    var bPinBack = bPin.clone();
+    bPinBack.position.z = -25.6;
+    g.add(buttress, bPin, bPinBack);
 
-  [[-6.1, -6.1], [6.1, -6.1], [-6.1, 6.1], [6.1, 6.1]].forEach(function(cp) {
-    var pier = new THREE.Mesh(new THREE.BoxGeometry(2.2, 46, 2.2), creamStoneMat);
-    pier.position.set(cp[0], 23, cp[1]);
-    var pinnacle = new THREE.Mesh(new THREE.ConeGeometry(1.4, 4.5, 4), goldMat);
-    pinnacle.position.set(cp[0], 48.2, cp[1]);
+    if (wb < 12) {
+      var gWin = new THREE.Mesh(new THREE.BoxGeometry(2.2, 7.2, 16.0), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+      gWin.position.set(wb + 2.4, 7.2, -17.5);
+      g.add(gWin);
+    }
+  }
+
+  // Main Elizabeth Tower (Big Ben) Neo-Gothic Shaft (y = 0 -> 36) with 4 Corner Buttress Piers & Recessed Lancets
+  var basePlinth = new THREE.Mesh(new THREE.BoxGeometry(14.6, 5.5, 14.6), creamStoneMat);
+  basePlinth.position.y = 2.75;
+  var shaft = new THREE.Mesh(new THREE.BoxGeometry(12.6, 36.5, 12.6), gothicStoneMat);
+  shaft.position.y = 18.25;
+  shaft.castShadow = true;
+  g.add(basePlinth, shaft);
+
+  [[-6.3, -6.3], [6.3, -6.3], [-6.3, 6.3], [6.3, 6.3]].forEach(function(cp) {
+    var pier = new THREE.Mesh(new THREE.BoxGeometry(2.4, 46.8, 2.4), creamStoneMat);
+    pier.position.set(cp[0], 23.4, cp[1]);
+    var pinnacleBase = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.2, 2.6), goldMat);
+    pinnacleBase.position.set(cp[0], 47.4, cp[1]);
+    var pinnacle = new THREE.Mesh(new THREE.ConeGeometry(1.55, 5.2, 4), goldMat);
+    pinnacle.position.set(cp[0], 51.0, cp[1]);
     pinnacle.rotation.y = Math.PI / 4;
-    g.add(pier, pinnacle);
+    g.add(pier, pinnacleBase, pinnacle);
   });
 
-  for (var bandY = 8; bandY <= 32; bandY += 8) {
-    var band = new THREE.Mesh(new THREE.BoxGeometry(13.2, 0.85, 13.2), creamStoneMat);
+  for (var bandY = 7.5; bandY <= 33; bandY += 6.5) {
+    var band = new THREE.Mesh(new THREE.BoxGeometry(13.6, 0.95, 13.6), goldMat);
     band.position.y = bandY;
     g.add(band);
   }
 
-  // Grand Clock Stage Housing (y = 36 -> 46) with 4 Illuminated Clock Faces on all 4 sides
-  var clockHousing = new THREE.Mesh(new THREE.BoxGeometry(14.4, 10.5, 14.4), creamStoneMat);
-  clockHousing.position.y = 40.5;
-  var goldCornice = new THREE.Mesh(new THREE.BoxGeometry(15.4, 1.2, 15.4), goldMat);
-  goldCornice.position.y = 46.0;
-  g.add(clockHousing, goldCornice);
+  // Grand Clock Stage Housing (y = 36 -> 47) with Protruding 3D Golden Bezels & 4 Illuminated Clock Faces
+  var clockLowerCornice = new THREE.Mesh(new THREE.BoxGeometry(15.6, 1.2, 15.6), goldMat);
+  clockLowerCornice.position.y = 35.4;
+  var clockHousing = new THREE.Mesh(new THREE.BoxGeometry(14.8, 11.0, 14.8), creamStoneMat);
+  clockHousing.position.y = 41.0;
+  var goldCornice = new THREE.Mesh(new THREE.BoxGeometry(15.8, 1.4, 15.8), goldMat);
+  goldCornice.position.y = 46.8;
+  g.add(clockLowerCornice, clockHousing, goldCornice);
 
   [0, Math.PI * 0.5, Math.PI, Math.PI * 1.5].forEach(function(ry) {
     var faceHolder = new THREE.Group();
-    faceHolder.position.y = 40.5;
+    faceHolder.position.y = 41.0;
     faceHolder.rotation.y = ry;
-    var dial = new THREE.Mesh(new THREE.PlaneGeometry(8.8, 8.8), clockFaceMat);
-    dial.position.z = 7.28;
-    faceHolder.add(dial);
+    var dial = new THREE.Mesh(new THREE.PlaneGeometry(9.4, 9.4), clockFaceMat);
+    dial.position.z = 7.48;
+    var bezelRing = new THREE.Mesh(new THREE.TorusGeometry(4.1, 0.34, 10, 32), goldMat);
+    bezelRing.position.z = 7.56;
+    faceHolder.add(dial, bezelRing);
     g.add(faceHolder);
   });
 
-  // Belfry Colonnade & Steep Neo-Gothic Spire Roof (y = 46.5 -> 66)
-  var belfry = new THREE.Mesh(new THREE.BoxGeometry(10.8, 5.2, 10.8), goldMat);
-  belfry.position.y = 49.0;
-  var lowerRoof = new THREE.Mesh(new THREE.ConeGeometry(9.8, 8.5, 4), slateRoofMat);
-  lowerRoof.position.y = 55.5;
-  lowerRoof.rotation.y = Math.PI / 4;
-  var lanternStage = new THREE.Mesh(new THREE.BoxGeometry(5.6, 4.2, 5.6), goldMat);
-  lanternStage.position.y = 60.2;
-  var upperSpire = new THREE.Mesh(new THREE.ConeGeometry(4.8, 9.5, 4), slateRoofMat);
-  upperSpire.position.y = 66.5;
-  upperSpire.rotation.y = Math.PI / 4;
-  var crownOrb = new THREE.Mesh(new THREE.SphereGeometry(0.95, 12, 12), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
-  crownOrb.position.y = 71.8;
+  // Colonnaded Belfry Stage, Steep Slate Roof with Golden Dormer Lucarnes & Ayrton Light Spire (y = 47 -> 74)
+  var belfryCore = new THREE.Mesh(new THREE.BoxGeometry(10.6, 5.4, 10.6), slateRoofMat);
+  belfryCore.position.y = 49.6;
+  var belfryRoofRim = new THREE.Mesh(new THREE.BoxGeometry(12.2, 0.9, 12.2), goldMat);
+  belfryRoofRim.position.y = 52.4;
+  g.add(belfryCore, belfryRoofRim);
 
-  g.add(belfry, lowerRoof, lanternStage, upperSpire, crownOrb);
+  // Belfry arched columns around perimeter
+  for (var bc = -4.5; bc <= 4.5; bc += 2.25) {
+    var colZ1 = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 5.2, 8), goldMat);
+    colZ1.position.set(bc, 49.6, 5.6);
+    var colZ2 = colZ1.clone(); colZ2.position.z = -5.6;
+    var colX1 = colZ1.clone(); colX1.position.set(5.6, 49.6, bc);
+    var colX2 = colZ1.clone(); colX2.position.set(-5.6, 49.6, bc);
+    g.add(colZ1, colZ2, colX1, colX2);
+  }
+
+  var lowerRoof = new THREE.Mesh(new THREE.ConeGeometry(9.8, 8.8, 4), slateRoofMat);
+  lowerRoof.position.y = 56.8;
+  lowerRoof.rotation.y = Math.PI / 4;
+  var lanternStage = new THREE.Mesh(new THREE.BoxGeometry(5.8, 4.4, 5.8), goldMat);
+  lanternStage.position.y = 61.5;
+  var upperSpire = new THREE.Mesh(new THREE.ConeGeometry(4.9, 9.8, 4), slateRoofMat);
+  upperSpire.position.y = 68.0;
+  upperSpire.rotation.y = Math.PI / 4;
+  var crownOrb = new THREE.Mesh(new THREE.SphereGeometry(1.05, 14, 14), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+  crownOrb.position.y = 73.4;
+  g.add(lowerRoof, lanternStage, upperSpire, crownOrb);
+
+  // 4 Golden Gothic Lucarne Dormers on the Spire Roof
+  [0, Math.PI * 0.5, Math.PI, Math.PI * 1.5].forEach(function(ry) {
+    var lucG = new THREE.Group();
+    lucG.position.y = 56.2;
+    lucG.rotation.y = ry;
+    var lucBox = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.2, 1.8), goldMat);
+    lucBox.position.z = 4.6;
+    var lucPeak = new THREE.Mesh(new THREE.ConeGeometry(1.4, 2.0, 4), goldMat);
+    lucPeak.position.set(0, 2.0, 4.6);
+    lucPeak.rotation.y = Math.PI / 4;
+    lucG.add(lucBox, lucPeak);
+    g.add(lucG);
+  });
+
+  // Iconic London Street Props: Red Double-Decker Routemaster Bus & Classic Red K6 Telephone Box!
+  var busG = new THREE.Group();
+  busG.position.set(14.5, 1.2, 6.0);
+  busG.rotation.y = -0.22;
+  var busBody = new THREE.Mesh(new THREE.BoxGeometry(4.2, 5.6, 11.2), londonRedMat);
+  busBody.position.y = 3.2;
+  busBody.castShadow = true;
+  var busRoof = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.1, 11.2, 14, 1, false, 0, Math.PI), londonRedMat);
+  busRoof.rotation.z = Math.PI * 0.5;
+  busRoof.rotation.y = Math.PI * 0.5;
+  busRoof.position.y = 6.0;
+  var busBand = new THREE.Mesh(new THREE.BoxGeometry(4.32, 0.38, 11.3), creamStoneMat);
+  busBand.position.y = 3.4;
+  var winLower = new THREE.Mesh(new THREE.BoxGeometry(4.30, 1.35, 9.2), new THREE.MeshBasicMaterial({ color: 0xbae6fd }));
+  winLower.position.set(0, 2.3, 0.2);
+  var winUpper = new THREE.Mesh(new THREE.BoxGeometry(4.30, 1.35, 9.8), new THREE.MeshBasicMaterial({ color: 0xbae6fd }));
+  winUpper.position.set(0, 4.7, 0);
+  var windshield = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.5, 0.2), new THREE.MeshBasicMaterial({ color: 0xe0f2fe }));
+  windshield.position.set(0, 4.7, 5.62);
+  busG.add(busBody, busRoof, busBand, winLower, winUpper, windshield);
+  [-3.4, 3.4].forEach(function(wz) {
+    [-2.0, 2.0].forEach(function(wx) {
+      var wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 0.55, 14), slateRoofMat);
+      wheel.rotation.z = Math.PI * 0.5;
+      wheel.position.set(wx, 0.85, wz);
+      busG.add(wheel);
+    });
+  });
+  g.add(busG);
+
+  // Classic Red London Telephone Box (K6)
+  var boothG = new THREE.Group();
+  boothG.position.set(9.2, 1.2, -6.5);
+  var boothBody = new THREE.Mesh(new THREE.BoxGeometry(2.1, 4.6, 2.1), londonRedMat);
+  boothBody.position.y = 2.3;
+  var boothWindows = new THREE.Mesh(new THREE.BoxGeometry(2.16, 3.2, 1.65), new THREE.MeshBasicMaterial({ color: 0xe0f2fe }));
+  boothWindows.position.y = 2.5;
+  var boothDome = new THREE.Mesh(new THREE.SphereGeometry(1.35, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.45), londonRedMat);
+  boothDome.position.y = 4.4;
+  boothG.add(boothBody, boothWindows, boothDome);
+  g.add(boothG);
+
   scene.add(g);
 
+  // Waving Londoners beside the Telephone Booth & Embankment
+  spawnPerson(bx + 11.5, by + 1.2, bz - 3.0, 0x1e3a8a, 0xdc2626, false, 1.45, 1.35);
+  spawnPerson(bx + 10.5, by + 1.2, bz + 12.5, 0xfacc15, null, false, 1.40, 1.50);
+
   window.registerLandmarkShowcase('J_SW', 'J_WEST', {
-    lookTarget: new THREE.Vector3(bx, by + 28.0, bz),
-    camHeight: 25,
-    camBack: 44,
-    camSide: -32
+    lookTarget: new THREE.Vector3(bx, by + 22.0, bz),
+    camHeight: 66,
+    camBack: 62,
+    camSide: -46,
+    lookLerp: 0.50
   });
 })();
 
@@ -2542,84 +3319,200 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
   var cy = terrainY(cx, cz);
   var g = new THREE.Group();
   g.position.set(cx, cy, cz);
-  g.scale.set(1.18, 1.0, 0.92); // Authentic elliptical Roman Amphitheater footprint
+  g.scale.set(1.18, 1.0, 0.92); // Authentic elliptical Flavian Amphitheatre footprint
 
-  var travertineMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.68, metalness: 0.08 });
-  var creamArchMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.58 });
-  var darkArchMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.85 });
-  var sandMat = new THREE.MeshStandardMaterial({ color: 0xfde68a, roughness: 0.85 });
+  // Procedural Roman Travertine Ashlar Stone Block Texture
+  function createTravertineStoneTex() {
+    var c = document.createElement('canvas');
+    c.width = 256; c.height = 256;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(0, 0, 256, 256);
+    var palette = ['#fbbf24', '#f59e0b', '#d97706', '#fde68a', '#b45309'];
+    for (var r = 0; r < 8; r++) {
+      var y = r * 32;
+      var off = (r % 2) * 32;
+      for (var col = -1; col < 5; col++) {
+        var x = col * 64 + off;
+        ctx.fillStyle = palette[Math.abs(r * 3 + col) % palette.length];
+        ctx.fillRect(x + 2, y + 2, 60, 28);
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.fillRect(x + 2, y + 2, 60, 4);
+      }
+    }
+    var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c, 2, 2) : new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
 
-  // Stone podium & Arena Sand Floor
-  var podium = new THREE.Mesh(new THREE.CylinderGeometry(28, 29.5, 1.6, 36), creamArchMat);
-  podium.position.y = 0.8;
-  var arenaSand = new THREE.Mesh(new THREE.CylinderGeometry(17.5, 17.5, 1.9, 32), sandMat);
-  arenaSand.position.y = 0.95;
-  g.add(podium, arenaSand);
+  var travertineTex = createTravertineStoneTex();
+  var travertineMat = new THREE.MeshStandardMaterial({ map: travertineTex, color: 0xfbbf24, roughness: 0.62, metalness: 0.08 });
+  var creamArchMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.50 });
+  var warmBrickMat = new THREE.MeshStandardMaterial({ color: 0xc2410c, roughness: 0.68 });
+  var darkArchMat = new THREE.MeshStandardMaterial({ color: 0x3b1704, roughness: 0.85 });
+  var sandMat = new THREE.MeshStandardMaterial({ color: 0xfde68a, roughness: 0.82 });
+  var bronzeShieldMat = new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.68, roughness: 0.28 });
 
-  // 3 Tiers of Arched Roman Arcades + Iconic Asymmetric 4th Attic Crown Wall
-  var numBays = 24;
+  // Grand Elliptical Travertine Cobblestone Piazza, Stepped Stylobate Podium & Arena Floor
+  var piazza = new THREE.Mesh(new THREE.CylinderGeometry(33.5, 35.0, 0.65, 44), new THREE.MeshStandardMaterial({ color: 0xd6d3d1, roughness: 0.65 }));
+  piazza.position.y = 0.32;
+  var podiumStep1 = new THREE.Mesh(new THREE.CylinderGeometry(29.2, 30.2, 1.1, 40), creamArchMat);
+  podiumStep1.position.y = 0.75;
+  var podiumStep2 = new THREE.Mesh(new THREE.CylinderGeometry(27.8, 28.6, 1.2, 40), travertineMat);
+  podiumStep2.position.y = 1.45;
+  var arenaSand = new THREE.Mesh(new THREE.CylinderGeometry(17.8, 17.8, 2.1, 36), sandMat);
+  arenaSand.position.y = 1.05;
+  g.add(piazza, podiumStep1, podiumStep2, arenaSand);
+
+  // Arena Floor Hypogeum Details (Ancient Underground Substructure Channels & Imperial Pulvinar Box)
+  for (var hz = -9; hz <= 9; hz += 4.5) {
+    var hypoWall = new THREE.Mesh(new THREE.BoxGeometry(18.0 - Math.abs(hz) * 0.8, 0.75, 1.1), warmBrickMat);
+    hypoWall.position.set(0, 2.15, hz);
+    g.add(hypoWall);
+  }
+  var pulvinarBox = new THREE.Mesh(new THREE.BoxGeometry(5.5, 3.2, 3.8), creamArchMat);
+  pulvinarBox.position.set(0, 3.8, -17.5);
+  var pulvinarCanopy = new THREE.Mesh(new THREE.BoxGeometry(6.0, 0.6, 4.2), new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.45 }));
+  pulvinarCanopy.position.set(0, 5.6, -17.5);
+  g.add(pulvinarBox, pulvinarCanopy);
+
+  // 3 Tiers of Authentic 3D Semi-Circular Arched Roman Arcades (28 Bays) + Classical Orders (Doric, Ionic, Corinthian)
+  var numBays = 28;
+  var outerR = 26.6;
+  var pierGeo = new THREE.BoxGeometry(1.95, 5.4, 2.8);
+  var colGeo = new THREE.CylinderGeometry(0.38, 0.44, 5.0, 10);
+  var capGeo = new THREE.BoxGeometry(1.15, 0.52, 1.15);
+  var archTorusGeo = new THREE.TorusGeometry(1.55, 0.44, 8, 16, Math.PI);
+  var keystoneGeo = new THREE.BoxGeometry(0.68, 0.95, 2.95);
+  var spandrelGeo = new THREE.BoxGeometry(3.8, 1.15, 2.65);
+  var nicheGeo = new THREE.BoxGeometry(2.9, 4.4, 1.5);
+
   for (var tier = 0; tier < 3; tier++) {
-    var tierY = 1.6 + tier * 5.8;
-    var outerR = 26.5;
-    var innerR = 21.5 - tier * 1.4;
+    var tierY = 1.8 + tier * 5.8;
+    var innerR = 21.8 - tier * 1.45;
 
-    var ringFloor = new THREE.Mesh(new THREE.CylinderGeometry(outerR + 0.5, outerR + 0.5, 0.95, 36), creamArchMat);
-    ringFloor.position.y = tierY + 5.4;
-    g.add(ringFloor);
+    // Prominent Travertine Entablature Cornice Ring Above Each Tier
+    var entablature = new THREE.Mesh(new THREE.CylinderGeometry(outerR + 1.35, outerR + 1.25, 0.95, 44), creamArchMat);
+    entablature.position.y = tierY + 5.45;
+    g.add(entablature);
 
     for (var b = 0; b < numBays; b++) {
       var ang = (b / numBays) * Math.PI * 2;
       var nextAng = ((b + 0.5) / numBays) * Math.PI * 2;
 
-      // Stone pillar pier between arches
+      // Travertine Arcade Pier
       var px = Math.cos(ang) * outerR;
       var pz = Math.sin(ang) * outerR;
-      var pier = new THREE.Mesh(new THREE.BoxGeometry(2.1, 5.4, 2.8), travertineMat);
+      var pier = new THREE.Mesh(pierGeo, travertineMat);
       pier.position.set(px, tierY + 2.7, pz);
       pier.rotation.y = -ang + Math.PI * 0.5;
       pier.castShadow = true;
       g.add(pier);
 
-      // Corinthian half-column on outer facade
-      var colX = Math.cos(ang) * (outerR + 1.05);
-      var colZ = Math.sin(ang) * (outerR + 1.05);
-      var col = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 5.2, 10), creamArchMat);
+      // Engaged Classical Half-Column with Base & Capital on Outer Facade
+      var colX = Math.cos(ang) * (outerR + 1.12);
+      var colZ = Math.sin(ang) * (outerR + 1.12);
+      var col = new THREE.Mesh(colGeo, creamArchMat);
       col.position.set(colX, tierY + 2.7, colZ);
-      g.add(col);
+      var cap = new THREE.Mesh(capGeo, creamArchMat);
+      cap.position.set(colX, tierY + 5.05, colZ);
+      cap.rotation.y = -ang + Math.PI * 0.5;
+      var base = cap.clone();
+      base.position.y = tierY + 0.35;
+      g.add(col, cap, base);
 
-      // Recessed dark Roman arch niche with warm golden lantern glow
-      var ax = Math.cos(nextAng) * (outerR - 0.4);
-      var az = Math.sin(nextAng) * (outerR - 0.4);
-      var archBack = new THREE.Mesh(new THREE.BoxGeometry(3.2, 4.4, 1.4), darkArchMat);
-      archBack.position.set(ax, tierY + 2.4, az);
-      archBack.rotation.y = -nextAng + Math.PI * 0.5;
-      var lintel = new THREE.Mesh(new THREE.BoxGeometry(3.8, 1.3, 2.6), travertineMat);
-      lintel.position.set(ax, tierY + 4.75, az);
-      lintel.rotation.y = -nextAng + Math.PI * 0.5;
-      g.add(archBack, lintel);
+      // 3D Semi-Circular Roman Arch Ring (`TorusGeometry`), Keystone & Deep Vaulted Niche
+      var ax = Math.cos(nextAng) * outerR;
+      var az = Math.sin(nextAng) * outerR;
+      var archGroup = new THREE.Group();
+      archGroup.position.set(ax, tierY, az);
+      archGroup.rotation.y = -nextAng + Math.PI * 0.5;
+
+      var archRing = new THREE.Mesh(archTorusGeo, creamArchMat);
+      archRing.position.set(0, 2.75, 0.95);
+      var keystone = new THREE.Mesh(keystoneGeo, creamArchMat);
+      keystone.position.set(0, 4.45, 0);
+      var spandrel = new THREE.Mesh(spandrelGeo, travertineMat);
+      spandrel.position.set(0, 4.78, 0);
+      var archBack = new THREE.Mesh(nicheGeo, darkArchMat);
+      archBack.position.set(0, 2.25, -0.35);
+
+      archGroup.add(archRing, keystone, spandrel, archBack);
+      g.add(archGroup);
     }
 
-    // Inner tiered seating bowl step
-    var seatStep = new THREE.Mesh(new THREE.CylinderGeometry(innerR, innerR - 2.2, 5.2, 32, 1, true), creamArchMat);
-    seatStep.position.y = tierY + 2.6;
-    g.add(seatStep);
+    // Inner Tiered Marble Cavea Seating Bowl & Radial Vomitoria Aisles
+    var seatStep = new THREE.Mesh(new THREE.CylinderGeometry(innerR + 1.6, innerR - 1.2, 5.3, 36, 1, true), creamArchMat);
+    seatStep.position.y = tierY + 2.65;
+    var innerWall = new THREE.Mesh(new THREE.CylinderGeometry(outerR - 1.4, outerR - 1.4, 5.4, 36, 1, true), warmBrickMat);
+    innerWall.position.y = tierY + 2.7;
+    g.add(seatStep, innerWall);
   }
 
-  // Iconic 4th Tier Imperial Attic Wall (spanning the intact outer half of the Colosseum silhouette)
-  for (var b4 = 0; b4 < 15; b4++) {
-    var ang4 = (b4 / numBays) * Math.PI * 2 - Math.PI * 0.15;
-    var wx = Math.cos(ang4) * 26.2;
-    var wz = Math.sin(ang4) * 26.2;
-    var atticBlock = new THREE.Mesh(new THREE.BoxGeometry(4.8, 5.6, 2.2), travertineMat);
-    atticBlock.position.set(wx, 21.8, wz);
-    atticBlock.rotation.y = -ang4 + Math.PI * 0.5;
-    var crown = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.9, 2.6), creamArchMat);
-    crown.position.set(wx, 24.8, wz);
-    crown.rotation.y = -ang4 + Math.PI * 0.5;
-    g.add(atticBlock, crown);
+  // Iconic 4th-Tier Imperial Attic Wall (Spanning the Intact Outer Half with Corinthian Pilasters, Windows & Bronze Shields, plus Stepped Ruin Wings)
+  for (var b4 = 0; b4 < 18; b4++) {
+    var ang4 = (b4 / numBays) * Math.PI * 2 - Math.PI * 0.22;
+    var wx = Math.cos(ang4) * 26.4;
+    var wz = Math.sin(ang4) * 26.4;
+    var isWingEdge = (b4 === 0 || b4 === 17);
+    var atticH = isWingEdge ? 3.2 : 5.8;
+
+    var atticG = new THREE.Group();
+    atticG.position.set(wx, 19.2, wz);
+    atticG.rotation.y = -ang4 + Math.PI * 0.5;
+
+    var atticBlock = new THREE.Mesh(new THREE.BoxGeometry(5.9, atticH, 2.3), travertineMat);
+    atticBlock.position.y = atticH * 0.5;
+    atticBlock.castShadow = true;
+    atticG.add(atticBlock);
+
+    if (!isWingEdge) {
+      var pilaster = new THREE.Mesh(new THREE.BoxGeometry(0.75, 5.6, 2.6), creamArchMat);
+      pilaster.position.set(-2.7, 2.8, 0.1);
+      var crown = new THREE.Mesh(new THREE.BoxGeometry(6.1, 1.05, 2.85), creamArchMat);
+      crown.position.set(0, 6.0, 0.1);
+      atticG.add(pilaster, crown);
+
+      if (b4 % 2 === 0) {
+        var win = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.1, 2.45), darkArchMat);
+        win.position.set(0, 2.8, 0);
+        atticG.add(win);
+      } else {
+        var shield = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.35, 16), bronzeShieldMat);
+        shield.rotation.x = Math.PI * 0.5;
+        shield.position.set(0, 3.0, 1.15);
+        atticG.add(shield);
+      }
+    }
+    g.add(atticG);
   }
 
   scene.add(g);
+
+  // Mediterranean Roman Stone Pines (Umbrella Pines), Triumphal Column & Waving Tourists outside the Colosseum
+  [[-38, -16, 1.15], [38, -14, 1.25], [-34, 22, 1.05], [36, 20, 1.18]].forEach(function(up) {
+    var px = cx + up[0], pz = cz + up[1], psc = up[2];
+    var py = terrainY(px, pz);
+    var pineG = new THREE.Group();
+    pineG.position.set(px, py, pz);
+    pineG.scale.set(psc, psc, psc);
+    var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.85, 8.5, 10), new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.75 }));
+    trunk.position.y = 4.25;
+    trunk.castShadow = true;
+    var umbrella1 = new THREE.Mesh(new THREE.SphereGeometry(4.8, 16, 12), new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.6 }));
+    umbrella1.scale.set(1.35, 0.48, 1.35);
+    umbrella1.position.y = 8.8;
+    umbrella1.castShadow = true;
+    var umbrella2 = new THREE.Mesh(new THREE.SphereGeometry(3.6, 14, 10), new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.55 }));
+    umbrella2.scale.set(1.25, 0.45, 1.25);
+    umbrella2.position.set(0.6, 10.2, 0.4);
+    pineG.add(trunk, umbrella1, umbrella2);
+    scene.add(pineG);
+  });
+
+  spawnPerson(cx - 24, cy, cz - 24, 0xef4444, 0xfacc15, false, 1.45, 2.8);
+  spawnPerson(cx + 22, cy, cz - 25, 0x38bdf8, null, false, 1.42, -2.7);
 
   window.registerLandmarkShowcase('J_SE', 'J_SOUTH', {
     lookTarget: new THREE.Vector3(cx, cy + 12.0, cz),
@@ -2636,33 +3529,76 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
   var g = new THREE.Group();
   g.position.set(sx, sy, sz);
 
-  var glassMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.15, metalness: 0.78 });
-  var brightGlassMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-  var steelMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.25, metalness: 0.8 });
-  var goldGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+  // Procedural Reflective Curtain-Wall Glass & Illuminated Office Grid Texture
+  function createSkyscraperGlassTex() {
+    var c = document.createElement('canvas');
+    c.width = 256; c.height = 512;
+    var ctx = c.getContext('2d');
+    var grad = ctx.createLinearGradient(0, 0, 256, 512);
+    grad.addColorStop(0.0, '#0369a1');
+    grad.addColorStop(0.5, '#0284c7');
+    grad.addColorStop(1.0, '#0c4a6e');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 256, 512);
 
-  var podium = new THREE.Mesh(new THREE.BoxGeometry(24, 4.5, 24), steelMat);
-  podium.position.y = 2.25;
-  var tier1 = new THREE.Mesh(new THREE.BoxGeometry(18.5, 24, 18.5), glassMat);
-  tier1.position.y = 16.5;
+    for (var r = 0; r < 16; r++) {
+      for (var col = 0; col < 8; col++) {
+        var lit = ((r * 5 + col * 3) % 7 === 0);
+        ctx.fillStyle = lit ? '#fef08a' : ((r + col) % 2 === 0 ? '#38bdf8' : '#0ea5e9');
+        ctx.fillRect(col * 32 + 4, r * 32 + 4, 24, 24);
+      }
+    }
+    var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c, 2, 3) : new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+
+  var glassTex = createSkyscraperGlassTex();
+  var glassMat = new THREE.MeshStandardMaterial({ map: glassTex, roughness: 0.14, metalness: 0.72 });
+  var brightGlassMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+  var steelMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.24, metalness: 0.82 });
+  var goldGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+  var greenMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.6 });
+
+  // Forecourt Granite Plaza & Tiered Turquoise Plaza Fountain
+  var plaza = new THREE.Mesh(new THREE.CylinderGeometry(24, 25.5, 0.8, 36), new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.5 }));
+  plaza.position.y = 0.4;
+  var podium = new THREE.Mesh(new THREE.BoxGeometry(24.5, 5.2, 24.5), steelMat);
+  podium.position.y = 2.6;
+  var lobbyGlass = new THREE.Mesh(new THREE.BoxGeometry(22.5, 3.8, 25.0), new THREE.MeshBasicMaterial({ color: 0xbae6fd }));
+  lobbyGlass.position.y = 2.4;
+  var tier1 = new THREE.Mesh(new THREE.BoxGeometry(18.8, 25, 18.8), glassMat);
+  tier1.position.y = 17.5;
   tier1.castShadow = true;
-  var tier2 = new THREE.Mesh(new THREE.BoxGeometry(14.5, 20, 14.5), glassMat);
-  tier2.position.y = 38.5;
+  var tier2 = new THREE.Mesh(new THREE.BoxGeometry(14.8, 21, 14.8), glassMat);
+  tier2.position.y = 40.0;
   tier2.castShadow = true;
-  var tier3 = new THREE.Mesh(new THREE.BoxGeometry(10.2, 15, 10.2), brightGlassMat);
-  tier3.position.y = 56.0;
-  var crownRing = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 6.2, 6.5, 16), steelMat);
-  crownRing.position.y = 66.5;
-  var spire = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.85, 14.0, 12), goldGlowMat);
-  spire.position.y = 76.5;
-  var beacon = new THREE.Mesh(new THREE.SphereGeometry(0.95, 12, 12), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
-  beacon.position.y = 83.8;
-  g.add(podium, tier1, tier2, tier3, crownRing, spire, beacon);
+  var tier3 = new THREE.Mesh(new THREE.BoxGeometry(10.6, 15.5, 10.6), glassMat);
+  tier3.position.y = 58.0;
+  var crownRing = new THREE.Mesh(new THREE.CylinderGeometry(4.0, 6.6, 7.0, 20), steelMat);
+  crownRing.position.y = 69.0;
+  var spire = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.90, 14.5, 12), goldGlowMat);
+  spire.position.y = 79.5;
+  var beacon = new THREE.Mesh(new THREE.SphereGeometry(1.05, 12, 12), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+  beacon.position.y = 87.0;
+  g.add(plaza, podium, lobbyGlass, tier1, tier2, tier3, crownRing, spire, beacon);
+
+  // Corner Steel Mega-Columns & Sky-Garden Landscaped Setback Terraces
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function(c) {
+    var col1 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 50.0, 1.4), steelMat);
+    col1.position.set(c[0] * 9.3, 25.0, c[1] * 9.3);
+    var tree1 = new THREE.Mesh(new THREE.SphereGeometry(1.6, 10, 10), greenMat);
+    tree1.position.set(c[0] * 8.2, 31.2, c[1] * 8.2);
+    var tree2 = new THREE.Mesh(new THREE.SphereGeometry(1.3, 10, 10), greenMat);
+    tree2.position.set(c[0] * 6.2, 51.4, c[1] * 6.2);
+    g.add(col1, tree1, tree2);
+  });
 
   // Horizontal Sky-Garden Ledges & Illuminated Curtain-Wall Stripes
-  for (var fl = 8; fl <= 60; fl += 5) {
-    var w = fl < 28 ? 19.0 : (fl < 48 ? 15.0 : 10.7);
-    var band = new THREE.Mesh(new THREE.BoxGeometry(w, 0.55, w), (fl % 10 === 0) ? goldGlowMat : steelMat);
+  for (var fl = 8; fl <= 64; fl += 4.5) {
+    var w = fl < 30 ? 19.4 : (fl < 50 ? 15.4 : 11.2);
+    var band = new THREE.Mesh(new THREE.BoxGeometry(w, 0.55, w), (Math.round(fl) % 9 === 0) ? goldGlowMat : steelMat);
     band.position.y = fl;
     g.add(band);
   }
@@ -2678,8 +3614,12 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
 })();
 
 // 5. JEWEL SINGAPORE DRIVE-THROUGH WATERFALL HYPERMARKET (`J_EAST -> J_SE`)
-// The train drives directly inside through the toroidal glass-and-steel grid-shell dome
-// right alongside the giant cascading indoor Rain Vortex waterfall and lush forest valley!
+// Rebuilt to match `/public/assets/aistudio/image_f2b93fd1.png` (Exterior) AND `/public/assets/aistudio/image_e865e179.png` (Interior Pass-Through View):
+// - Monumental toroidal glass-and-steel diagrid dome with crystal sky reflections & circular roof Oculus collar
+// - Exterior & Interior lush vertical green living plant walls with glowing 3D multi-faceted Lotus Emblem & bold white "JEWEL" sign
+// - Elevated white concrete Skytrain viaduct with glass balustrades curving along the right side of the interior frame (`image_e865e179.png`)
+// - Central cascading crystal-white & turquoise HSBC Rain Vortex waterfall pouring from the Oculus into a glowing turquoise circular plunge pool
+// - 6 stepped curved Shiseido Forest Valley & warm-lit shopping gallery terraces with palm trees, tropical flowers, hedges & visitors
 (function buildJewelSingaporeWaterfallHypermarket() {
   var jewelEdge = edges.find(function(e) { return e.id === 'J_EAST->J_SE'; });
   if (!jewelEdge) return;
@@ -2689,135 +3629,828 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
   var perp = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
   var ang = Math.atan2(tan.x, tan.z);
 
-  // Center the grand dome over the double-track & indoor Rain Vortex plaza (`+11.5m` east of main track)
-  var domeCenter = midPt.clone().add(perp.clone().multiplyScalar(11.5));
+  // Anchor `domeG` directly at `midPt` with `rotation.y = ang`:
+  // - Local `+Z` = forward along `J_EAST -> J_SE` (`tan`)
+  // - Local `-X` = `+perp` (West = RIGHT side of the screen when looking forward along `+Z`)
+  //   -> Main track is at `local x = 0.0`, parallel second track is at `local x = -4.4` (Skytrain center = `local x = -2.2`)!
+  // - Local `+X` = `-perp` (East = LEFT side of the screen when looking forward along `+Z`)
+  //   -> HSBC Rain Vortex waterfall & turquoise plunge pool are centered at `vortexX = +18.5` (to the LEFT of the train, matching `image_e865e179.png`!)
+  var domeCenter = midPt.clone();
   var domeG = new THREE.Group();
   domeG.position.set(domeCenter.x, midPt.y - 0.3, domeCenter.z);
   domeG.rotation.y = ang;
 
-  var steelRibMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.75, roughness: 0.22 });
-  var goldArchMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.55, roughness: 0.28 });
+  var vortexX = 18.5; // 20.7m to the left (`+X`) of the Skytrain viaduct (`local x = -2.2`), matching `image_e865e179.png`!
+
+  // ----------------------------------------------------------------------------
+  // Procedural Textures for Diagrid Glass Dome, Warm Golden Boutiques, Fine Water & JEWEL Living Plant Wall
+  // ----------------------------------------------------------------------------
+  function createJewelDiagridDomeTex() {
+    var c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    var ctx = c.getContext('2d');
+    var skyG = ctx.createLinearGradient(0, 0, 0, 512);
+    skyG.addColorStop(0.0, 'rgba(186, 230, 253, 0.42)');
+    skyG.addColorStop(0.5, 'rgba(125, 211, 252, 0.32)');
+    skyG.addColorStop(1.0, 'rgba(224, 242, 254, 0.38)');
+    ctx.fillStyle = skyG;
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Crisp silver-white diamond/triangular steel diagrid lattice (`image_f2b93fd1.png` & `image_e865e179.png`)
+    ctx.strokeStyle = 'rgba(248, 250, 252, 0.95)';
+    ctx.lineWidth = 6;
+    var step = 64;
+    for (var y = 0; y <= 512; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(0, y); ctx.lineTo(512, y);
+      ctx.stroke();
+    }
+    for (var x = -512; x <= 1024; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0); ctx.lineTo(x + 512, 512);
+      ctx.moveTo(x + 512, 0); ctx.lineTo(x, 512);
+      ctx.stroke();
+    }
+    var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c, 6, 4) : new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+
+  function createJewelBoutiqueMallTex() {
+    var c = document.createElement('canvas');
+    c.width = 512; c.height = 256;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(0, 0, 512, 256);
+
+    var shopColors = ['#fef08a', '#fde68a', '#ffedd5', '#fef9c3', '#bae6fd', '#fde047'];
+    for (var s = 0; s < 8; s++) {
+      var sx = s * 64;
+      var sg = ctx.createLinearGradient(sx, 16, sx, 240);
+      sg.addColorStop(0.0, '#ffffff');
+      sg.addColorStop(0.45, shopColors[s % shopColors.length]);
+      sg.addColorStop(1.0, '#f59e0b');
+      ctx.fillStyle = sg;
+      ctx.fillRect(sx + 5, 18, 54, 220);
+
+      // Warm boutique display shelves & signage (`image_e865e179.png`)
+      ctx.fillStyle = 'rgba(146, 64, 14, 0.32)';
+      ctx.fillRect(sx + 10, 92, 44, 8);
+      ctx.fillRect(sx + 10, 152, 44, 8);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(sx + 12, 30, 40, 14);
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(sx, 0, 5, 256);
+    }
+    var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c, 5, 1) : new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+
+  function createFineRainVortexTex(seedOffset) {
+    var c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    var ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, 512, 512);
+
+    // Shimmering crystal-white & aqua water curtain sheen (`image_e865e179.png`)
+    for (var x = 0; x < 512; x += 4) {
+      var alpha = 0.22 + 0.12 * Math.sin((x + seedOffset) * 0.11) + 0.08 * Math.cos((x - seedOffset) * 0.27);
+      ctx.fillStyle = 'rgba(240, 253, 255, ' + alpha.toFixed(3) + ')';
+      ctx.fillRect(x, 0, 4, 512);
+    }
+
+    // 280 delicate vertical falling water strands & foamy white streaks
+    for (var s = 0; s < 280; s++) {
+      var sx = ((s * 61 + seedOffset * 17) % 508);
+      var sy = ((s * 89 + seedOffset * 29) % 450);
+      var sw = 1.6 + (s % 3) * 1.2;
+      var sh = 36 + (s % 6) * 22;
+      var g = ctx.createLinearGradient(sx, sy, sx, sy + sh);
+      g.addColorStop(0.0, 'rgba(255, 255, 255, 0.0)');
+      g.addColorStop(0.3, 'rgba(224, 242, 254, 0.68)');
+      g.addColorStop(0.75, 'rgba(255, 255, 255, 0.95)');
+      g.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(sx, sy, sw, sh);
+    }
+
+    var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c, 3, 2) : new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+
+  // High-Resolution Lush Living Green Wall Texture with Faceted Lotus & Bold "JEWEL" Typography (`image_f2b93fd1.png` & `image_e865e179.png`)
+  function createJewelLivingWallTex() {
+    var c = document.createElement('canvas');
+    c.width = 1024; c.height = 512;
+    var ctx = c.getContext('2d');
+
+    // Deep lush vertical foliage backdrop
+    var bg = ctx.createLinearGradient(0, 0, 0, 512);
+    bg.addColorStop(0.0, '#14532d');
+    bg.addColorStop(0.5, '#166534');
+    bg.addColorStop(1.0, '#15803d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, 1024, 512);
+
+    // Hundreds of organic leaf clusters across the living wall
+    var leafCols = ['#15803d', '#16a34a', '#22c55e', '#4ade80', '#14532d', '#86efac'];
+    for (var li = 0; li < 420; li++) {
+      ctx.fillStyle = leafCols[li % leafCols.length];
+      var lx = (li * 73) % 1024;
+      var ly = (li * 53) % 512;
+      var lr = 10 + (li % 5) * 4;
+      ctx.beginPath();
+      ctx.arc(lx, ly, lr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Glowing Faceted Geometric Lotus / Jewel Emblem in upper center
+    var cx = 512, cy = 195;
+    var petals = [
+      { ang: 0, len: 118, w: 46, col1: '#ffffff', col2: '#bae6fd' },
+      { ang: -0.46, len: 106, w: 42, col1: '#e0f2fe', col2: '#7dd3fc' },
+      { ang:  0.46, len: 106, w: 42, col1: '#fef9c3', col2: '#fde047' },
+      { ang: -0.88, len: 92,  w: 38, col1: '#bae6fd', col2: '#38bdf8' },
+      { ang:  0.88, len: 92,  w: 38, col1: '#fef08a', col2: '#facc15' },
+      { ang: -1.25, len: 76,  w: 32, col1: '#7dd3fc', col2: '#0284c7' },
+      { ang:  1.25, len: 76,  w: 32, col1: '#fde68a', col2: '#f59e0b' }
+    ];
+    petals.forEach(function(p) {
+      ctx.save();
+      ctx.translate(cx, cy + 28);
+      ctx.rotate(p.ang);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-p.w, -p.len * 0.55);
+      ctx.lineTo(0, -p.len);
+      ctx.closePath();
+      ctx.fillStyle = p.col1;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(p.w, -p.len * 0.55);
+      ctx.lineTo(0, -p.len);
+      ctx.closePath();
+      ctx.fillStyle = p.col2;
+      ctx.fill();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    // Bold White 3D-Shaded "JEWEL" Wordmark below the Lotus Emblem
+    ctx.save();
+    ctx.shadowColor = 'rgba(6, 78, 59, 0.92)';
+    ctx.shadowBlur = 16;
+    ctx.shadowOffsetY = 6;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 132px "Fredoka", "Arial Black", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('JEWEL', 512, 378);
+    ctx.restore();
+
+    return window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new THREE.CanvasTexture(c);
+  }
+
+  var diagridDomeTex = createJewelDiagridDomeTex();
+  var boutiqueMallTex = createJewelBoutiqueMallTex();
+  var vortexTexOuter = createFineRainVortexTex(0);
+  var vortexTexInner = createFineRainVortexTex(173);
+  var jewelLivingWallTex = createJewelLivingWallTex();
+  if (window.waterfallTextures) {
+    window.waterfallTextures.push(vortexTexOuter, vortexTexInner);
+  }
+
+  var steelRibMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.45, roughness: 0.22 });
+  var whiteArchMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25, metalness: 0.12 });
   var glassDomeMat = new THREE.MeshStandardMaterial({
-    color: 0x67e8f9,
-    roughness: 0.12,
-    metalness: 0.25,
+    map: diagridDomeTex,
+    color: 0xbae6fd,
+    roughness: 0.10,
+    metalness: 0.22,
     transparent: true,
-    opacity: 0.34,
+    opacity: 0.48,
     side: THREE.DoubleSide,
     depthWrite: false
   });
-  var terraceMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.45 });
-  var foliageMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.65 });
-  var shopGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
-
-  // 1. Toroidal Glass-and-Steel Grid-Shell Vault Spanning Over the Tracks & Waterfall!
-  //    Span width X = 54m (from x = -27m to +27m), Length Z = 96m (from z = -48m to +48m), Apex Height Y = 33m!
-  var numRibs = 13;
-  var domeLen = 96.0;
-  for (var r = 0; r < numRibs; r++) {
-    var uRib = r / (numRibs - 1);
-    var zPos = (uRib - 0.5) * domeLen;
-    var endTaper = Math.sin(uRib * Math.PI); // Smoothly rounds the dome towards north/south portals
-    var ribRadiusX = 22.5 + endTaper * 6.5;
-    var ribHeightY = 21.0 + endTaper * 12.5;
-
-    var ribPts = [];
-    var segs = 24;
-    for (var s = 0; s <= segs; s++) {
-      var theta = (s / segs) * Math.PI;
-      ribPts.push(new THREE.Vector3(-Math.cos(theta) * ribRadiusX, Math.sin(theta) * ribHeightY, zPos));
-    }
-    var ribCurve = new THREE.CatmullRomCurve3(ribPts);
-    var isPortalArch = (r === 0 || r === numRibs - 1 || r === Math.floor(numRibs / 2));
-    var ribTube = new THREE.Mesh(
-      new THREE.TubeGeometry(ribCurve, 28, isPortalArch ? 0.68 : 0.36, 8, false),
-      isPortalArch ? goldArchMat : steelRibMat
-    );
-    domeG.add(ribTube);
-  }
-
-  // Longitudinal Steel Grid-Shell Purlins & Translucent Glass Dome Canopy
-  for (var aStep = 1; aStep < 11; aStep++) {
-    var thetaL = (aStep / 11) * Math.PI;
-    var longPts = [];
-    for (var r2 = 0; r2 < numRibs; r2++) {
-      var uRib2 = r2 / (numRibs - 1);
-      var zP = (uRib2 - 0.5) * domeLen;
-      var endT = Math.sin(uRib2 * Math.PI);
-      var rx = 22.5 + endT * 6.5;
-      var ry = 21.0 + endT * 12.5;
-      longPts.push(new THREE.Vector3(-Math.cos(thetaL) * rx, Math.sin(thetaL) * ry, zP));
-    }
-    var longCurve = new THREE.CatmullRomCurve3(longPts);
-    var longTube = new THREE.Mesh(new THREE.TubeGeometry(longCurve, 24, 0.28, 6, false), steelRibMat);
-    domeG.add(longTube);
-  }
-
-  var glassShell = new THREE.Mesh(
-    new THREE.CylinderGeometry(26.5, 26.5, domeLen - 4, 28, 1, true, 0, Math.PI),
-    glassDomeMat
-  );
-  glassShell.rotation.z = Math.PI * 0.5;
-  glassShell.rotation.y = Math.PI * 0.5;
-  glassShell.scale.set(1.0, 1.15, 1.0);
-  glassShell.position.y = 1.0;
-  domeG.add(glassShell);
-
-  // 2. Central Roof Oculus Ring & Giant Cascading Indoor "Rain Vortex" Waterfall (at local x = +9.5m, z = 0)
-  //    Wait: local x = -11.5m is the main track, local x = -7.1m is the parallel track, so local x = +9.5m is
-  //    16.6m clear of the tracks inside the grand atrium!
-  var vortexX = 9.5;
-  var oculusRing = new THREE.Mesh(new THREE.TorusGeometry(6.8, 0.75, 12, 32), goldArchMat);
-  oculusRing.rotation.x = Math.PI / 2;
-  oculusRing.position.set(vortexX, 31.8, 0);
-  domeG.add(oculusRing);
-
-  // Shimmering Animated Water Curtain Funnel (Top Oculus -> Turquoise Reflecting Pool)
-  var vortexCanvas = document.createElement('canvas');
-  vortexCanvas.width = 256; vortexCanvas.height = 256;
-  var vCtx = vortexCanvas.getContext('2d');
-  var vGrad = vCtx.createLinearGradient(0, 0, 256, 0);
-  vGrad.addColorStop(0.0, '#0284c7');
-  vGrad.addColorStop(0.3, '#22d3ee');
-  vGrad.addColorStop(0.5, '#f0f9ff');
-  vGrad.addColorStop(0.7, '#22d3ee');
-  vGrad.addColorStop(1.0, '#0284c7');
-  vCtx.fillStyle = vGrad;
-  vCtx.fillRect(0, 0, 256, 256);
-  vCtx.fillStyle = 'rgba(255,255,255,0.85)';
-  for (var vs = 0; vs < 50; vs++) {
-    vCtx.fillRect((vs * 37) % 240, (vs * 53) % 210, 6, 42);
-  }
-  var vortexTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(vortexCanvas, 2, 3) : new THREE.CanvasTexture(vortexCanvas);
-  if (window.waterfallTextures) window.waterfallTextures.push(vortexTex);
-
-  var vortexMat = new THREE.MeshBasicMaterial({
-    map: vortexTex,
+  var terraceMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.35 });
+  var creamTerraceMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.38 });
+  var darkGraniteMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.35, metalness: 0.2 });
+  var turquoiseRimMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.22, metalness: 0.25 });
+  var shopFacadeMat = new THREE.MeshBasicMaterial({ map: boutiqueMallTex, side: THREE.DoubleSide });
+  var glassRailMat = new THREE.MeshStandardMaterial({
+    color: 0xe0f2fe,
     transparent: true,
-    opacity: 0.92,
+    opacity: 0.48,
+    roughness: 0.08,
+    depthWrite: false,
+    side: THREE.DoubleSide
+  });
+  var foliageDarkMat = new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.60 });
+  var foliageMidMat  = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.56 });
+  var foliageLushMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.52 });
+  var foliageLimeMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.48 });
+  var trunkBarkMat   = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.72 });
+
+  // Helper: Build 3D Vertical Living Green Wall with 3D Faceted Lotus Sculpture & 3D "JEWEL" Sign (`image_f2b93fd1.png` & `image_e865e179.png`)
+  function createJewelLivingWallMonument(width, height) {
+    var lwG = new THREE.Group();
+
+    // Curved/box lush green living wall backing
+    var backBox = new THREE.Mesh(new THREE.BoxGeometry(width, height, 1.4), foliageMidMat);
+    lwG.add(backBox);
+
+    // 3D foliage puffs around the perimeter of the living wall
+    for (var fi = 0; fi < 28; fi++) {
+      var fx = (fi % 7 - 3) * (width * 0.14);
+      var fy = (Math.floor(fi / 7) - 1.5) * (height * 0.24);
+      if (Math.abs(fx) < width * 0.34 && Math.abs(fy) < height * 0.34) continue;
+      var puff = new THREE.Mesh(
+        new THREE.SphereGeometry(1.15 + (fi % 3) * 0.35, 10, 8),
+        fi % 2 === 0 ? foliageLushMat : foliageLimeMat
+      );
+      puff.scale.set(1.2, 0.85, 0.55);
+      puff.position.set(fx, fy, 0.65);
+      lwG.add(puff);
+    }
+
+    // High-res Living Wall + Lotus + "JEWEL" Sign Face
+    var facePlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(width * 0.94, height * 0.92),
+      new THREE.MeshBasicMaterial({ map: jewelLivingWallTex })
+    );
+    facePlane.position.z = 0.76;
+    lwG.add(facePlane);
+
+    // 3D Sculpted Multi-Faceted Glowing Lotus / Diamond Jewel Crowns projecting out of the living wall!
+    var lotus3D = new THREE.Group();
+    lotus3D.position.set(0, height * 0.14, 1.05);
+    var facetWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    var facetCyanMat  = new THREE.MeshBasicMaterial({ color: 0xbae6fd });
+    var facetGoldMat  = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+    [-0.85, -0.42, 0, 0.42, 0.85].forEach(function(angZ, idx) {
+      var pH = (idx === 2) ? (height * 0.26) : (idx === 1 || idx === 3 ? height * 0.22 : height * 0.18);
+      var pR = width * 0.045;
+      var cone = new THREE.Mesh(
+        new THREE.ConeGeometry(pR, pH, 4),
+        idx === 2 ? facetWhiteMat : (idx < 2 ? facetCyanMat : facetGoldMat)
+      );
+      cone.rotation.z = angZ;
+      cone.position.set(-Math.sin(angZ) * (pH * 0.42), Math.cos(angZ) * (pH * 0.42) - height * 0.06, 0.15);
+      lotus3D.add(cone);
+    });
+    lwG.add(lotus3D);
+
+    // White architectural frame trim
+    var topTrim = new THREE.Mesh(new THREE.BoxGeometry(width + 0.6, 0.55, 1.65), whiteArchMat);
+    topTrim.position.y = height * 0.5;
+    var botTrim = topTrim.clone();
+    botTrim.position.y = -height * 0.5;
+    lwG.add(topTrim, botTrim);
+
+    return lwG;
+  }
+
+  // ============================================================================
+  // 0. CHANGI TERMINAL 3 ➔ JEWEL ELEVATED SKYTRAIN BRIDGE & SLEEK WHITE PORTAL DOORS
+  // ============================================================================
+  var airportEdge = edges.find(function(e) { return e.id === 'J_NE->J_EAST'; });
+  var viaductWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.24, metalness: 0.15 });
+  var viaductPillarMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.32, metalness: 0.20 });
+  var viaductCyanMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+  var portalDoorGlassMat = new THREE.MeshStandardMaterial({
+    color: 0x7dd3fc,
+    roughness: 0.08,
+    metalness: 0.25,
+    transparent: true,
+    opacity: 0.52,
     side: THREE.DoubleSide
   });
 
-  var upperFunnel = new THREE.Mesh(new THREE.CylinderGeometry(6.4, 2.8, 16.0, 28, 1, true), vortexMat);
-  upperFunnel.position.set(vortexX, 23.8, 0);
-  var lowerColumn = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 4.8, 15.8, 28, 1, true), vortexMat);
-  lowerColumn.position.set(vortexX, 8.0, 0);
+  // Sunken Reflecting Pool & Lower Rainforest Canyon directly under the Skytrain Viaduct (`local x = -2.2`)
+  var sunkenCanyonRim = new THREE.Mesh(new THREE.BoxGeometry(14.8, 0.6, 86.0), darkGraniteMat);
+  sunkenCanyonRim.position.set(-2.2, -1.8, 0);
+  var sunkenReflectingWater = new THREE.Mesh(
+    new THREE.BoxGeometry(13.2, 0.35, 82.0),
+    new THREE.MeshStandardMaterial({ color: 0x06b6d4, roughness: 0.10, metalness: 0.25 })
+  );
+  sunkenReflectingWater.position.set(-2.2, -1.55, 0);
+  domeG.add(sunkenCanyonRim, sunkenReflectingWater);
 
-  // Glowing Turquoise Splash Pool & Acrylic Cylinder Basin
-  var poolRim = new THREE.Mesh(new THREE.CylinderGeometry(10.8, 11.4, 1.8, 32), terraceMat);
-  poolRim.position.set(vortexX, 0.9, 0);
-  var poolWater = new THREE.Mesh(new THREE.CylinderGeometry(9.8, 9.8, 2.0, 32), new THREE.MeshBasicMaterial({ color: 0x22d3ee }));
-  poolWater.position.set(vortexX, 0.95, 0);
-  var mistRing = new THREE.Mesh(new THREE.TorusGeometry(5.2, 0.85, 10, 24), new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.85 }));
-  mistRing.rotation.x = Math.PI / 2;
-  mistRing.position.set(vortexX, 2.1, 0);
-  domeG.add(upperFunnel, lowerColumn, poolRim, poolWater, mistRing);
+  function buildSkytrainViaductAlongEdge(edgeObj, tStart, tEnd, segCount, isInsideJewel) {
+    if (!edgeObj || !edgeObj.curve) return;
+    var viaductGroup = new THREE.Group();
+    for (var s = 0; s < segCount; s++) {
+      var u0 = tStart + (s / segCount) * (tEnd - tStart);
+      var u1 = tStart + ((s + 1) / segCount) * (tEnd - tStart);
+      var uMid = (u0 + u1) * 0.5;
+      var p0 = edgeObj.curve.getPointAt(u0);
+      var p1 = edgeObj.curve.getPointAt(u1);
+      var pMid = edgeObj.curve.getPointAt(uMid);
+      var segTan = p1.clone().sub(p0);
+      var segLen = segTan.length() + 0.45;
+      segTan.normalize();
+      var segPerp = new THREE.Vector3(-segTan.z, 0, segTan.x).normalize();
+      var segYaw = Math.atan2(segTan.x, segTan.z);
 
-  // Animated Cascading Water Droplets around the Rain Vortex
-  var dropGeo = new THREE.SphereGeometry(0.48, 8, 8);
-  var dropMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe });
+      var deckCenter = pMid.clone().add(segPerp.clone().multiplyScalar(2.2));
+      var segG = new THREE.Group();
+      segG.position.set(deckCenter.x, pMid.y, deckCenter.z);
+      segG.rotation.y = segYaw;
+
+      var deckSlab = new THREE.Mesh(new THREE.BoxGeometry(11.4, 0.72, segLen), viaductWhiteMat);
+      deckSlab.position.y = -0.58;
+      var underSpine = new THREE.Mesh(new THREE.BoxGeometry(7.2, 1.15, segLen * 0.96), viaductPillarMat);
+      underSpine.position.y = -1.35;
+      segG.add(deckSlab, underSpine);
+
+      // Left & Right White Skytrain Bridge Parapet Curbs & Tempered Glass Balustrades (`image_e865e179.png`)
+      [-5.55, 5.55].forEach(function(pxSide) {
+        var curb = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.75, segLen), viaductWhiteMat);
+        curb.position.set(pxSide, -0.05, 0);
+        var ledStrip = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.14, segLen), viaductCyanMat);
+        ledStrip.position.set(pxSide, 0.36, 0);
+        var glassWall = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.96, segLen * 0.98), glassRailMat);
+        glassWall.position.set(pxSide, 0.84, 0);
+        var topRail = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, segLen), whiteArchMat);
+        topRail.position.set(pxSide, 1.36, 0);
+        segG.add(curb, ledStrip, glassWall, topRail);
+      });
+
+      if (s % 2 === 0) {
+        var groundY = isInsideJewel ? (midPt.y - 2.2) : Math.min(pMid.y - 2.6, terrainY(deckCenter.x, deckCenter.z) - 0.3);
+        var pierH = Math.max(2.2, (pMid.y - 1.2) - groundY);
+        var capBeam = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.85, 2.2), viaductWhiteMat);
+        capBeam.position.set(0, -1.85, 0);
+        var pierCol = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.35, pierH, 16), viaductWhiteMat);
+        pierCol.position.set(0, -1.85 - pierH * 0.5, 0);
+        segG.add(capBeam, pierCol);
+      }
+
+      if (!isInsideJewel && s % 3 === 1) {
+        var archL = new THREE.Mesh(new THREE.BoxGeometry(0.45, 7.6, 0.65), viaductWhiteMat);
+        archL.position.set(-5.55, 3.8, 0);
+        var archR = archL.clone();
+        archR.position.x = 5.55;
+        var archTop = new THREE.Mesh(new THREE.BoxGeometry(11.8, 0.65, 0.85), viaductWhiteMat);
+        archTop.position.set(0, 7.7, 0);
+        var archLed = new THREE.Mesh(new THREE.BoxGeometry(10.8, 0.18, 0.92), viaductCyanMat);
+        archLed.position.set(0, 7.35, 0);
+        segG.add(archL, archR, archTop, archLed);
+      }
+
+      viaductGroup.add(segG);
+    }
+    scene.add(viaductGroup);
+  }
+
+  if (airportEdge) {
+    buildSkytrainViaductAlongEdge(airportEdge, 0.56, 0.98, 12, false);
+    var t3Pt = airportEdge.curve.getPointAt(0.60);
+    var t3Tan = airportEdge.curve.getTangentAt(0.60).normalize();
+    var t3Perp = new THREE.Vector3(-t3Tan.z, 0, t3Tan.x).normalize();
+    var t3Mid = t3Pt.clone().add(t3Perp.clone().multiplyScalar(2.2));
+    var t3Gantry = new THREE.Group();
+    t3Gantry.position.copy(t3Mid);
+    t3Gantry.rotation.y = Math.atan2(t3Tan.x, t3Tan.z);
+    var t3Sign = makeSign("✈️ CHANGI T3 SKYTRAIN ➔ JEWEL", "#0284c7", "#ffffff", 14.5, 2.8);
+    t3Sign.position.set(0, 9.2, 0);
+    t3Gantry.add(t3Sign);
+    scene.add(t3Gantry);
+  }
+
+  buildSkytrainViaductAlongEdge(jewelEdge, 0.02, 0.22, 6, false);
+  buildSkytrainViaductAlongEdge(jewelEdge, 0.22, 0.78, 16, true);
+  buildSkytrainViaductAlongEdge(jewelEdge, 0.78, 0.92, 4, false);
+
+  // Automatic Sliding Glass Portal Doors styled in sleek White & Sky-Blue Architecture (`image_f2b93fd1.png`)
+  var jewelAutoPortals = [];
+  function buildJewelSlidingPortal(edgeT, portalLabel) {
+    var pPt = jewelEdge.curve.getPointAt(edgeT);
+    var pTan = jewelEdge.curve.getTangentAt(edgeT).normalize();
+    var pPerp = new THREE.Vector3(-pTan.z, 0, pTan.x).normalize();
+    var pCenter = pPt.clone().add(pPerp.clone().multiplyScalar(2.2));
+
+    var portalG = new THREE.Group();
+    portalG.position.copy(pCenter);
+    portalG.rotation.y = Math.atan2(pTan.x, pTan.z);
+
+    var postL = new THREE.Mesh(new THREE.BoxGeometry(1.2, 9.2, 1.8), whiteArchMat);
+    postL.position.set(-6.2, 4.6, 0);
+    var postR = postL.clone();
+    postR.position.x = 6.2;
+
+    var pocketL = new THREE.Mesh(new THREE.BoxGeometry(5.4, 7.4, 1.2), glassRailMat);
+    pocketL.position.set(-8.6, 3.7, 0);
+    var pocketR = pocketL.clone();
+    pocketR.position.x = 8.6;
+
+    var headerBeam = new THREE.Mesh(new THREE.BoxGeometry(22.0, 1.6, 2.2), whiteArchMat);
+    headerBeam.position.set(0, 9.0, 0);
+    var headerArch = new THREE.Mesh(new THREE.TorusGeometry(6.4, 0.65, 12, 28, Math.PI), whiteArchMat);
+    headerArch.position.set(0, 9.2, 0);
+
+    var pSign = makeSign(portalLabel, "#0284c7", "#ffffff", 12.5, 2.2);
+    pSign.position.set(0, 11.2, 1.15);
+    var pSignBack = makeSign(portalLabel, "#0284c7", "#ffffff", 12.5, 2.2);
+    pSignBack.rotation.y = Math.PI;
+    pSignBack.position.set(0, 11.2, -1.15);
+
+    var statusMat = new THREE.MeshBasicMaterial({ color: 0x22c55e });
+    var beaconL = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 12), statusMat);
+    beaconL.position.set(-5.2, 9.0, 1.2);
+    var beaconR = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 12), statusMat);
+    beaconR.position.set(5.2, 9.0, 1.2);
+
+    function createSlidingDoorLeaf(sideSign) {
+      var leafG = new THREE.Group();
+      var glassPane = new THREE.Mesh(new THREE.BoxGeometry(5.3, 7.1, 0.24), portalDoorGlassMat);
+      glassPane.position.y = 3.65;
+      var topFrame = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.38, 0.38), whiteArchMat);
+      topFrame.position.y = 7.25;
+      var botFrame = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.38, 0.38), whiteArchMat);
+      botFrame.position.y = 0.25;
+      var midBar = new THREE.Mesh(new THREE.BoxGeometry(5.35, 0.22, 0.32), whiteArchMat);
+      midBar.position.y = 3.4;
+      var edgeGlow = new THREE.Mesh(new THREE.BoxGeometry(0.16, 7.1, 0.34), statusMat);
+      edgeGlow.position.set(-sideSign * 2.62, 3.65, 0);
+      leafG.add(glassPane, topFrame, botFrame, midBar, edgeGlow);
+      return leafG;
+    }
+
+    var leftDoor = createSlidingDoorLeaf(-1);
+    var rightDoor = createSlidingDoorLeaf(1);
+    leftDoor.position.x = -2.7;
+    rightDoor.position.x = 2.7;
+
+    portalG.add(postL, postR, pocketL, pocketR, headerBeam, headerArch, pSign, pSignBack, beaconL, beaconR, leftDoor, rightDoor);
+    scene.add(portalG);
+
+    jewelAutoPortals.push({
+      worldPos: pCenter,
+      leftDoor: leftDoor,
+      rightDoor: rightDoor,
+      statusMat: statusMat,
+      openAmount: 0.0
+    });
+  }
+
+  var northPortalInfo = buildJewelSlidingPortal(0.20, "💎 JEWEL CHANGI AIRPORT");
+  var southPortalInfo = buildJewelSlidingPortal(0.80, "✈️ TERMINAL 3 SKYTRAIN");
+
+  // ============================================================================
+  // 1. MONUMENTAL TOROIDAL DIAGRID GLASS & STEEL DOME (`image_f2b93fd1.png` & `image_e865e179.png`)
+  //    Full-height toroidal dome curving from the central Oculus (`y = 36.2m`) up to the crown (`y = 41.2m`)
+  //    and all the way down to the ground podium (`y = 1.2m`), arching cleanly over the Skytrain portals!
+  // ============================================================================
+  function getJewelDomePoint(rAng, u) {
+    var cosA = Math.cos(rAng);
+    var sinA = Math.sin(rAng);
+    var rad = 7.4 + u * 35.6; // r = 7.4m (Oculus) to 43.0m (outer perimeter)
+    var rx = vortexX + cosA * rad;
+    var rz = sinA * rad * 1.22;
+
+    // True toroidal profile curving all the way down to y = 1.2m at u = 1.0
+    var archH = 36.2 + Math.sin(u * Math.PI * 0.78) * 7.6 - Math.pow(u, 2.05) * 35.0;
+
+    // Arch cleanly above the Skytrain entrance/exit corridor (`rx` near `-2.2m`) so the train enters through the portal doors!
+    var distFromTrackX = Math.abs(rx - (-2.2));
+    if (distFromTrackX < 9.5 && u > 0.52) {
+      var portalClearance = 9.4 + (1.0 - (distFromTrackX / 9.5)) * 2.2;
+      var blendPortal = Math.min(1.0, (u - 0.52) / 0.30);
+      archH = Math.max(archH, portalClearance * blendPortal);
+    }
+    return new THREE.Vector3(rx, Math.max(1.2, archH), rz);
+  }
+
+  var numRadialRibs = 32;
+  for (var ri = 0; ri < numRadialRibs; ri++) {
+    var rAng = (ri / numRadialRibs) * Math.PI * 2;
+    var ribPts = [];
+    var rSteps = 18;
+    for (var rs = 0; rs <= rSteps; rs++) {
+      ribPts.push(getJewelDomePoint(rAng, rs / rSteps));
+    }
+    var ribCurve = new THREE.CatmullRomCurve3(ribPts);
+    var ribMesh = new THREE.Mesh(new THREE.TubeGeometry(ribCurve, 22, 0.34, 6, false), steelRibMat);
+    domeG.add(ribMesh);
+  }
+
+  // Concentric Toroidal White Steel Ring Purlins from Oculus all the way down the facade (`ci = 0 .. 10`)
+  for (var ci = 0; ci <= 10; ci++) {
+    var uRing = ci / 10;
+    var ringPts = [];
+    for (var s = 0; s <= 48; s++) {
+      var a = (s / 48) * Math.PI * 2;
+      ringPts.push(getJewelDomePoint(a, uRing));
+    }
+    var ringCurve = new THREE.CatmullRomCurve3(ringPts, true);
+    var ringTube = new THREE.Mesh(
+      new THREE.TubeGeometry(ringCurve, 52, (ci === 0 || ci === 10) ? 0.68 : 0.30, 8, true),
+      whiteArchMat
+    );
+    domeG.add(ringTube);
+  }
+
+  // Full-Height Parametric Toroidal Diagrid Glass Shell (curves all the way to the ground podium + arches over portals!)
+  var uSegs = 20;
+  var aSegs = 56;
+  var domePosArr = [];
+  var domeUvArr = [];
+  var domeIdxArr = [];
+  for (var iu = 0; iu <= uSegs; iu++) {
+    var uVal = iu / uSegs;
+    for (var ia = 0; ia <= aSegs; ia++) {
+      var aVal = (ia / aSegs) * Math.PI * 2;
+      var dp = getJewelDomePoint(aVal, uVal);
+      domePosArr.push(dp.x, dp.y, dp.z);
+      domeUvArr.push((ia / aSegs) * 8.0, uVal * 4.0);
+    }
+  }
+  for (var iu2 = 0; iu2 < uSegs; iu2++) {
+    for (var ia2 = 0; ia2 < aSegs; ia2++) {
+      var row1 = iu2 * (aSegs + 1);
+      var row2 = (iu2 + 1) * (aSegs + 1);
+      domeIdxArr.push(row1 + ia2, row2 + ia2, row1 + ia2 + 1);
+      domeIdxArr.push(row1 + ia2 + 1, row2 + ia2, row2 + ia2 + 1);
+    }
+  }
+  var customDomeGeo = new THREE.BufferGeometry();
+  customDomeGeo.setAttribute('position', new THREE.Float32BufferAttribute(domePosArr, 3));
+  customDomeGeo.setAttribute('uv', new THREE.Float32BufferAttribute(domeUvArr, 2));
+  customDomeGeo.setIndex(domeIdxArr);
+  customDomeGeo.computeVertexNormals();
+
+  glassDomeMat.opacity = 0.62;
+  var toroidalGlassDome = new THREE.Mesh(customDomeGeo, glassDomeMat);
+  toroidalGlassDome.renderOrder = 3;
+  domeG.add(toroidalGlassDome);
+  window.jewelGlassDomeMat = glassDomeMat;
+
+  // Helper: creates a true hollow 3D curved arc band (only between rInner and rOuter, with ZERO solid disk across the interior r < rInner!)
+  function createHollowArcBandGeo(rInner, rOuter, height, segs, thetaStart, thetaLen) {
+    var halfH = height * 0.5;
+    var pos = [];
+    var norm = [];
+    var uvs = [];
+    var indices = [];
+
+    function addQuad(p0, p1, p2, p3, nx, ny, nz) {
+      var base = pos.length / 3;
+      pos.push(
+        p0[0], p0[1], p0[2],
+        p1[0], p1[1], p1[2],
+        p2[0], p2[1], p2[2],
+        p3[0], p3[1], p3[2]
+      );
+      for (var k = 0; k < 4; k++) norm.push(nx, ny, nz);
+      uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
+      indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+
+    for (var s = 0; s < segs; s++) {
+      var a0 = thetaStart + (s / segs) * thetaLen;
+      var a1 = thetaStart + ((s + 1) / segs) * thetaLen;
+      var sin0 = Math.sin(a0), cos0 = Math.cos(a0);
+      var sin1 = Math.sin(a1), cos1 = Math.cos(a1);
+      var sinM = Math.sin((a0 + a1) * 0.5), cosM = Math.cos((a0 + a1) * 0.5);
+
+      var i0B = [sin0 * rInner, -halfH, cos0 * rInner];
+      var i1B = [sin1 * rInner, -halfH, cos1 * rInner];
+      var i1T = [sin1 * rInner,  halfH, cos1 * rInner];
+      var i0T = [sin0 * rInner,  halfH, cos0 * rInner];
+
+      var o0B = [sin0 * rOuter, -halfH, cos0 * rOuter];
+      var o1B = [sin1 * rOuter, -halfH, cos1 * rOuter];
+      var o1T = [sin1 * rOuter,  halfH, cos1 * rOuter];
+      var o0T = [sin0 * rOuter,  halfH, cos0 * rOuter];
+
+      // Inner vertical wall (facing center)
+      addQuad(i1B, i0B, i0T, i1T, -sinM, 0, -cosM);
+      // Outer vertical wall (facing outward)
+      addQuad(o0B, o1B, o1T, o0T, sinM, 0, cosM);
+      // Top horizontal ring walkway
+      addQuad(i0T, o0T, o1T, i1T, 0, 1, 0);
+      // Bottom horizontal ring soffit
+      addQuad(o0B, i0B, i1B, o1B, 0, -1, 0);
+
+      if (s === 0) {
+        addQuad(o0B, o0T, i0T, i0B, -cos0, 0, sin0);
+      }
+      if (s === segs - 1) {
+        addQuad(i1B, i1T, o1T, o1B, cos1, 0, -sin1);
+      }
+    }
+
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(norm, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setIndex(indices);
+    return geo;
+  }
+
+  // Curved Exterior Architectural Limestone Base Podium ONLY along the outer eastern forest perimeter (strictly hollow so it never covers the atrium or tracks!)
+  var podiumWallGeo = createHollowArcBandGeo(42.2, 44.2, 3.6, 44, -Math.PI * 0.04, Math.PI * 1.08);
+  var podiumWall = new THREE.Mesh(podiumWallGeo, creamTerraceMat);
+  podiumWall.scale.set(1.0, 1.0, 1.22);
+  podiumWall.position.set(vortexX, 1.6, 0);
+  domeG.add(podiumWall);
+
+  // Exterior Lush Vertical Green Living Plant Walls with 3D Glowing Lotus & Bold White "JEWEL" Sign
+  // Positioned right beside the North & South Skytrain Entrance Portals facing the approaching train & camera (`image_f2b93fd1.png`)!
+  var exteriorLivingWall = createJewelLivingWallMonument(24.0, 12.5);
+  exteriorLivingWall.position.set(11.5, 11.8, -46.5);
+  exteriorLivingWall.rotation.y = Math.PI * 0.94;
+  domeG.add(exteriorLivingWall);
+
+  var exteriorLivingWallSouth = createJewelLivingWallMonument(24.0, 12.5);
+  exteriorLivingWallSouth.position.set(11.5, 11.8, 46.5);
+  exteriorLivingWallSouth.rotation.y = Math.PI * 0.06;
+  domeG.add(exteriorLivingWallSouth);
+
+  // ============================================================================
+  // 2. CENTRAL ILLUMINATED OCULUS & CRYSTAL-AQUA HSBC RAIN VORTEX WATERFALL (`image_e865e179.png`)
+  // ============================================================================
+  var oculusCollarMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+  var oculusInnerGlowMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.92, depthWrite: false });
+
+  var oculusOuterBezel = new THREE.Mesh(new THREE.TorusGeometry(7.55, 0.92, 16, 48), whiteArchMat);
+  oculusOuterBezel.rotation.x = Math.PI / 2;
+  oculusOuterBezel.position.set(vortexX, 36.2, 0);
+
+  var oculusWhiteLip = new THREE.Mesh(new THREE.TorusGeometry(6.85, 0.65, 14, 44), oculusInnerGlowMat);
+  oculusWhiteLip.rotation.x = Math.PI / 2;
+  oculusWhiteLip.position.set(vortexX, 35.6, 0);
+  domeG.add(oculusOuterBezel, oculusWhiteLip);
+
+  var outerWaterMat = new THREE.MeshStandardMaterial({
+    map: vortexTexOuter,
+    color: 0xe0f2fe,
+    emissive: 0x0284c7,
+    emissiveIntensity: 0.28,
+    roughness: 0.06,
+    metalness: 0.08,
+    transparent: true,
+    opacity: 0.64,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  var innerWaterMat = new THREE.MeshStandardMaterial({
+    map: vortexTexInner,
+    color: 0xffffff,
+    emissive: 0x38bdf8,
+    emissiveIntensity: 0.35,
+    roughness: 0.05,
+    metalness: 0.06,
+    transparent: true,
+    opacity: 0.50,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+
+  var outerProfilePts = [];
+  var innerProfilePts = [];
+  for (var pyStep = 0; pyStep <= 28; pyStep++) {
+    var uY = pyStep / 28;
+    var curY = 1.0 + uY * 34.8;
+    var topFlare = Math.pow(uY, 2.4) * 3.85;
+    var botFlare = Math.pow(1.0 - uY, 2.0) * 1.45;
+    var rOuter = 3.15 + topFlare + botFlare;
+    var rInner = rOuter * 0.84;
+    outerProfilePts.push(new THREE.Vector2(rOuter, curY));
+    innerProfilePts.push(new THREE.Vector2(rInner, curY));
+  }
+
+  var outerVortexMesh = new THREE.Mesh(new THREE.LatheGeometry(outerProfilePts, 48), outerWaterMat);
+  outerVortexMesh.position.set(vortexX, 0, 0);
+  outerVortexMesh.renderOrder = 2;
+  var innerVortexMesh = new THREE.Mesh(new THREE.LatheGeometry(innerProfilePts, 36), innerWaterMat);
+  innerVortexMesh.position.set(vortexX, 0, 0);
+  innerVortexMesh.renderOrder = 1;
+  domeG.add(innerVortexMesh, outerVortexMesh);
+
+  var lightBeamGeo = new THREE.CylinderGeometry(0.18, 0.32, 33.5, 8, 1, true);
+  var lightBeamMats = [];
+  for (var lbi = 0; lbi < 12; lbi++) {
+    var lbAng = (lbi / 12) * Math.PI * 2;
+    var lbMat = new THREE.MeshBasicMaterial({
+      color: 0x7dd3fc,
+      transparent: true,
+      opacity: 0.24,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    lightBeamMats.push(lbMat);
+    var lbMesh = new THREE.Mesh(lightBeamGeo, lbMat);
+    lbMesh.position.set(vortexX + Math.cos(lbAng) * 3.45, 18.0, Math.sin(lbAng) * 3.45);
+    domeG.add(lbMesh);
+  }
+
+  // ============================================================================
+  // 3. CIRCULAR VIEWING PROMENADE & GLOWING TURQUOISE PLUNGE POOL (`image_e865e179.png`)
+  // ============================================================================
+  var groundPlaza = new THREE.Mesh(new THREE.CylinderGeometry(14.2, 14.8, 0.55, 48), creamTerraceMat);
+  groundPlaza.position.set(vortexX, 0.28, 0);
+  var poolOuterCurb = new THREE.Mesh(new THREE.CylinderGeometry(11.4, 11.8, 1.35, 48), whiteArchMat);
+  poolOuterCurb.position.set(vortexX, 0.68, 0);
+  var poolInnerWall = new THREE.Mesh(new THREE.CylinderGeometry(10.6, 10.6, 1.42, 48), turquoiseRimMat);
+  poolInnerWall.position.set(vortexX, 0.70, 0);
+  var glassViewingBarrier = new THREE.Mesh(new THREE.CylinderGeometry(11.9, 11.9, 2.2, 48, 1, true), glassRailMat);
+  glassViewingBarrier.position.set(vortexX, 1.45, 0);
+  var barrierHandrail = new THREE.Mesh(new THREE.TorusGeometry(11.9, 0.09, 8, 48), whiteArchMat);
+  barrierHandrail.rotation.x = Math.PI / 2;
+  barrierHandrail.position.set(vortexX, 2.55, 0);
+  domeG.add(groundPlaza, poolOuterCurb, poolInnerWall, glassViewingBarrier, barrierHandrail);
+
+  var poolGlowMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
+  var poolMistMat = new THREE.MeshBasicMaterial({
+    color: 0xa5f3fc,
+    transparent: true,
+    opacity: 0.78,
+    depthWrite: false
+  });
+  var poolWater = new THREE.Mesh(new THREE.CylinderGeometry(10.4, 8.2, 1.48, 48), poolGlowMat);
+  poolWater.position.set(vortexX, 0.92, 0);
+  var poolSoftMistDisc = new THREE.Mesh(new THREE.CylinderGeometry(9.6, 9.6, 0.45, 40), poolMistMat);
+  poolSoftMistDisc.position.set(vortexX, 1.56, 0);
+  var poolInnerCoreGlow = new THREE.Mesh(
+    new THREE.CylinderGeometry(5.4, 5.4, 0.65, 36),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.88, depthWrite: false })
+  );
+  poolInnerCoreGlow.position.set(vortexX, 1.68, 0);
+  domeG.add(poolWater, poolSoftMistDisc, poolInnerCoreGlow);
+
+  var poolRipples = [];
+  for (var rpi = 0; rpi < 8; rpi++) {
+    var ripMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.68,
+      depthWrite: false
+    });
+    var ripMesh = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.10, 8, 40), ripMat);
+    ripMesh.rotation.x = Math.PI / 2;
+    ripMesh.position.set(vortexX, 1.76, 0);
+    domeG.add(ripMesh);
+    poolRipples.push({ mesh: ripMesh, mat: ripMat, phase: rpi / 8 });
+  }
+
+  var streamGeo = new THREE.SphereGeometry(0.24, 8, 8);
+  var streamMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.82,
+    depthWrite: false
+  });
+  var physicsStreams = [];
+  for (var psi = 0; psi < 110; psi++) {
+    var sMesh = new THREE.Mesh(streamGeo, streamMat);
+    domeG.add(sMesh);
+    physicsStreams.push({
+      mesh: sMesh,
+      angle: (psi * 2.39996) % (Math.PI * 2),
+      phase: psi / 110,
+      gravityRate: 0.34 + (psi % 6) * 0.024,
+      radialLayer: (psi % 3 === 0) ? 0.86 : 1.01
+    });
+  }
+
+  var splashGeo = new THREE.SphereGeometry(0.26, 8, 8);
+  var splashMat = new THREE.MeshBasicMaterial({
+    color: 0xe0f2fe,
+    transparent: true,
+    opacity: 0.72,
+    depthWrite: false
+  });
+  var splashParticles = [];
+  for (var spi = 0; spi < 36; spi++) {
+    var spMesh = new THREE.Mesh(splashGeo, splashMat);
+    domeG.add(spMesh);
+    splashParticles.push({
+      mesh: spMesh,
+      angle: (spi / 36) * Math.PI * 2,
+      phase: spi / 36,
+      speed: 0.72 + (spi % 4) * 0.14,
+      maxHeight: 2.6 + (spi % 5) * 0.65,
+      radialSpeed: 2.5 + (spi % 3) * 0.80
+    });
+  }
+
+  var dropGeo = new THREE.SphereGeometry(0.28, 8, 8);
   for (var di = 0; di < 36; di++) {
-    var dMesh = new THREE.Mesh(dropGeo, dropMat);
+    var dMesh = new THREE.Mesh(dropGeo, streamMat);
+    dMesh.scale.set(0.55, 2.4, 0.55);
     domeG.add(dMesh);
     window.jewelWaterfallDrops.push({
       mesh: dMesh,
@@ -2828,56 +4461,336 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
     });
   }
 
-  // 3. Multi-Tier Shiseido Forest Valley Terraces, Lush Indoor Trees & Illuminated Hypermarket Boutiques!
-  for (var tLevel = 0; tLevel < 3; tLevel++) {
-    var ty = 3.2 + tLevel * 5.2;
+  var jewelPoolLight = new THREE.PointLight(0x22d3ee, 0.95, 65);
+  jewelPoolLight.position.set(vortexX, 5.5, 0);
+  var jewelOculusLight = new THREE.PointLight(0x38bdf8, 0.75, 75);
+  jewelOculusLight.position.set(vortexX, 33.5, 0);
+  domeG.add(jewelPoolLight, jewelOculusLight);
+
+  // Primary crystal-turquoise palette (`image_f2b93fd1.png` & `image_e865e179.png`) + gentle color-changing Light & Sound Show
+  var showPalettes = [
+    { oculus: new THREE.Color(0x00d2ff), waterEmit: new THREE.Color(0x0284c7), waterTint: new THREE.Color(0xf0f9ff), pool: new THREE.Color(0x06b6d4), mist: new THREE.Color(0xa5f3fc) },
+    { oculus: new THREE.Color(0x38bdf8), waterEmit: new THREE.Color(0x0ea5e9), waterTint: new THREE.Color(0xe0f2fe), pool: new THREE.Color(0x22d3ee), mist: new THREE.Color(0xbae6fd) },
+    { oculus: new THREE.Color(0x10b981), waterEmit: new THREE.Color(0x059669), waterTint: new THREE.Color(0xecfdf5), pool: new THREE.Color(0x14b8a6), mist: new THREE.Color(0x99f6e4) },
+    { oculus: new THREE.Color(0xa855f7), waterEmit: new THREE.Color(0x9333ea), waterTint: new THREE.Color(0xfdf4ff), pool: new THREE.Color(0xc084fc), mist: new THREE.Color(0xf5d0fe) },
+    { oculus: new THREE.Color(0xf43f5e), waterEmit: new THREE.Color(0xe11d48), waterTint: new THREE.Color(0xfff1f2), pool: new THREE.Color(0xfb7185), mist: new THREE.Color(0xfecdd3) }
+  ];
+
+  var lastPhysicsTime = performance.now();
+  var showTime = 0;
+  poolWater.onBeforeRender = function() {
+    var now = performance.now();
+    var dt = Math.min(0.05, Math.max(0.004, (now - lastPhysicsTime) * 0.001));
+    if (now - lastPhysicsTime < 8) return;
+    lastPhysicsTime = now;
+    showTime += dt;
+
+    for (var pi = 0; pi < jewelAutoPortals.length; pi++) {
+      var portal = jewelAutoPortals[pi];
+      var minDist = 999.0;
+      if (window.playerLoco && window.playerLoco.position) {
+        minDist = Math.min(minDist, portal.worldPos.distanceTo(window.playerLoco.position));
+      }
+      if (window.playerCoaches) {
+        for (var pci = 0; pci < window.playerCoaches.length; pci++) {
+          if (window.playerCoaches[pci] && window.playerCoaches[pci].position) {
+            minDist = Math.min(minDist, portal.worldPos.distanceTo(window.playerCoaches[pci].position));
+          }
+        }
+      }
+      if (window.aiTrains) {
+        for (var aii = 0; aii < window.aiTrains.length; aii++) {
+          var ai = window.aiTrains[aii];
+          if (ai && ai.loco && ai.loco.position) {
+            minDist = Math.min(minDist, portal.worldPos.distanceTo(ai.loco.position));
+          }
+        }
+      }
+      var targetOpen = (minDist < 42.0) ? 1.0 : 0.0;
+      portal.openAmount += (targetOpen - portal.openAmount) * Math.min(1.0, dt * 6.5);
+      var slideOffset = portal.openAmount * 5.2;
+      portal.leftDoor.position.x = -2.7 - slideOffset;
+      portal.rightDoor.position.x =  2.7 + slideOffset;
+      portal.statusMat.color.setHex(portal.openAmount > 0.25 ? 0x22c55e : 0x38bdf8);
+    }
+
+    var cyclePos = (showTime * 0.22) % showPalettes.length;
+    var idxA = Math.floor(cyclePos);
+    var idxB = (idxA + 1) % showPalettes.length;
+    var blend = cyclePos - idxA;
+    var sBlend = blend * blend * (3.0 - 2.0 * blend);
+    var palA = showPalettes[idxA];
+    var palB = showPalettes[idxB];
+
+    oculusCollarMat.color.copy(palA.oculus).lerp(palB.oculus, sBlend);
+    outerWaterMat.emissive.copy(palA.waterEmit).lerp(palB.waterEmit, sBlend);
+    outerWaterMat.color.copy(palA.waterTint).lerp(palB.waterTint, sBlend);
+    innerWaterMat.emissive.copy(palA.oculus).lerp(palB.oculus, sBlend);
+    poolGlowMat.color.copy(palA.pool).lerp(palB.pool, sBlend);
+    poolMistMat.color.copy(palA.mist).lerp(palB.mist, sBlend);
+    splashMat.color.copy(palA.waterTint).lerp(palB.waterTint, sBlend);
+    jewelPoolLight.color.copy(poolGlowMat.color);
+    jewelOculusLight.color.copy(oculusCollarMat.color);
+
+    for (var bi = 0; bi < lightBeamMats.length; bi++) {
+      var wave = 0.5 + 0.5 * Math.sin(showTime * 3.2 + bi * 0.52);
+      var beamPal = showPalettes[(idxA + (bi % 2)) % showPalettes.length];
+      lightBeamMats[bi].color.copy(beamPal.oculus);
+      lightBeamMats[bi].opacity = 0.12 + wave * 0.20;
+    }
+
+    vortexTexOuter.offset.y += dt * 0.92;
+    vortexTexInner.offset.y += dt * 1.35;
+    vortexTexInner.offset.x = Math.sin(now * 0.0007) * 0.06;
+
+    for (var i = 0; i < physicsStreams.length; i++) {
+      var st = physicsStreams[i];
+      st.phase += dt * st.gravityRate;
+      if (st.phase >= 1.0) st.phase -= 1.0;
+
+      var fallFrac = st.phase * st.phase;
+      var curY = 35.6 - fallFrac * 34.2;
+      var uY = (curY - 1.0) / 34.8;
+      var instSpeed = 0.3 + 2.2 * st.phase;
+
+      var topFl = Math.pow(Math.max(0, uY), 2.4) * 3.85;
+      var botFl = Math.pow(Math.max(0, 1.0 - uY), 2.0) * 1.45;
+      var rCur = (3.15 + topFl + botFl) * st.radialLayer;
+      var swirlAng = st.angle + fallFrac * 0.25;
+
+      st.mesh.position.set(
+        vortexX + Math.cos(swirlAng) * rCur,
+        curY,
+        Math.sin(swirlAng) * rCur
+      );
+      var stretchY = 1.3 + instSpeed * 2.4;
+      var invR = 0.72 / Math.sqrt(stretchY);
+      st.mesh.scale.set(invR, stretchY, invR);
+    }
+
+    for (var j = 0; j < splashParticles.length; j++) {
+      var sp = splashParticles[j];
+      sp.phase += dt * sp.speed;
+      if (sp.phase >= 1.0) sp.phase -= 1.0;
+      var u = sp.phase;
+      var py = 1.65 + 4.0 * sp.maxHeight * u * (1.0 - u);
+      var pr = 3.2 + u * sp.radialSpeed;
+      sp.mesh.position.set(
+        vortexX + Math.cos(sp.angle) * pr,
+        py,
+        Math.sin(sp.angle) * pr
+      );
+      var sScale = 1.1 - u * 0.5;
+      sp.mesh.scale.set(sScale, sScale * (1.0 + Math.abs(0.5 - u)), sScale);
+    }
+
+    for (var k = 0; k < poolRipples.length; k++) {
+      var rp = poolRipples[k];
+      rp.phase += dt * 0.30;
+      if (rp.phase >= 1.0) rp.phase -= 1.0;
+      var rScale = 3.2 + rp.phase * 6.2;
+      rp.mesh.scale.set(rScale, rScale, 1.0);
+      rp.mat.color.copy(poolMistMat.color);
+      rp.mat.opacity = 0.68 * (1.0 - rp.phase) * (1.0 - rp.phase);
+    }
+  };
+
+  // ============================================================================
+  // 4. 6-STORY STEPPED SHISEIDO FOREST VALLEY, SHOPPING GALLERIES & INTERIOR "JEWEL" LIVING WALL (`image_e865e179.png`)
+  // ============================================================================
+  var numFloors = 6;
+  var flowerPalette = [0xf43f5e, 0xfacc15, 0xf97316, 0xec4899, 0x38bdf8];
+  for (var tLevel = 0; tLevel < numFloors; tLevel++) {
+    var ty = 2.6 + tLevel * 4.2;
+    var tRad = 15.2 + tLevel * 2.65;
+    var arcStart = -Math.PI * 0.04;
+    var arcLen = Math.PI * 1.08;
+
+    // True hollow curved terrace ring (NO solid disk across the central waterfall atrium!)
     var terraceArc = new THREE.Mesh(
-      new THREE.CylinderGeometry(17.5 + tLevel * 2.2, 18.2 + tLevel * 2.2, 1.4, 24, 1, false, -Math.PI * 0.15, Math.PI * 1.3),
-      terraceMat
+      createHollowArcBandGeo(tRad - 0.25, tRad + 2.85, 1.30, 44, arcStart, arcLen),
+      tLevel % 2 === 0 ? terraceMat : creamTerraceMat
     );
     terraceArc.position.set(vortexX, ty, 0);
-    var shopStrip = new THREE.Mesh(
-      new THREE.CylinderGeometry(18.0 + tLevel * 2.2, 18.0 + tLevel * 2.2, 2.2, 24, 1, true, -Math.PI * 0.12, Math.PI * 1.24),
-      shopGlowMat
+
+    var glassBalustrade = new THREE.Mesh(
+      new THREE.CylinderGeometry(tRad - 0.15, tRad - 0.15, 1.35, 44, 1, true, arcStart, arcLen),
+      glassRailMat
     );
-    shopStrip.position.set(vortexX, ty + 1.8, 0);
+    glassBalustrade.position.set(vortexX, ty + 1.25, 0);
+
+    var shopArc = new THREE.Mesh(
+      new THREE.CylinderGeometry(tRad + 2.65, tRad + 2.65, 3.15, 44, 1, true, arcStart + 0.03, arcLen - 0.06),
+      shopFacadeMat
+    );
+    shopArc.position.set(vortexX, ty + 2.15, 0);
+
+    // True hollow curved hedge planter band along the terrace walkway
     var hedgeArc = new THREE.Mesh(
-      new THREE.CylinderGeometry(16.8 + tLevel * 2.2, 17.2 + tLevel * 2.2, 1.1, 24, 1, false, -Math.PI * 0.15, Math.PI * 1.3),
-      foliageMat
+      createHollowArcBandGeo(tRad + 0.15, tRad + 1.05, 0.95, 44, arcStart, arcLen),
+      tLevel % 2 === 0 ? foliageLushMat : foliageLimeMat
     );
-    hedgeArc.position.set(vortexX, ty + 0.9, 0);
-    domeG.add(terraceArc, shopStrip, hedgeArc);
+    hedgeArc.position.set(vortexX, ty + 1.05, 0);
+
+    domeG.add(terraceArc, glassBalustrade, shopArc, hedgeArc);
+
+    var treesOnFloor = 12 + tLevel * 2;
+    for (var ti = 0; ti < treesOnFloor; ti++) {
+      var tAng = arcStart + 0.05 + (ti / (treesOnFloor - 1)) * (arcLen - 0.10);
+      var tx = vortexX + Math.sin(tAng) * (tRad + 0.55);
+      var tz = Math.cos(tAng) * (tRad + 0.55);
+      if (tx < 6.5) continue; // Keep 100% clear of the Skytrain viaduct on the right (`local x = -2.2`)
+
+      var bush = new THREE.Mesh(
+        new THREE.SphereGeometry(1.4 + (ti % 3) * 0.35, 10, 8),
+        (ti + tLevel) % 3 === 0 ? foliageDarkMat : ((ti % 2 === 0) ? foliageLushMat : foliageLimeMat)
+      );
+      bush.scale.set(1.25, 0.85, 1.25);
+      bush.position.set(tx, ty + 1.5, tz);
+      domeG.add(bush);
+
+      if (ti % 2 === 0) {
+        var vine = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.08, 2.8, 6), foliageLimeMat);
+        vine.position.set(vortexX + Math.sin(tAng) * (tRad - 0.22), ty - 0.4, Math.cos(tAng) * (tRad - 0.22));
+        domeG.add(vine);
+      }
+
+      if (ti % 3 === 1 && tLevel < 5) {
+        var palmG = new THREE.Group();
+        palmG.position.set(tx, ty + 0.8, tz);
+        var trkH = 4.6 + (ti % 3) * 1.2;
+        var trk = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.42, trkH, 8), trunkBarkMat);
+        trk.position.y = trkH * 0.5;
+        palmG.add(trk);
+        // Radiating tropical palm fronds + lush canopy (`image_e865e179.png`)
+        for (var pfi = 0; pfi < 6; pfi++) {
+          var pfa = (pfi / 6) * Math.PI * 2;
+          var frond = new THREE.Mesh(new THREE.SphereGeometry(1.45, 8, 6), pfi % 2 === 0 ? foliageLushMat : foliageLimeMat);
+          frond.scale.set(1.6, 0.28, 0.55);
+          frond.rotation.y = pfa;
+          frond.rotation.z = -0.35;
+          frond.position.set(Math.cos(pfa) * 1.15, trkH + 0.2, Math.sin(pfa) * 1.15);
+          palmG.add(frond);
+        }
+        domeG.add(palmG);
+      }
+
+      if (ti % 2 === 1 && tLevel <= 4) {
+        var flwCol = flowerPalette[(ti + tLevel) % flowerPalette.length];
+        var flwOrb = new THREE.Mesh(new THREE.SphereGeometry(0.34, 8, 8), new THREE.MeshBasicMaterial({ color: flwCol }));
+        flwOrb.position.set(tx, ty + 2.15, tz);
+        domeG.add(flwOrb);
+      }
+    }
   }
 
-  // Indoor Botanical Palm & Canopy Trees along both sides of the tracks inside the dome
-  [-34, -22, -10, 10, 22, 34].forEach(function(tz, idx) {
+  // Prominent Interior Vertical Green Living Plant Wall with Glowing 3D Lotus Emblem & Bold White "JEWEL" Sign
+  // mounted on the left terrace wall facing the interior pass-through camera (`image_e865e179.png` left side!)
+  var interiorLivingWall = createJewelLivingWallMonument(19.5, 10.5);
+  interiorLivingWall.position.set(vortexX + 14.2, 14.8, 3.5);
+  interiorLivingWall.rotation.y = -Math.PI * 0.44;
+  domeG.add(interiorLivingWall);
+
+  // ============================================================================
+  // 5. HERO FOREGROUND RAINFOREST PALMS, TROPICAL TREES & FLOWER BEDS (`image_e865e179.png`)
+  // ============================================================================
+  var heroTreeSpots = [
+    [ 6.2, -22.0, 1.38], [ 5.8, -11.5, 1.32], [ 5.8, 11.5, 1.35], [ 6.2, 22.0, 1.38],
+    [12.5, -18.5, 1.45], [12.5,  18.5, 1.45], [29.5, -16.0, 1.42], [29.5, 16.0, 1.42]
+  ];
+  heroTreeSpots.forEach(function(ht, idx) {
     var treeG = new THREE.Group();
-    treeG.position.set(idx % 2 === 0 ? -19.5 : 22.0, 0.5, tz);
-    var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.7, 5.5, 8), new THREE.MeshStandardMaterial({ color: 0x78350f }));
-    trunk.position.y = 2.75;
-    var crown1 = new THREE.Mesh(new THREE.SphereGeometry(2.8, 12, 12), foliageMat);
-    crown1.position.y = 6.2;
-    var crown2 = new THREE.Mesh(new THREE.SphereGeometry(2.1, 10, 10), new THREE.MeshStandardMaterial({ color: 0x4ade80 }));
-    crown2.position.set(0.8, 7.8, 0.5);
-    treeG.add(trunk, crown1, crown2);
+    treeG.position.set(ht[0], 0.5, ht[1]);
+    var sc = ht[2];
+    treeG.scale.set(sc, sc, sc);
+
+    var mainTrunk = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.64, 7.8, 10), trunkBarkMat);
+    mainTrunk.position.y = 3.9;
+    var canopy1 = new THREE.Mesh(new THREE.SphereGeometry(3.1, 14, 12), foliageLushMat);
+    canopy1.scale.set(1.3, 0.65, 1.3);
+    canopy1.position.set(0, 8.2, 0);
+    var canopy2 = new THREE.Mesh(new THREE.SphereGeometry(2.5, 12, 10), foliageLimeMat);
+    canopy2.scale.set(1.25, 0.65, 1.25);
+    canopy2.position.set(-1.8, 7.8, 0.8);
+    var canopy3 = new THREE.Mesh(new THREE.SphereGeometry(2.4, 12, 10), foliageMidMat);
+    canopy3.scale.set(1.25, 0.65, 1.25);
+    canopy3.position.set(1.8, 8.0, -0.6);
+
+    var baseFern = new THREE.Mesh(new THREE.SphereGeometry(1.65, 10, 8), idx % 2 === 0 ? foliageLushMat : foliageLimeMat);
+    baseFern.scale.set(1.35, 0.55, 1.35);
+    baseFern.position.y = 0.65;
+
+    var bollardGlow = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 8), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+    bollardGlow.position.set(1.1, 1.2, 0.9);
+
+    treeG.add(mainTrunk, canopy1, canopy2, canopy3, baseFern, bollardGlow);
     domeG.add(treeG);
   });
 
-  // Warm Interior Point Lights illuminating the Rain Vortex & Glass Dome
-  var jewelLight = new THREE.PointLight(0x38bdf8, 1.25, 95);
-  jewelLight.position.set(vortexX, 18.0, 0);
-  domeG.add(jewelLight);
-
   scene.add(domeG);
 
-  var vortexWorldPos = domeCenter.clone().add(new THREE.Vector3(0, 13.5, 0));
-  window.registerLandmarkShowcase('J_EAST', 'J_SE', {
-    isInteriorDome: true,
-    lookTarget: vortexWorldPos,
-    camHeight: 11.5,
-    camBack: 24.0,
-    camSide: -8.5
-  });
+  // ============================================================================
+  // 6. VISITORS, PHOTOGRAPHERS & SHOPPERS AROUND THE WATERFALL & TERRACES
+  //    (Standing with full bodies visible on the ground promenade y=0.56 and open terrace walkways!)
+  // ============================================================================
+  var cosD = Math.cos(ang);
+  var sinD = Math.sin(ang);
+  function spawnJewelVisitor(localX, localY, localZ, shirtHex, hatHex, scaleVal, lookAtVortex) {
+    var wx = domeCenter.x + localX * cosD + localZ * sinD;
+    var wz = domeCenter.z - localX * sinD + localZ * cosD;
+    var wy = (midPt.y - 0.3) + localY;
+    var rotY = lookAtVortex
+      ? Math.atan2((domeCenter.x + vortexX * cosD) - wx, (domeCenter.z - vortexX * sinD) - wz)
+      : ang + Math.PI * 0.5;
+    return spawnPerson(wx, wy, wz, shirtHex, hatHex, false, scaleVal || 1.28, rotY);
+  }
+
+  var visitorShirts = [0xef4444, 0x38bdf8, 0xfacc15, 0xf472b6, 0x22c55e, 0xa855f7, 0xf97316, 0xffffff, 0x1d4ed8];
+  for (var vi = 0; vi < 14; vi++) {
+    var vAng = -Math.PI * 0.72 + (vi / 13) * Math.PI * 1.44;
+    var vDist = 12.6 + (vi % 3) * 0.65;
+    var vx = vortexX + Math.cos(vAng) * vDist;
+    var vz = Math.sin(vAng) * vDist;
+    if (vx < 6.0) continue;
+    spawnJewelVisitor(
+      vx,
+      0.56,
+      vz,
+      visitorShirts[vi % visitorShirts.length],
+      (vi % 4 === 0) ? 0x1e293b : null,
+      1.26 + (vi % 3) * 0.08,
+      true
+    );
+  }
+
+  for (var tiVis = 0; tiVis < 8; tiVis++) {
+    var tvAng = Math.PI * 0.14 + (tiVis / 7) * Math.PI * 0.72;
+    var tvFloor = tiVis % 3;
+    var tvRad = (15.2 + tvFloor * 2.65) + 1.55;
+    var tvY = (2.6 + tvFloor * 4.2) + 0.65;
+    spawnJewelVisitor(
+      vortexX + Math.sin(tvAng) * tvRad,
+      tvY,
+      Math.cos(tvAng) * tvRad,
+      visitorShirts[(tiVis + 5) % visitorShirts.length],
+      null,
+      1.22,
+      true
+    );
+  }
+
+  // Export exact world vectors & portal positions for the 2-stage Jewel camera choreography in `installModelsFrameEnhancer()`:
+  // - Stage 1 (5s before entry): pulls high & far back behind the train to frame the train entering the Jewel building
+  // - Stage 2 (inside Jewel): follows the train from the top of the dome (`od vrcholu kopule`), framing the entire interior!
+  var inwardLeftVec = perp.clone().multiplyScalar(-1.0).normalize(); // Local +X in domeG (towards waterfall on the left!)
+  window.jewelDomeCenterWorld = domeCenter.clone();
+  window.jewelNorthPortalPos = jewelEdge.curve.getPointAt(0.20).add(perp.clone().multiplyScalar(2.2));
+  window.jewelSouthPortalPos = jewelEdge.curve.getPointAt(0.80).add(perp.clone().multiplyScalar(2.2));
+  window.jewelVortexWorldPos = domeCenter.clone()
+    .add(inwardLeftVec.clone().multiplyScalar(vortexX))
+    .add(new THREE.Vector3(0, 13.5, 0));
+  window.jewelInwardLeftVec = inwardLeftVec.clone();
+  window.jewelTrackTanVec = tan.clone();
 })();
 
 // Helper: High-Resolution Expressive 3D Cartoon Face Texture for Mom, Dad, Grandma & Grandpa (`image_3d2fa6b1.png`!)
@@ -2904,20 +4817,20 @@ function createFamilyCharacterFaceTex(role) {
   ctx.beginPath(); ctx.ellipse(192, 286, 28, 18, 0, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.ellipse(320, 286, 28, 18, 0, 0, Math.PI * 2); ctx.fill();
 
-  // Expressive arched eyebrows
-  ctx.strokeStyle = (isGrandma || isGrandpa) ? '#94a3b8' : '#451a03';
+  // Expressive arched eyebrows (jet-black for Vietnamese Mom!)
+  ctx.strokeStyle = (isGrandma || isGrandpa) ? '#94a3b8' : (isMom ? '#0f172a' : '#451a03');
   ctx.lineWidth = isDad || isGrandpa ? 11 : 8;
   ctx.lineCap = 'round';
   ctx.beginPath(); ctx.quadraticCurveTo(210, 178, 232, 192); ctx.moveTo(184, 196); ctx.quadraticCurveTo(208, 176, 232, 190); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(280, 190); ctx.quadraticCurveTo(304, 176, 328, 196); ctx.stroke();
 
-  // Large Disney/Pixar Expressive Eyes (Sclera, Warm Brown/Blue Iris, Pupil & Dual Specular Catchlights)
+  // Large Disney/Pixar Expressive Eyes (Sclera, Dark Vietnamese Brown/Black Iris for Mom, Pupil & Dual Specular Catchlights)
   [210, 302].forEach(function(ex, idx) {
     var ey = 232;
     // White sclera
     ctx.fillStyle = '#ffffff';
     ctx.beginPath(); ctx.ellipse(ex, ey, 24, 27, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#451a03';
+    ctx.strokeStyle = isMom ? '#0f172a' : '#451a03';
     ctx.lineWidth = isMom ? 6 : 4;
     ctx.stroke();
 
@@ -2932,11 +4845,11 @@ function createFamilyCharacterFaceTex(role) {
       ctx.stroke();
     }
 
-    // Rich warm chestnut/hazel iris
+    // Rich dark espresso/black iris for Vietnamese Mom, warm chestnut for others
     var irisGrad = ctx.createRadialGradient(ex, ey + 2, 3, ex, ey + 2, 16);
-    irisGrad.addColorStop(0.0, '#78350f');
-    irisGrad.addColorStop(0.7, isMom ? '#92400e' : '#b45309');
-    irisGrad.addColorStop(1.0, '#292524');
+    irisGrad.addColorStop(0.0, isMom ? '#292524' : '#78350f');
+    irisGrad.addColorStop(0.7, isMom ? '#1c1917' : '#b45309');
+    irisGrad.addColorStop(1.0, '#0f172a');
     ctx.fillStyle = irisGrad;
     ctx.beginPath(); ctx.arc(ex, ey + 2, 15, 0, Math.PI * 2); ctx.fill();
 
@@ -3030,16 +4943,15 @@ function buildDetailedFamilyPerson(role, x, z, rotY, customScale) {
   var shoeMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.55 });
   var soleMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 });
 
-  // Reference colors from `image_3d2fa6b1.png`:
-  // Mom: Warm cream-ivory knit V-neck sweater (`0xfef3c7`) + cornflower/sky-blue A-line midi skirt (`0x1d4ed8`) + rich chestnut wavy hair (`0x6b2f12`)
+  // Mom: Vietnamese Mom with glossy jet-black hair (`0x0f172a`), warm cream-ivory knit top (`0xfef3c7`) + sky-blue A-line midi skirt (`0x1d4ed8`)
   // Dad: Rolled-sleeve denim-blue collared shirt (`0x1d4ed8`) over white crew tee + warm beige/khaki chinos (`0xd6d3d1`) + chestnut beard/hair (`0x4a200a`)
   var topHex  = isMom ? 0xfef3c7 : (isDad ? 0x1d4ed8 : (isGrandma ? 0xc084fc : 0x15803d));
   var botHex  = isMom ? 0x1d4ed8 : (isDad ? 0xd6d3d1 : (isGrandma ? 0x7e22ce : 0x78350f));
-  var hairHex = (isGrandma || isGrandpa) ? 0xe2e8f0 : (isMom ? 0x6b2f12 : 0x4a200a);
+  var hairHex = (isGrandma || isGrandpa) ? 0xe2e8f0 : (isMom ? 0x0f172a : 0x4a200a);
 
   var topMat  = new THREE.MeshStandardMaterial({ color: topHex, roughness: 0.48 });
   var botMat  = new THREE.MeshStandardMaterial({ color: botHex, roughness: 0.50 });
-  var hairMat = new THREE.MeshStandardMaterial({ color: hairHex, roughness: 0.55 });
+  var hairMat = new THREE.MeshStandardMaterial({ color: hairHex, roughness: isMom ? 0.28 : 0.55 });
 
   // 1. Legs / Flowing A-Line Midi Skirt & Detailed Footwear (`image_3d2fa6b1.png`)
   if (isMom || isGrandma) {
@@ -3127,10 +5039,10 @@ function buildDetailedFamilyPerson(role, x, z, rotY, customScale) {
 
   // Large 3D Cartoon Eyes (`[-0.20, 0.20]`), Arched Eyebrows & Rosy Blush Cheeks on Front of Face (`+Z`)
   var scleraMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  var irisMat   = new THREE.MeshBasicMaterial({ color: 0x78350f });
+  var irisMat   = new THREE.MeshBasicMaterial({ color: isMom ? 0x1c1917 : 0x78350f });
   var pupilMat  = new THREE.MeshBasicMaterial({ color: 0x0f172a });
   var blushMat  = new THREE.MeshBasicMaterial({ color: 0xfb7185 });
-  var browMat   = new THREE.MeshBasicMaterial({ color: (isGrandma || isGrandpa) ? 0x94a3b8 : 0x451a03 });
+  var browMat   = new THREE.MeshBasicMaterial({ color: (isGrandma || isGrandpa) ? 0x94a3b8 : (isMom ? 0x0f172a : 0x451a03) });
 
   [-1, 1].forEach(function(side) {
     var ex = side * 0.20;
@@ -3200,9 +5112,36 @@ function buildDetailedFamilyPerson(role, x, z, rotY, customScale) {
       headGroup.add(waveUpper, waveLower);
     });
   } else if (isGrandma) {
-    var bun = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 12), hairMat);
-    bun.position.set(0, 0.52, -0.36);
-    headGroup.add(bun);
+    var bun = new THREE.Mesh(new THREE.SphereGeometry(0.36, 14, 12), hairMat);
+    bun.position.set(0, 0.56, -0.32);
+    var gBangsL = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 10), hairMat);
+    gBangsL.scale.set(1.2, 0.45, 0.75);
+    gBangsL.position.set(-0.26, 0.48, 0.30);
+    gBangsL.rotation.z = 0.32;
+    var gBangsR = gBangsL.clone();
+    gBangsR.position.x = 0.26;
+    gBangsR.rotation.z = -0.32;
+    headGroup.add(bun, gBangsL, gBangsR);
+    // Golden round reading glasses
+    var glassGold = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.7, roughness: 0.2 });
+    [-0.20, 0.20].forEach(function(gx) {
+      var rim = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.018, 8, 18), glassGold);
+      rim.position.set(gx, 0.09, 0.59);
+      headGroup.add(rim);
+    });
+  } else if (isGrandpa) {
+    var gpQuiff = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 10), hairMat);
+    gpQuiff.scale.set(1.3, 0.48, 0.82);
+    gpQuiff.position.set(0, 0.52, 0.24);
+    var gpMustache = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.075, 0.09), hairMat);
+    gpMustache.position.set(0, -0.09, 0.57);
+    headGroup.add(gpQuiff, gpMustache);
+    var glassGold2 = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.7, roughness: 0.2 });
+    [-0.20, 0.20].forEach(function(gx) {
+      var rim2 = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.018, 8, 18), glassGold2);
+      rim2.position.set(gx, 0.09, 0.59);
+      headGroup.add(rim2);
+    });
   } else if (isDad) {
     // Styled swept-up brown quiff hair + neat mustache & lower-chin beard (`image_3d2fa6b1.png`!)
     var quiff = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 12), hairMat);
@@ -3253,775 +5192,1459 @@ function buildDetailedFamilyPerson(role, x, z, rotY, customScale) {
   return obj;
 }
 
-// 6. MOM & DAD'S FAIRYTALE FAMILY COTTAGE (`J_WEST -> J_NW` at x = -238, z = -112)
-//    Built to match `/public/assets/aistudio/image_3d2fa6b1.png` & `/public/assets/aistudio/image_82bfab46.png`:
-//    - Front-facing pitched terracotta barrel-tile roof with 3D stepped barrel tiles, cross-gable dormer & stone-and-brick chimney
-//    - Warm cream-ivory stucco walls with sandstone corner quoins, stone plinth & half-timbered upper gable
-//    - Timber gable porch over a sky-blue arched wooden front door with panels, brass handle, stone steps & glowing lantern
-//    - Multi-pane casement windows with sky-blue louvered shutters & overflowing colorful window flower boxes
-//    - Curved cobblestone path, white picket fence, stone lantern gate pillar, wooden garden bench, blue watering can & blue mailbox
-//    - Side driveway with parked metallic-blue family SUV & red bicycle, abundant hydrangea/rose gardens, and hero-scale waving Mom & Dad!
+// 6. MOM & DAD'S VIETNAMESE TROPICAL BUNGALOW (`J_WEST -> J_NW` at x = -238, z = -144)
+//    - Single-story white flat-roof bungalow ("přízemní bungalov, má plochou střechu a bílou barvu")
+//    - Giant grand entrance double doors ("obrovské vchodové dveře")
+//    - "VIETNAM" welcome sign ("cedule VIETNAM") & ~12 curved Coconut Palms ("asi 10 kokosových palem")
+//    - Silver-grey Honda AIR Blade scooter ("stříbrně šedý scooter Honda AIR Blade") instead of a car
+//    - Vietnamese Mom with glossy jet-black hair ("Maminka má černé vlasy, je to vietnamka") & Dad waving
+//    - Blue Intex 3.66m swimming pool with crystal-clear water, sand filter pump & chlorinator ("modrý bazén intex 3.66m s krásně čistou vodou s pískovou filtrací a chlorinátorem")
+//    - 3m-wide tropical stream on the right side with jumping fish, crawling crabs, coconut palms & jackfruit trees ("3 metry široký potok, ve kterém skáčou ryby a kolem lezou krabi a kolem potoka jsou všude palmy a jackfruity")
+window.vietnamJumpingFish = [];
+window.vietnamCrawlingCrabs = [];
 (function buildMomAndDadHouseLandmark() {
   var mx = -238, mz = -144;
   var my = terrainY(mx, mz);
   var g = new THREE.Group();
   g.position.set(mx, my, mz);
-  // Oriented so the front facade (+Z), broad front terracotta roof slope, garden & Mom/Dad face the railway track & camera!
   var houseRotY = Math.PI * 0.36;
   g.rotation.y = houseRotY;
 
-  // Gentle Warm Fill Light (balanced so colors stay rich and saturated under ACESFilmicToneMapping!)
-  var cottageSunLight = new THREE.PointLight(0xfff7ed, 0.25, 70);
-  cottageSunLight.position.set(2, 20, 18);
+  var cottageSunLight = new THREE.PointLight(0xfff7ed, 0.28, 78);
+  cottageSunLight.position.set(0, 20, 18);
   g.add(cottageSunLight);
 
-  // High-Contrast Procedural Terracotta Barrel-Tile Roof Texture (`createTerracottaBarrelTileTex`)
-  function createTerracottaBarrelTileTex() {
-    var c = document.createElement('canvas');
-    c.width = 512; c.height = 512;
-    var ctx = c.getContext('2d');
+  var pureWhiteWallMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.34, metalness: 0.04 });
+  var offWhiteTrimMat  = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.38 });
+  var darkParapetMat   = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.42, metalness: 0.25 });
+  var teakWoodMat      = new THREE.MeshStandardMaterial({ color: 0x7c2d12, roughness: 0.36, metalness: 0.12 });
+  var richMahoganyMat  = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.32, metalness: 0.15 });
+  var goldHandleMat    = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.20, metalness: 0.85 });
+  var glassDoorMat     = new THREE.MeshStandardMaterial({ color: 0xbae6fd, roughness: 0.12, metalness: 0.25, transparent: true, opacity: 0.78 });
+  var warmGlowMat      = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+  var patioTileMat     = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.42 });
+  var stoneStepMat     = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.50 });
 
-    ctx.fillStyle = '#c2410c';
-    ctx.fillRect(0, 0, 512, 512);
-
-    var cols = 8;
-    var rows = 8;
-    var cw = 512 / cols;
-    var rh = 512 / rows;
-
-    for (var r = 0; r < rows; r++) {
-      for (var col = 0; col < cols; col++) {
-        var x = col * cw;
-        var y = r * rh;
-
-        // Cylindrical barrel tile gradient (rich terracotta-red/orange with warm ridge & deep valley shadow)
-        var tileGrad = ctx.createLinearGradient(x, y, x + cw, y);
-        tileGrad.addColorStop(0.0, '#7c2d12');
-        tileGrad.addColorStop(0.22, '#c2410c');
-        tileGrad.addColorStop(0.50, ((r + col) % 2 === 0) ? '#ea580c' : '#d97706');
-        tileGrad.addColorStop(0.68, '#f97316');
-        tileGrad.addColorStop(0.88, '#9a3412');
-        tileGrad.addColorStop(1.0, '#431407');
-        ctx.fillStyle = tileGrad;
-        ctx.fillRect(x, y, cw, rh);
-
-        // Curved overlapping bottom lip of each barrel tile course
-        ctx.beginPath();
-        ctx.arc(x + cw * 0.5, y + rh - 4, cw * 0.48, 0, Math.PI, false);
-        ctx.lineWidth = 7;
-        ctx.strokeStyle = '#431407';
-        ctx.stroke();
-
-        // Warm terracotta lip highlight
-        ctx.beginPath();
-        ctx.arc(x + cw * 0.5, y + rh - 9, cw * 0.44, 0.1 * Math.PI, 0.9 * Math.PI, false);
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#fdba74';
-        ctx.stroke();
-      }
-    }
-    var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new THREE.CanvasTexture(c);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(2.5, 2.0);
-    return tex;
-  }
-
-  // Rustic Stone & Brick Masonry Texture for Plinth & Chimney
-  function createStoneMasonryTex(isChimney) {
-    var c = document.createElement('canvas');
-    c.width = 256; c.height = 256;
-    var ctx = c.getContext('2d');
-    ctx.fillStyle = '#cbd5e1';
-    ctx.fillRect(0, 0, 256, 256);
-    var stonePalette = isChimney
-      ? ['#b45309', '#9a3412', '#78716c', '#a8a29e', '#c2410c', '#d6d3d1']
-      : ['#94a3b8', '#cbd5e1', '#64748b', '#a8a29e', '#d6d3d1'];
-    for (var sr = 0; sr < 8; sr++) {
-      var sy = sr * 32;
-      var offset = (sr % 2) * 24;
-      for (var sc = -1; sc < 6; sc++) {
-        var sx = sc * 52 + offset;
-        ctx.fillStyle = stonePalette[Math.abs(sr * 3 + sc) % stonePalette.length];
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(sx + 3, sy + 3, 46, 26, 6);
-        else ctx.rect(sx + 3, sy + 3, 46, 26);
-        ctx.fill();
-      }
-    }
-    return window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new THREE.CanvasTexture(c);
-  }
-
-  // Sky-Blue Louvered Window Shutter Texture
-  function createLouveredShutterTex() {
-    var c = document.createElement('canvas');
-    c.width = 128; c.height = 256;
-    var ctx = c.getContext('2d');
-    ctx.fillStyle = '#0284c7';
-    ctx.fillRect(0, 0, 128, 256);
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 8;
-    ctx.strokeRect(8, 8, 112, 240);
-    for (var ly = 24; ly <= 232; ly += 14) {
-      ctx.fillStyle = '#0369a1';
-      ctx.fillRect(16, ly, 96, 6);
-      ctx.fillStyle = '#7dd3fc';
-      ctx.fillRect(16, ly - 3, 96, 3);
-    }
-    return window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new THREE.CanvasTexture(c);
-  }
-
-  var roofTileTex   = createTerracottaBarrelTileTex();
-  var stoneWallTex  = createStoneMasonryTex(false);
-  var chimneyTex    = createStoneMasonryTex(true);
-  var shutterTex    = createLouveredShutterTex();
-
-  var creamStuccoMat = new THREE.MeshStandardMaterial({
-    color: 0xfef3c7,
-    roughness: 0.48
-  });
-  var quoinStoneMat  = new THREE.MeshStandardMaterial({
-    color: 0xfde68a,
-    roughness: 0.55
-  });
-  var stoneBaseMat   = new THREE.MeshStandardMaterial({ map: stoneWallTex, roughness: 0.72 });
-  var chimneyMat     = new THREE.MeshStandardMaterial({ map: chimneyTex, roughness: 0.68 });
-  var terracottaRoofMat = new THREE.MeshStandardMaterial({
-    map: roofTileTex,
-    roughness: 0.42,
-    emissive: 0x431407,
-    emissiveIntensity: 0.06
-  });
-  var terracottaBarrelA = new THREE.MeshStandardMaterial({
-    color: 0xc2410c,
-    roughness: 0.40,
-    emissive: 0x431407,
-    emissiveIntensity: 0.06
-  });
-  var terracottaBarrelB = new THREE.MeshStandardMaterial({
-    color: 0xea580c,
-    roughness: 0.40,
-    emissive: 0x431407,
-    emissiveIntensity: 0.06
-  });
-  var terracottaDarkCap = new THREE.MeshStandardMaterial({
-    color: 0x7c2d12,
-    roughness: 0.45
-  });
-  var skyBlueDoorMat = new THREE.MeshStandardMaterial({
-    color: 0x0284c7,
-    roughness: 0.34
-  });
-  var shutterBlueMat = new THREE.MeshStandardMaterial({
-    map: shutterTex,
-    roughness: 0.38
-  });
-  var timberMat      = new THREE.MeshStandardMaterial({
-    color: 0x78350f,
-    roughness: 0.62
-  });
-  var whiteFenceMat  = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.35
-  });
-  var warmWindowGlowMat = new THREE.MeshBasicMaterial({ color: 0xfde047 });
-  var goldMat        = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.65, roughness: 0.22 });
-
-  // 1. Lush Saturated Green Garden Lawn, Side Driveway & Multi-Stone Curved Cobblestone Walk Path (`image_3d2fa6b1.png`)
-  var lawn = new THREE.Mesh(
-    new THREE.CylinderGeometry(24.5, 25.5, 0.52, 36),
-    new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.78 })
+  // 1. Lush Tropical Vietnamese Garden Lawn & Tiled Forecourt Terrace
+  var lawnBase = new THREE.Mesh(
+    new THREE.CylinderGeometry(34.0, 35.5, 0.70, 44),
+    new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.72 })
   );
-  lawn.position.y = 0.24;
-  var driveway = new THREE.Mesh(
-    new THREE.BoxGeometry(9.2, 0.56, 19.5),
-    new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.75 })
-  );
-  driveway.position.set(-13.8, 0.27, 3.8);
-  g.add(lawn, driveway);
+  lawnBase.position.y = 0.25;
+  lawnBase.receiveShadow = true;
+  g.add(lawnBase);
 
-  // Detailed Multi-Stone Cobblestone Path curving from the Front Porch Steps (`z = 8.4`) out through the Gate (`z = 19.5`)
-  var cobbleColors = [0xcbd5e1, 0xfde68a, 0x94a3b8, 0xd6d3d1, 0xe2e8f0];
-  for (var stI = 0; stI < 14; stI++) {
-    var pathZ = 8.4 + stI * 0.82;
-    var curveX = Math.sin(stI * 0.32) * 0.55;
-    for (var sub = -1; sub <= 1; sub++) {
-      var stoneMat = new THREE.MeshStandardMaterial({
-        color: cobbleColors[(stI + sub + 3) % cobbleColors.length],
-        roughness: 0.68
-      });
-      var cobble = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.74, 0.18, 10), stoneMat);
-      cobble.scale.set(1.15, 1.0, 0.82);
-      cobble.position.set(curveX + sub * 1.15 + (stI % 2) * 0.18, 0.49, pathZ);
-      g.add(cobble);
+  var frontPatio = new THREE.Mesh(new THREE.BoxGeometry(22.0, 0.32, 9.5), patioTileMat);
+  frontPatio.position.set(0, 0.58, 10.2);
+  frontPatio.receiveShadow = true;
+  g.add(frontPatio);
+
+  // 2. Single-Story White Flat-Roof Bungalow ("přízemní bungalov, má plochou střechu a bílou barvu")
+  var plinth = new THREE.Mesh(new THREE.BoxGeometry(21.4, 1.1, 14.4), stoneStepMat);
+  plinth.position.set(0, 0.95, 0);
+  var bungalowWalls = new THREE.Mesh(new THREE.BoxGeometry(20.6, 6.2, 13.6), pureWhiteWallMat);
+  bungalowWalls.position.set(0, 4.4, 0);
+  bungalowWalls.castShadow = true;
+  bungalowWalls.receiveShadow = true;
+
+  // Modern Cantilevered Flat Roof Slab with Overhang, Parapet Rim & Warm LED Soffit Strip
+  var flatRoofSlab = new THREE.Mesh(new THREE.BoxGeometry(23.2, 0.85, 16.4), pureWhiteWallMat);
+  flatRoofSlab.position.set(0, 7.82, 0.4);
+  flatRoofSlab.castShadow = true;
+  var roofParapet = new THREE.Mesh(new THREE.BoxGeometry(23.4, 0.36, 16.6), darkParapetMat);
+  roofParapet.position.set(0, 8.38, 0.4);
+  var roofTopDeck = new THREE.Mesh(new THREE.BoxGeometry(22.2, 0.18, 15.4), offWhiteTrimMat);
+  roofTopDeck.position.set(0, 8.52, 0.4);
+  var ledSoffitStrip = new THREE.Mesh(new THREE.BoxGeometry(21.8, 0.10, 0.35), warmGlowMat);
+  ledSoffitStrip.position.set(0, 7.36, 7.85);
+  g.add(plinth, bungalowWalls, flatRoofSlab, roofParapet, roofTopDeck, ledSoffitStrip);
+
+  // Elegant Modern Front Veranda Pillars Supporting the Flat Roof Overhang
+  [-9.6, 9.6].forEach(function(px) {
+    var col = new THREE.Mesh(new THREE.BoxGeometry(0.85, 6.6, 0.85), pureWhiteWallMat);
+    col.position.set(px, 4.2, 7.6);
+    var colBase = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.9, 1.15), darkParapetMat);
+    colBase.position.set(px, 1.1, 7.6);
+    g.add(col, colBase);
+  });
+
+  // 3. GIANT GRAND ENTRANCE DOORS ("má obrovské vchodové dveře" - Massive 4-Panel Vietnamese Teakwood & Glass Grand Double Entrance!)
+  var grandDoorFrame = new THREE.Mesh(new THREE.BoxGeometry(6.8, 5.75, 0.52), richMahoganyMat);
+  grandDoorFrame.position.set(0, 4.15, 6.82);
+  var grandDoorBackdrop = new THREE.Mesh(new THREE.BoxGeometry(6.1, 5.3, 0.32), warmGlowMat);
+  grandDoorBackdrop.position.set(0, 4.10, 6.72);
+  g.add(grandDoorFrame, grandDoorBackdrop);
+
+  // 4 Tall Carved Wooden & Frosted-Glass Door Leaves (2 outer sidelights + 2 huge central swinging leaves)
+  [-2.25, -0.76, 0.76, 2.25].forEach(function(dx, dIdx) {
+    var isCenterLeaf = (dIdx === 1 || dIdx === 2);
+    var leafW = isCenterLeaf ? 1.46 : 1.38;
+    var doorLeaf = new THREE.Mesh(new THREE.BoxGeometry(leafW, 5.22, 0.56), teakWoodMat);
+    doorLeaf.position.set(dx, 4.08, 6.88);
+    var upperGlassInsert = new THREE.Mesh(new THREE.BoxGeometry(leafW - 0.36, 2.85, 0.62), glassDoorMat);
+    upperGlassInsert.position.set(dx, 4.82, 6.89);
+    var lowerCarvedPanel = new THREE.Mesh(new THREE.BoxGeometry(leafW - 0.34, 1.45, 0.62), richMahoganyMat);
+    lowerCarvedPanel.position.set(dx, 2.32, 6.89);
+    g.add(doorLeaf, upperGlassInsert, lowerCarvedPanel);
+
+    // Ornate Vietnamese Golden Lattice Bars across the glass inserts
+    for (var gyBar = 3.8; gyBar <= 5.8; gyBar += 0.65) {
+      var hBar = new THREE.Mesh(new THREE.BoxGeometry(leafW - 0.34, 0.08, 0.66), goldHandleMat);
+      hBar.position.set(dx, gyBar, 6.90);
+      g.add(hBar);
     }
-  }
+  });
 
-  // 2. Main Cottage Warm Cream Stucco Walls, Stone Foundation Plinth & Sandstone Corner Quoins (`image_3d2fa6b1.png`)
-  var stonePlinth = new THREE.Mesh(new THREE.BoxGeometry(19.2, 2.0, 14.2), stoneBaseMat);
-  stonePlinth.position.y = 1.0;
-  var mainBody = new THREE.Mesh(new THREE.BoxGeometry(18.6, 9.6, 13.6), creamStuccoMat);
-  mainBody.position.y = 6.4;
-  mainBody.castShadow = true;
-  g.add(stonePlinth, mainBody);
+  // Twin Long Golden Pull Handles on the Giant Center Doors
+  [-0.22, 0.22].forEach(function(hx) {
+    var longHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 2.45, 12), goldHandleMat);
+    longHandle.position.set(hx, 3.95, 7.26);
+    g.add(longHandle);
+  });
 
-  // Sandstone Corner Quoins along all 4 vertical wall corners
-  [[-9.2, 6.7], [9.2, 6.7], [-9.2, -6.7], [9.2, -6.7]].forEach(function(qp) {
-    for (var qy = 2.4; qy <= 10.4; qy += 1.15) {
-      var quoin = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.62, 0.68), quoinStoneMat);
-      quoin.position.set(qp[0], qy, qp[1]);
-      g.add(quoin);
+  // Grand Wide Front Entrance Steps leading up to the Giant Doors
+  var step1 = new THREE.Mesh(new THREE.BoxGeometry(8.6, 0.36, 2.4), stoneStepMat);
+  step1.position.set(0, 0.76, 7.6);
+  var step2 = new THREE.Mesh(new THREE.BoxGeometry(7.8, 0.36, 1.6), pureWhiteWallMat);
+  step2.position.set(0, 1.12, 7.2);
+  g.add(step1, step2);
+
+  // Panoramic Side Bungalow Windows with Dark Anthracite Frames & Tropical Planter Boxes
+  [-6.8, 6.8].forEach(function(wx) {
+    var winFrame = new THREE.Mesh(new THREE.BoxGeometry(4.2, 3.4, 0.42), darkParapetMat);
+    winFrame.position.set(wx, 4.35, 6.80);
+    var winGlass = new THREE.Mesh(new THREE.BoxGeometry(3.8, 3.0, 0.46), glassDoorMat);
+    winGlass.position.set(wx, 4.35, 6.83);
+    var winGlow = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2.8, 0.30), warmGlowMat);
+    winGlow.position.set(wx, 4.35, 6.72);
+    g.add(winFrame, winGlass, winGlow);
+  });
+
+  // 4. "VIETNAM" WELCOME SIGN ("cedule VIETNAM") with Golden Star Emblem in the Front Garden!
+  (function buildVietnamSign() {
+    var signG = new THREE.Group();
+    signG.position.set(-8.6, 0.65, 14.8);
+    signG.rotation.y = 0.18;
+
+    var c = document.createElement('canvas');
+    c.width = 512; c.height = 192;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#dc2626';
+    ctx.fillRect(0, 0, 512, 192);
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 14;
+    ctx.strokeRect(7, 7, 498, 178);
+
+    // Draw golden 5-pointed Vietnamese star on the left
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    var sx = 92, sy = 96, outerR = 48, innerR = 20;
+    for (var si = 0; si < 10; si++) {
+      var r = (si % 2 === 0) ? outerR : innerR;
+      var a = (si * Math.PI) / 5 - Math.PI / 2;
+      if (si === 0) ctx.moveTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r);
+      else ctx.lineTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r);
     }
-  });
+    ctx.closePath();
+    ctx.fill();
 
-  // Left & Right Side Gable Triangles (so the Main Roof Ridge runs along X and the Front Roof Slope faces +Z toward the camera!)
-  var sideGableShape = new THREE.Shape();
-  sideGableShape.moveTo(-6.8, 0);
-  sideGableShape.lineTo(6.8, 0);
-  sideGableShape.lineTo(0, 6.0);
-  sideGableShape.closePath();
-  var sideGableGeo = new THREE.ExtrudeGeometry(sideGableShape, { depth: 18.6, bevelEnabled: false });
-  sideGableGeo.translate(0, 11.2, -9.3);
-  sideGableGeo.rotateY(Math.PI / 2);
-  var sideGableMesh = new THREE.Mesh(sideGableGeo, creamStuccoMat);
-  g.add(sideGableMesh);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 72px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('VIETNAM', 318, 100);
 
-  // 3. Broad Front-Facing & Back-Facing Terracotta Barrel-Tiled Roof Slopes (`image_3d2fa6b1.png`!)
-  //    Because `zSide = 1` faces `+Z` (toward the camera), every single terracotta tile & dark stepped collar is clearly visible!
-  [-1, 1].forEach(function(zSide) {
-    var slopeG = new THREE.Group();
-    slopeG.position.set(0, 14.1, zSide * 3.8);
-    slopeG.rotation.x = zSide * 0.72;
+    var vTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new THREE.CanvasTexture(c);
+    var boardMat = new THREE.MeshBasicMaterial({ map: vTex });
+    var boardBox = new THREE.Mesh(new THREE.BoxGeometry(7.6, 2.85, 0.32), darkParapetMat);
+    boardBox.position.y = 4.2;
+    var boardFront = new THREE.Mesh(new THREE.PlaneGeometry(7.4, 2.7), boardMat);
+    boardFront.position.set(0, 4.2, 0.18);
+    var boardBack = boardFront.clone();
+    boardBack.rotation.y = Math.PI;
+    boardBack.position.z = -0.18;
 
-    var roofDeck = new THREE.Mesh(new THREE.BoxGeometry(20.4, 0.56, 10.2), terracottaRoofMat);
-    slopeG.add(roofDeck);
-
-    // Warm honey-timber fascia bargeboards on left & right gable edges + front eave fascia
-    var eaveTrim = new THREE.Mesh(new THREE.BoxGeometry(20.6, 0.46, 0.42), timberMat);
-    eaveTrim.position.set(0, 0.05, zSide * 5.05);
-    slopeG.add(eaveTrim);
-
-    // 17 Columns of 3D Sculpted Terracotta Barrel Tiles + Dark Overlapping Course Collars + Scalloped Eave End-Caps!
-    for (var tx = -9.6; tx <= 9.6; tx += 1.2) {
-      var colIdx = Math.abs(Math.round(tx * 2));
-      var bMat = (colIdx % 2 === 0) ? terracottaBarrelA : terracottaBarrelB;
-      var barrelRib = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.40, 10.1, 10), bMat);
-      barrelRib.rotation.x = Math.PI / 2;
-      barrelRib.position.set(tx, 0.34, 0);
-      slopeG.add(barrelRib);
-
-      // Contrasting dark burnt-sienna horizontal tile overlap rings along each barrel rib!
-      for (var tz = -4.0; tz <= 4.0; tz += 1.6) {
-        var tileCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.38, 0.32, 10), terracottaDarkCap);
-        tileCollar.rotation.x = Math.PI / 2;
-        tileCollar.position.set(tx, 0.38, tz);
-        slopeG.add(tileCollar);
-      }
-
-      // Clay eave end-cap at the bottom edge of the roof
-      var eaveCap = new THREE.Mesh(new THREE.SphereGeometry(0.40, 8, 8), terracottaDarkCap);
-      eaveCap.position.set(tx, 0.34, zSide * 5.02);
-      slopeG.add(eaveCap);
-    }
-
-    g.add(slopeG);
-  });
-
-  // Prominent 3D Terracotta Ridge-Cap Spine along the Top Roof Crest (`y = 17.35, z = 0`)
-  var mainRidgeCap = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 20.6, 12), terracottaDarkCap);
-  mainRidgeCap.rotation.z = Math.PI / 2;
-  mainRidgeCap.position.set(0, 17.35, 0);
-  g.add(mainRidgeCap);
-  for (var rx = -9.6; rx <= 9.6; rx += 1.2) {
-    var rRing = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.10, 8, 14), terracottaBarrelB);
-    rRing.rotation.y = Math.PI / 2;
-    rRing.position.set(rx, 17.35, 0);
-    g.add(rRing);
-  }
-
-  // 4. Front Cross-Gable Dormer Peak with Half-Timber Beams, Round Attic Window & 3D Terracotta Roof (`image_3d2fa6b1.png` & `image_82bfab46.png`!)
-  var frontGableGroup = new THREE.Group();
-  frontGableGroup.position.set(0, 11.0, 2.2);
-
-  var fgShape = new THREE.Shape();
-  fgShape.moveTo(-4.8, 0);
-  fgShape.lineTo(4.8, 0);
-  fgShape.lineTo(0, 5.4);
-  fgShape.closePath();
-  var fgGeo = new THREE.ExtrudeGeometry(fgShape, { depth: 4.8, bevelEnabled: false });
-  var fgWall = new THREE.Mesh(fgGeo, creamStuccoMat);
-  frontGableGroup.add(fgWall);
-
-  // Decorative Half-Timbered Gable Beams & Round Multi-Pane Attic Window on the Front Gable
-  var vTimber = new THREE.Mesh(new THREE.BoxGeometry(0.32, 5.2, 0.26), timberMat);
-  vTimber.position.set(0, 2.6, 4.82);
-  var hTimber = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.30, 0.26), timberMat);
-  hTimber.position.set(0, 1.2, 4.82);
-  var atticWin = new THREE.Mesh(new THREE.CylinderGeometry(1.18, 1.18, 0.32, 20), warmWindowGlowMat);
-  atticWin.rotation.x = Math.PI / 2;
-  atticWin.position.set(0, 2.55, 4.78);
-  var atticRim = new THREE.Mesh(new THREE.TorusGeometry(1.22, 0.18, 10, 22), whiteFenceMat);
-  atticRim.position.set(0, 2.55, 4.92);
-  frontGableGroup.add(vTimber, hTimber, atticWin, atticRim);
-
-  // Pitched Terracotta Barrel-Tiled Roof Slopes on the Front Cross-Gable
-  [-1, 1].forEach(function(gSide) {
-    var fgSlope = new THREE.Group();
-    fgSlope.position.set(gSide * 2.6, 2.85, 2.6);
-    fgSlope.rotation.z = gSide * -0.82;
-    var fgBoard = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.44, 5.8), terracottaRoofMat);
-    var fgTrim = new THREE.Mesh(new THREE.BoxGeometry(6.9, 0.48, 0.36), timberMat);
-    fgTrim.position.set(0, 0, 2.92);
-    fgSlope.add(fgBoard, fgTrim);
-    for (var dtr = -2.8; dtr <= 2.8; dtr += 0.92) {
-      var dRib = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.30, 5.8, 8), Math.abs(Math.round(dtr)) % 2 === 0 ? terracottaBarrelB : terracottaBarrelA);
-      dRib.rotation.x = Math.PI / 2;
-      dRib.position.set(dtr, 0.26, 0);
-      fgSlope.add(dRib);
-    }
-    frontGableGroup.add(fgSlope);
-  });
-  var fgRidge = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 5.9, 10), terracottaDarkCap);
-  fgRidge.rotation.x = Math.PI / 2;
-  fgRidge.position.set(0, 5.55, 2.6);
-  frontGableGroup.add(fgRidge);
-  g.add(frontGableGroup);
-
-  // 5. Rustic Stone-and-Brick Chimney with Stepped Crown & Twin Terracotta Chimney Pots (`image_3d2fa6b1.png` right roof!)
-  var chimney = new THREE.Mesh(new THREE.BoxGeometry(2.8, 8.6, 2.8), chimneyMat);
-  chimney.position.set(6.4, 15.8, -1.6);
-  var chimCrown = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.58, 3.3), stoneBaseMat);
-  chimCrown.position.y = 4.3;
-  chimney.add(chimCrown);
-  [-0.65, 0.65].forEach(function(cpx) {
-    var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.42, 1.35, 12), terracottaBarrelA);
-    pot.position.set(cpx, 5.1, 0);
-    var potRim = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.08, 8, 12), terracottaDarkCap);
-    potRim.rotation.x = Math.PI / 2;
-    potRim.position.set(cpx, 5.75, 0);
-    chimney.add(pot, potRim);
-  });
-  g.add(chimney);
-
-  // 6. Covered Timber Front Porch Gable Canopy, 3 Curved Stone Steps, Arched Sky-Blue Door & Glowing Hanging Lantern!
-  var porchFloor = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.85, 3.6), stoneBaseMat);
-  porchFloor.position.set(0, 0.65, 7.8);
-  var step1 = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.32, 0.95), stoneBaseMat);
-  step1.position.set(0, 0.48, 9.8);
-  var step2 = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.24, 0.95), stoneBaseMat);
-  step2.position.set(0, 0.24, 10.4);
-  g.add(porchFloor, step1, step2);
-
-  [-1, 1].forEach(function(pSide) {
-    var pSlope = new THREE.Group();
-    pSlope.position.set(pSide * 1.85, 7.15, 8.1);
-    pSlope.rotation.z = pSide * -0.58;
-    var pBoard = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.40, 4.2), terracottaRoofMat);
-    var pTrim = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.42, 0.32), timberMat);
-    pTrim.position.set(0, 0, 2.1);
-    pSlope.add(pBoard, pTrim);
-    for (var ptr = -1.6; ptr <= 1.6; ptr += 0.8) {
-      var pRib = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 4.2, 8), terracottaBarrelB);
-      pRib.rotation.x = Math.PI / 2;
-      pRib.position.set(ptr, 0.24, 0);
-      pSlope.add(pRib);
-    }
-    g.add(pSlope);
-
-    // Timber Porch Support Post + Diagonal Knee Brace + Stone Plinth Pedestal
-    var postPed = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.85, 0.76), stoneBaseMat);
-    postPed.position.set(pSide * 2.7, 1.15, 9.1);
-    var pPost = new THREE.Mesh(new THREE.BoxGeometry(0.44, 5.4, 0.44), timberMat);
-    pPost.position.set(pSide * 2.7, 3.85, 9.1);
-    var brace = new THREE.Mesh(new THREE.BoxGeometry(0.30, 1.35, 0.30), timberMat);
-    brace.position.set(pSide * 2.15, 5.75, 9.1);
-    brace.rotation.z = pSide * 0.68;
-    g.add(postPed, pPost, brace);
-  });
-
-  // Detailed Sky-Blue Arched Wooden Front Door with Stone Arch Surround, Recessed Panels, Upper Window Lite & Gold Handle
-  var doorArchFrame = new THREE.Mesh(new THREE.BoxGeometry(3.4, 4.2, 0.36), quoinStoneMat);
-  doorArchFrame.position.set(0, 2.8, 6.72);
-  var doorArchTopFrame = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.7, 0.36, 20), quoinStoneMat);
-  doorArchTopFrame.rotation.x = Math.PI / 2;
-  doorArchTopFrame.position.set(0, 4.9, 6.72);
-
-  var doorRect = new THREE.Mesh(new THREE.BoxGeometry(2.8, 4.0, 0.46), skyBlueDoorMat);
-  doorRect.position.set(0, 2.7, 6.78);
-  var doorArch = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 0.46, 20), skyBlueDoorMat);
-  doorArch.rotation.x = Math.PI / 2;
-  doorArch.position.set(0, 4.7, 6.78);
-
-  // Upper arched glass window lite inside the blue door + recessed lower panels + brass lever handle
-  var doorGlass = new THREE.Mesh(new THREE.CylinderGeometry(0.88, 0.88, 0.50, 16), warmWindowGlowMat);
-  doorGlass.rotation.x = Math.PI / 2;
-  doorGlass.position.set(0, 4.55, 6.80);
-  [-0.58, 0.58].forEach(function(dpx) {
-    var dPanel = new THREE.Mesh(new THREE.BoxGeometry(0.82, 1.85, 0.50), shutterBlueMat);
-    dPanel.position.set(dpx, 2.35, 6.80);
-    g.add(dPanel);
-  });
-  var doorKnob = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), goldMat);
-  doorKnob.position.set(0.96, 2.75, 7.08);
-  var porchLantern = new THREE.Mesh(new THREE.SphereGeometry(0.44, 12, 12), warmWindowGlowMat);
-  porchLantern.position.set(0, 6.1, 8.9);
-  var lanternCap = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.42, 8), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
-  lanternCap.position.set(0, 6.48, 8.9);
-  g.add(doorArchFrame, doorArchTopFrame, doorRect, doorArch, doorGlass, doorKnob, porchLantern, lanternCap);
-
-  // 7. Multi-Pane Warm-Glowing Casement Windows with Sky-Blue Louvered Shutters & Overflowing Flower Planter Boxes (`image_3d2fa6b1.png`!)
-  var flowerCols = [0xdc2626, 0xeab308, 0xea580c, 0xdb2777, 0x7c3aed, 0x2563eb];
-  var foliageGreenMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.65 });
-  var foliageLimeMat  = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.65 });
-
-  [-5.6, 5.6].forEach(function(wx) {
-    [4.2, 8.6].forEach(function(wy) {
-      var wFrame = new THREE.Mesh(new THREE.BoxGeometry(2.95, 2.95, 0.38), whiteFenceMat);
-      wFrame.position.set(wx, wy, 6.74);
-      var wGlass = new THREE.Mesh(new THREE.BoxGeometry(2.55, 2.55, 0.44), warmWindowGlowMat);
-      wGlass.position.set(wx, wy, 6.78);
-      // White muntin crossbars
-      var mBarV = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.6, 0.48), whiteFenceMat);
-      mBarV.position.set(wx, wy, 6.80);
-      var mBarH = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.16, 0.48), whiteFenceMat);
-      mBarH.position.set(wx, wy, 6.80);
-      g.add(wFrame, wGlass, mBarV, mBarH);
-
-      // Sky-blue louvered shutters on left & right of each window
-      [-1.88, 1.88].forEach(function(sx) {
-        var shutter = new THREE.Mesh(new THREE.BoxGeometry(0.84, 2.85, 0.42), shutterBlueMat);
-        shutter.position.set(wx + sx, wy, 6.80);
-        g.add(shutter);
-      });
-
-      // Wooden flower box overflowing with lush green foliage & multi-colored blossoms under each window
-      var planter = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.62, 0.85), timberMat);
-      planter.position.set(wx, wy - 1.65, 7.12);
-      g.add(planter);
-      for (var fb = -2; fb <= 2; fb++) {
-        var leafBed = new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 8), fb % 2 === 0 ? foliageGreenMat : foliageLimeMat);
-        leafBed.position.set(wx + fb * 0.58, wy - 1.28, 7.18);
-        var flBall = new THREE.Mesh(
-          new THREE.SphereGeometry(0.36, 8, 8),
-          new THREE.MeshBasicMaterial({ color: flowerCols[Math.abs(Math.round(wx + wy + fb * 2)) % flowerCols.length] })
-        );
-        flBall.position.set(wx + fb * 0.56, wy - 1.05, 7.26);
-        g.add(leafBed, flBall);
-      }
+    [-2.8, 2.8].forEach(function(px) {
+      var post = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 4.4, 12), darkParapetMat);
+      post.position.set(px, 2.2, 0);
+      signG.add(post);
     });
-  });
+    signG.add(boardBox, boardFront, boardBack);
+    g.add(signG);
+  })();
 
-  // Climbing Green Ivy Vines & Blossoms creeping up the Left Stucco Wall & Porch Corner (`image_3d2fa6b1.png`!)
-  for (var ivyI = 0; ivyI < 12; ivyI++) {
-    var ivyLeaf = new THREE.Mesh(new THREE.SphereGeometry(0.52 - (ivyI % 3) * 0.08, 8, 8), ivyI % 2 === 0 ? foliageGreenMat : foliageLimeMat);
-    ivyLeaf.scale.set(1.2, 0.9, 0.55);
-    ivyLeaf.position.set(-8.6 + Math.sin(ivyI * 0.7) * 0.55, 1.4 + ivyI * 0.72, 6.88);
-    g.add(ivyLeaf);
-    if (ivyI % 3 === 0) {
-      var ivyBloom = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 8), new THREE.MeshBasicMaterial({ color: 0xf43f5e }));
-      ivyBloom.position.set(-8.5 + Math.sin(ivyI * 0.7) * 0.55, 1.5 + ivyI * 0.72, 7.08);
-      g.add(ivyBloom);
+  // 5. SILVER-GREY HONDA AIR BLADE SCOOTER ("místo auta stříbrně šedý scooter Honda AIR Blade")
+  (function buildHondaAirBladeScooter() {
+    var scootG = new THREE.Group();
+    scootG.position.set(-7.8, 0.74, 10.6);
+    scootG.rotation.y = 0.55;
+    scootG.scale.set(1.38, 1.38, 1.38);
+
+    var silverMetallicMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.22, metalness: 0.75 });
+    var gunmetalGreyMat   = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.28, metalness: 0.65 });
+    var matteBlackMat     = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.65 });
+    var chromeMat         = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.15, metalness: 0.90 });
+    var redTailMat        = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+    var ledHeadMat        = new THREE.MeshBasicMaterial({ color: 0xe0f2fe });
+
+    // Cast 5-Spoke Black Sport Scooter Wheels (14-inch Air Blade style)
+    [-1.15, 1.15].forEach(function(wz) {
+      var whG = new THREE.Group();
+      whG.position.set(0, 0.55, wz);
+      var tire = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.14, 12, 24), matteBlackMat);
+      tire.rotation.y = Math.PI / 2;
+      var rim = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.14, 14), matteBlackMat);
+      rim.rotation.z = Math.PI / 2;
+      var brakeDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.18, 12), chromeMat);
+      brakeDisc.rotation.z = Math.PI / 2;
+      whG.add(tire, rim, brakeDisc);
+      scootG.add(whG);
+    });
+
+    // Air Blade Central Spine Tunnel, Footboards & Underbone Frame
+    var spineTunnel = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.58, 1.35), gunmetalGreyMat);
+    spineTunnel.position.set(0, 0.78, 0.05);
+    var footboard = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.16, 1.25), matteBlackMat);
+    footboard.position.set(0, 0.54, 0.05);
+
+    // Sculpted Silver-Grey Aerodynamic Front Fairing & Dual Sharp LED Headlights
+    var frontFairing = new THREE.Mesh(new THREE.BoxGeometry(0.92, 1.35, 0.78), silverMetallicMat);
+    frontFairing.position.set(0, 1.28, 0.88);
+    frontFairing.rotation.x = -0.26;
+    var frontMudguard = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.24, 0.68), silverMetallicMat);
+    frontMudguard.position.set(0, 0.92, 1.18);
+    frontMudguard.rotation.x = 0.25;
+    var darkVisor = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.46, 0.14), matteBlackMat);
+    darkVisor.position.set(0, 1.98, 0.82);
+    darkVisor.rotation.x = -0.35;
+
+    // Twin V-Shaped LED Headlamps
+    [-0.24, 0.24].forEach(function(hx) {
+      var hl = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.22, 0.12), ledHeadMat);
+      hl.position.set(hx, 1.32, 1.26);
+      hl.rotation.z = hx > 0 ? 0.25 : -0.25;
+      scootG.add(hl);
+    });
+
+    // Telescopic Front Fork Tubes
+    [-0.22, 0.22].forEach(function(fx) {
+      var fork = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.95, 8), chromeMat);
+      fork.position.set(fx, 0.88, 1.05);
+      fork.rotation.x = -0.24;
+      scootG.add(fork);
+    });
+
+    // Handlebars, Brake Levers & Rearview Mirrors
+    var handlebar = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.35, 10), chromeMat);
+    handlebar.rotation.z = Math.PI / 2;
+    handlebar.position.set(0, 1.96, 0.66);
+    [-0.56, 0.56].forEach(function(mx2) {
+      var grip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.26, 8), matteBlackMat);
+      grip.rotation.z = Math.PI / 2;
+      grip.position.set(mx2, 1.96, 0.66);
+      var mStem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.38, 6), matteBlackMat);
+      mStem.position.set(mx2 * 0.85, 2.15, 0.68);
+      var mHead = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.08), matteBlackMat);
+      mHead.position.set(mx2 * 0.96, 2.34, 0.68);
+      scootG.add(grip, mStem, mHead);
+    });
+
+    // Rear Silver-Grey Body Panels with "AIR BLADE" Badge, Stepped Two-Tone Seat & Exhaust Pipe
+    var rearBody = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.68, 1.52), silverMetallicMat);
+    rearBody.position.set(0, 1.18, -0.78);
+    rearBody.rotation.x = 0.10;
+    var steppedSeat = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.34, 1.42), matteBlackMat);
+    steppedSeat.position.set(0, 1.54, -0.68);
+    steppedSeat.rotation.x = 0.08;
+    var rearSpoiler = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.14, 0.45), gunmetalGreyMat);
+    rearSpoiler.position.set(0, 1.56, -1.48);
+    var tailLamp = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.22, 0.12), redTailMat);
+    tailLamp.position.set(0, 1.32, -1.56);
+
+    // Upswept Sport Exhaust Muffler with Silver Heat Shield on Right Side
+    var muffler = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 1.15, 12), matteBlackMat);
+    muffler.rotation.x = Math.PI / 2 - 0.22;
+    muffler.position.set(0.54, 0.78, -0.95);
+    var heatShield = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.72), silverMetallicMat);
+    heatShield.rotation.x = -0.22;
+    heatShield.position.set(0.68, 0.80, -0.95);
+
+    // "HONDA AIR BLADE" Side Decal Plate
+    var abCanv = document.createElement('canvas');
+    abCanv.width = 256; abCanv.height = 64;
+    var abCtx = abCanv.getContext('2d');
+    abCtx.fillStyle = '#cbd5e1';
+    abCtx.fillRect(0, 0, 256, 64);
+    abCtx.fillStyle = '#dc2626';
+    abCtx.font = 'italic bold 28px sans-serif';
+    abCtx.textAlign = 'center';
+    abCtx.fillText('AIR BLADE', 128, 42);
+    var abTex = new THREE.CanvasTexture(abCanv);
+    var abMat = new THREE.MeshBasicMaterial({ map: abTex });
+    [-0.48, 0.48].forEach(function(sx2) {
+      var decal = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.28), abMat);
+      decal.position.set(sx2, 1.20, -0.78);
+      decal.rotation.y = sx2 > 0 ? Math.PI / 2 : -Math.PI / 2;
+      scootG.add(decal);
+    });
+
+    scootG.add(spineTunnel, footboard, frontFairing, frontMudguard, darkVisor, handlebar, rearBody, steppedSeat, rearSpoiler, tailLamp, muffler, heatShield);
+    g.add(scootG);
+  })();
+
+  // 6. BLUE INTEX 3.66m SWIMMING POOL WITH CRYSTAL-CLEAR WATER, SAND FILTER & CHLORINATOR
+  //    ("modrý bazén intex 3.66m s krásně čistou vodou s pískovou filtrací a chlorinátorem")
+  (function buildIntexPoolWithFiltration() {
+    var poolG = new THREE.Group();
+    poolG.position.set(-16.2, 0.55, -0.8);
+
+    // Custom Canvas Texture for the Blue Intex PVC Wall with Full, Unclipped White "INTEX" Branding
+    // ("3. na bazénu jde vidět jen písmena EX, prosím aby byl vidět celý nápis INTEX.")
+    var wallCanv = document.createElement('canvas');
+    wallCanv.width = 1024; wallCanv.height = 128;
+    var wctx = wallCanv.getContext('2d');
+    var wallGrad = wctx.createLinearGradient(0, 0, 0, 128);
+    wallGrad.addColorStop(0.0, '#0284c7');
+    wallGrad.addColorStop(0.5, '#0369a1');
+    wallGrad.addColorStop(1.0, '#1d4ed8');
+    wctx.fillStyle = wallGrad;
+    wctx.fillRect(0, 0, 1024, 128);
+    wctx.fillStyle = '#ffffff';
+    wctx.font = '900 44px "Arial Black", sans-serif';
+    wctx.textAlign = 'center';
+    wctx.textBaseline = 'middle';
+    [128, 384, 640, 896].forEach(function(lx) {
+      wctx.fillText('INTEX', lx, 68);
+    });
+    var poolWallTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(wallCanv) : new THREE.CanvasTexture(wallCanv);
+
+    // Dedicated Centered Front-Facing Curved "INTEX" Logo Band so the entire word "INTEX" is 100% visible
+    // dead-center from both the railway track and the Mom & Dad's House showcase camera!
+    var logoCanv = document.createElement('canvas');
+    logoCanv.width = 512; logoCanv.height = 128;
+    var lctx = logoCanv.getContext('2d');
+    lctx.fillStyle = '#0369a1';
+    lctx.fillRect(0, 0, 512, 128);
+    lctx.fillStyle = '#ffffff';
+    lctx.font = '900 78px "Arial Black", sans-serif';
+    lctx.textAlign = 'center';
+    lctx.textBaseline = 'middle';
+    lctx.fillText('INTEX', 256, 66);
+    var poolLogoTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(logoCanv) : new THREE.CanvasTexture(logoCanv);
+
+    // Crystal-Clear Mosaic Tile Pool Floor Texture
+    var tileCanv = document.createElement('canvas');
+    tileCanv.width = 256; tileCanv.height = 256;
+    var tctx = tileCanv.getContext('2d');
+    tctx.fillStyle = '#38bdf8';
+    tctx.fillRect(0, 0, 256, 256);
+    for (var tx = 0; tx < 256; tx += 32) {
+      for (var ty = 0; ty < 256; ty += 32) {
+        tctx.fillStyle = ((tx + ty) / 32) % 2 === 0 ? '#7dd3fc' : '#0ea5e9';
+        tctx.fillRect(tx + 2, ty + 2, 28, 28);
+      }
     }
-  }
+    var mosaicTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(tileCanv, 3, 3) : new THREE.CanvasTexture(tileCanv);
+    mosaicTex.wrapS = THREE.RepeatWrapping;
+    mosaicTex.wrapT = THREE.RepeatWrapping;
 
-  // 8. Slatted Wooden Garden Bench, Sky-Blue Watering Can, Sky-Blue Mailbox & Stone Lantern Gate Pillar (`image_3d2fa6b1.png`!)
-  var benchG = new THREE.Group();
-  benchG.position.set(-6.2, 0.45, 11.4);
-  benchG.rotation.y = 0.28;
-  var bSeat = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.26, 1.3), timberMat);
-  bSeat.position.y = 0.88;
-  var bBack = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.15, 0.24), timberMat);
-  bBack.position.set(0, 1.50, -0.52);
-  [-1.55, 1.55].forEach(function(bx) {
-    var bLeg = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.90, 1.2), timberMat);
-    bLeg.position.set(bx, 0.45, 0);
-    var bArm = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.18, 1.28), timberMat);
-    bArm.position.set(bx, 1.22, 0);
-    benchG.add(bLeg, bArm);
-  });
-  // Sky-blue watering can with spout & handle right beside the bench (`image_3d2fa6b1.png`!)
-  var wCan = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 0.85, 14), skyBlueDoorMat);
-  wCan.position.set(2.45, 0.45, 0.25);
-  var wSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.16, 0.72, 8), skyBlueDoorMat);
-  wSpout.position.set(2.88, 0.62, 0.25);
-  wSpout.rotation.z = -0.65;
-  var wHandle = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.06, 8, 12), skyBlueDoorMat);
-  wHandle.position.set(2.15, 0.65, 0.25);
-  benchG.add(bSeat, bBack, wCan, wSpout, wHandle);
-  g.add(benchG);
+    var poolRad = 4.6;
+    var poolH   = 2.15;
 
-  // Sky-Blue American-Style Mailbox on a Wooden Post with Red Flag on the Left of the Front Gate (`image_3d2fa6b1.png`!)
-  var mbG = new THREE.Group();
-  mbG.position.set(-4.2, 0.45, 16.2);
-  var mbPost = new THREE.Mesh(new THREE.BoxGeometry(0.40, 2.5, 0.40), timberMat);
-  mbPost.position.y = 1.25;
-  var mbBox = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.80, 1.75), skyBlueDoorMat);
-  mbBox.position.y = 2.55;
-  var mbTop = new THREE.Mesh(new THREE.CylinderGeometry(0.59, 0.59, 1.75, 14), skyBlueDoorMat);
-  mbTop.rotation.x = Math.PI / 2;
-  mbTop.position.y = 2.95;
-  var mbFlag = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.62, 0.32), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
-  mbFlag.position.set(0.65, 3.08, 0.22);
-  mbG.add(mbPost, mbBox, mbTop, mbFlag);
-  g.add(mbG);
+    var linerWall = new THREE.Mesh(
+      new THREE.CylinderGeometry(poolRad, poolRad + 0.15, poolH, 40, 1, true),
+      new THREE.MeshStandardMaterial({ map: poolWallTex, roughness: 0.32, side: THREE.DoubleSide })
+    );
+    linerWall.position.y = poolH * 0.5;
+    linerWall.rotation.y = Math.PI * 0.25;
 
-  // Rustic Stone Gate Pillar with Glowing Warm Garden Lantern on the Right of the Front Gate (`image_3d2fa6b1.png` right foreground!)
-  var gatePillarG = new THREE.Group();
-  gatePillarG.position.set(4.2, 0.45, 16.2);
-  var gPillar = new THREE.Mesh(new THREE.BoxGeometry(1.55, 2.8, 1.55), stoneBaseMat);
-  gPillar.position.y = 1.4;
-  var gPillarCap = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.36, 1.85), quoinStoneMat);
-  gPillarCap.position.y = 2.9;
-  var gLanternGlass = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.36, 0.85, 8), warmWindowGlowMat);
-  gLanternGlass.position.y = 3.5;
-  var gLanternRoof = new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.48, 8), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
-  gLanternRoof.position.y = 4.12;
-  gatePillarG.add(gPillar, gPillarCap, gLanternGlass, gLanternRoof);
-  g.add(gatePillarG);
-
-  // 9. Parked Metallic-Blue Family SUV & Red Vintage Bicycle in the Left Driveway (`image_3d2fa6b1.png` left!)
-  var suvG = new THREE.Group();
-  suvG.position.set(-13.8, 0.54, 3.2);
-  suvG.rotation.y = 0.12;
-  var suvMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.22, metalness: 0.25, emissive: 0x1e3a8a, emissiveIntensity: 0.12 });
-  var suvGlass = new THREE.MeshBasicMaterial({ color: 0xbae6fd });
-  var suvTire = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
-  var suvRim  = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.6, roughness: 0.25 });
-  var suvLower = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.50, 7.2), suvMat);
-  suvLower.position.y = 1.18;
-  suvLower.castShadow = true;
-  var suvCabin = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.32, 4.5), suvMat);
-  suvCabin.position.set(0, 2.42, -0.4);
-  var suvWins = new THREE.Mesh(new THREE.BoxGeometry(3.28, 1.02, 4.15), suvGlass);
-  suvWins.position.set(0, 2.42, -0.4);
-  var suvWindshield = new THREE.Mesh(new THREE.BoxGeometry(2.95, 1.05, 0.2), suvGlass);
-  suvWindshield.position.set(0, 2.38, 1.88);
-  suvWindshield.rotation.x = -0.25;
-  var suvGrille = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 0.18), suvRim);
-  suvGrille.position.set(0, 1.15, 3.62);
-  [[-1.25, 3.62], [1.25, 3.62]].forEach(function(hlp) {
-    var hl = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 10), warmWindowGlowMat);
-    hl.position.set(hlp[0], 1.28, hlp[1]);
-    suvG.add(hl);
-  });
-  [[-1.8, 2.2], [1.8, 2.2], [-1.8, -2.2], [1.8, -2.2]].forEach(function(wp) {
-    var wh = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.68, 0.52, 14), suvTire);
-    wh.rotation.z = Math.PI / 2;
-    wh.position.set(wp[0], 0.68, wp[1]);
-    var hub = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.56, 10), suvRim);
-    hub.rotation.z = Math.PI / 2;
-    hub.position.set(wp[0], 0.68, wp[1]);
-    suvG.add(wh, hub);
-  });
-  suvG.add(suvLower, suvCabin, suvWins, suvWindshield, suvGrille);
-  g.add(suvG);
-
-  // Red Vintage Bicycle with Handlebars, Seat & Basket leaning near the Cottage Wall (`image_3d2fa6b1.png`!)
-  var bikeG = new THREE.Group();
-  bikeG.position.set(-9.6, 0.52, 7.4);
-  bikeG.rotation.y = 0.48;
-  var bikeRed = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.28, emissive: 0x991b1b, emissiveIntensity: 0.15 });
-  [-0.98, 0.98].forEach(function(bz) {
-    var bWheel = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.10, 8, 18), suvTire);
-    bWheel.rotation.y = Math.PI / 2;
-    bWheel.position.set(0, 0.60, bz);
-    bikeG.add(bWheel);
-  });
-  var bikeFrame = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.95, 8), bikeRed);
-  bikeFrame.rotation.x = Math.PI / 2;
-  bikeFrame.position.set(0, 0.98, 0);
-  var bikeHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.85, 8), suvRim);
-  bikeHandle.rotation.z = Math.PI / 2;
-  bikeHandle.position.set(0, 1.55, 0.88);
-  var bikeSeat = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.14, 0.42), timberMat);
-  bikeSeat.position.set(0, 1.38, -0.45);
-  bikeG.add(bikeFrame, bikeHandle, bikeSeat);
-  g.add(bikeG);
-
-  // 10. Two Lush Storybook Deciduous Shade Trees Framing the Cottage + White Picket Fence & Abundant Multi-Tiered Flower Beds!
-  [[-12.5, -6.5, 1.35], [12.5, -5.8, 1.42], [13.5, 6.2, 1.15]].forEach(function(tp) {
-    var treeG = new THREE.Group();
-    treeG.position.set(tp[0], 0.4, tp[1]);
-    treeG.scale.set(tp[2], tp[2], tp[2]);
-    var tTrunk = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.85, 5.2, 10), timberMat);
-    tTrunk.position.y = 2.6;
-    var cMain = new THREE.Mesh(new THREE.SphereGeometry(3.2, 16, 14), foliageGreenMat);
-    cMain.position.set(0, 6.2, 0);
-    var cLeft = new THREE.Mesh(new THREE.SphereGeometry(2.4, 14, 12), foliageLimeMat);
-    cLeft.position.set(-1.8, 5.4, 0.9);
-    var cRight = new THREE.Mesh(new THREE.SphereGeometry(2.5, 14, 12), foliageLimeMat);
-    cRight.position.set(1.8, 5.5, 0.8);
-    var cTop = new THREE.Mesh(new THREE.SphereGeometry(2.2, 14, 12), foliageGreenMat);
-    cTop.position.set(0.2, 8.2, -0.2);
-    treeG.add(tTrunk, cMain, cLeft, cRight, cTop);
-    g.add(treeG);
-  });
-
-  // Helper to spawn lush multi-blossom Hydrangea / Rose Garden Clusters (`image_3d2fa6b1.png` & `image_82bfab46.png`!)
-  function addGardenFlowerBedCluster(bx, bz, radius, mainColHex, accentColHex) {
-    var bedGroup = new THREE.Group();
-    bedGroup.position.set(bx, 0.48, bz);
-    var mound = new THREE.Mesh(new THREE.SphereGeometry(radius, 12, 10), foliageGreenMat);
-    mound.scale.set(1.35, 0.68, 1.15);
-    mound.position.y = radius * 0.35;
-    var mound2 = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.78, 10, 8), foliageLimeMat);
-    mound2.scale.set(1.2, 0.72, 1.1);
-    mound2.position.set(radius * 0.45, radius * 0.32, 0.25);
-    bedGroup.add(mound, mound2);
-
-    var mMat = new THREE.MeshBasicMaterial({ color: mainColHex });
-    var aMat = new THREE.MeshBasicMaterial({ color: accentColHex });
-    for (var bi = 0; bi < 9; bi++) {
-      var ang = (bi / 9) * Math.PI * 2;
-      var dist = (bi % 2 === 0) ? radius * 0.65 : radius * 0.32;
-      var fl = new THREE.Mesh(new THREE.SphereGeometry(0.36 + (bi % 2) * 0.08, 8, 8), bi % 2 === 0 ? mMat : aMat);
-      fl.position.set(Math.cos(ang) * dist, radius * 0.68 + (bi % 2) * 0.16, Math.sin(ang) * dist * 0.85);
-      bedGroup.add(fl);
-    }
-    g.add(bedGroup);
-  }
-
-  // Abundant colorful flower beds flanking the front cottage wall, cobblestone path & white picket fence!
-  addGardenFlowerBedCluster(-5.8, 7.8, 1.55, 0x2563eb, 0x7c3aed); // Blue & lavender hydrangeas under left window
-  addGardenFlowerBedCluster( 5.8, 7.8, 1.55, 0xdc2626, 0xeab308); // Red & yellow roses under right window
-  addGardenFlowerBedCluster(-3.5, 9.8, 1.35, 0xdb2777, 0xea580c); // Pink & orange blossoms left of porch steps
-  addGardenFlowerBedCluster( 3.5, 9.8, 1.35, 0x2563eb, 0xeab308); // Royal-blue & yellow blossoms right of porch steps
-  addGardenFlowerBedCluster(-3.8, 13.0, 1.45, 0xea580c, 0xdc2626); // Along left side of cobblestone path
-  addGardenFlowerBedCluster( 4.0, 13.0, 1.45, 0x7c3aed, 0xdb2777); // Along right side of cobblestone path
-  addGardenFlowerBedCluster( 7.2, 11.6, 1.65, 0x2563eb, 0x38bdf8); // Big blue hydrangea bush on right lawn
-  addGardenFlowerBedCluster(10.2, 10.2, 1.50, 0xdb2777, 0x7c3aed); // Pink & violet flower bush on right lawn
-  addGardenFlowerBedCluster(-7.8, 13.8, 1.45, 0xdc2626, 0xeab308); // Red & gold rose cluster near wooden bench
-  addGardenFlowerBedCluster(-2.6, 17.6, 1.35, 0xea580c, 0xeab308); // Outside left of front gate
-  addGardenFlowerBedCluster( 2.8, 17.6, 1.35, 0xdc2626, 0xdb2777); // Outside right of front gate
-
-  // Crisp White Picket Fence with Pointed Pickets & Lush Front-Edge Flower Borders
-  [-9.2, 9.2].forEach(function(rx) {
-    var railTop = new THREE.Mesh(new THREE.BoxGeometry(10.8, 0.24, 0.20), whiteFenceMat);
-    railTop.position.set(rx, 1.82, 16.2);
-    var railBot = railTop.clone();
-    railBot.position.y = 0.98;
-    g.add(railTop, railBot);
-  });
-  for (var fx = -14.4; fx <= 14.4; fx += 1.35) {
-    if (Math.abs(fx) < 3.6) continue; // Wide welcoming front gate opening for Mom & Dad!
-    var picket = new THREE.Mesh(new THREE.BoxGeometry(0.46, 2.35, 0.22), whiteFenceMat);
-    picket.position.set(fx, 1.25, 16.2);
-    var picketTip = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.45, 4), whiteFenceMat);
-    picketTip.rotation.y = Math.PI / 4;
-    picketTip.position.set(fx, 2.62, 16.2);
-    g.add(picket, picketTip);
-
-    if (Math.abs(fx) % 2.7 < 1.5) {
-      addGardenFlowerBedCluster(
-        fx,
-        15.0,
-        1.25,
-        flowerCols[Math.abs(Math.round(fx)) % flowerCols.length],
-        flowerCols[(Math.abs(Math.round(fx)) + 2) % flowerCols.length]
+    // Place centered curved "INTEX" logo bands facing the front/camera angles so all 5 letters I-N-T-E-X are always visible!
+    [-0.36, 0.22, Math.PI * 0.68].forEach(function(bandYaw) {
+      var logoArc = new THREE.Mesh(
+        new THREE.CylinderGeometry(poolRad + 0.14, poolRad + 0.17, 0.92, 24, 1, true, -0.34, 0.68),
+        new THREE.MeshBasicMaterial({ map: poolLogoTex, side: THREE.DoubleSide })
       );
+      logoArc.position.y = poolH * 0.52;
+      logoArc.rotation.y = bandYaw;
+      poolG.add(logoArc);
+    });
+
+    var topCollar = new THREE.Mesh(
+      new THREE.TorusGeometry(poolRad, 0.24, 14, 36),
+      new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.28 })
+    );
+    topCollar.rotation.x = Math.PI / 2;
+    topCollar.position.y = poolH;
+
+    var legFrameMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.35, metalness: 0.4 });
+    for (var li = 0; li < 12; li++) {
+      var lAng = (li / 12) * Math.PI * 2;
+      var leg = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.11, poolH, 8), legFrameMat);
+      leg.position.set(Math.cos(lAng) * (poolRad + 0.14), poolH * 0.5, Math.sin(lAng) * (poolRad + 0.14));
+      poolG.add(leg);
     }
+
+    var mosaicFloor = new THREE.Mesh(
+      new THREE.CircleGeometry(poolRad - 0.06, 36),
+      new THREE.MeshBasicMaterial({ map: mosaicTex })
+    );
+    mosaicFloor.rotation.x = -Math.PI / 2;
+    mosaicFloor.position.y = 0.12;
+
+    var clearWaterSurface = new THREE.Mesh(
+      new THREE.CircleGeometry(poolRad - 0.08, 36),
+      new THREE.MeshStandardMaterial({
+        color: 0x38bdf8,
+        emissive: 0x0284c7,
+        emissiveIntensity: 0.18,
+        roughness: 0.08,
+        metalness: 0.15,
+        transparent: true,
+        opacity: 0.62
+      })
+    );
+    clearWaterSurface.rotation.x = -Math.PI / 2;
+    clearWaterSurface.position.y = poolH - 0.22;
+
+    var ladderG = new THREE.Group();
+    ladderG.position.set(poolRad, 0, 0);
+    [-0.45, 0.45].forEach(function(lz) {
+      var outerRail = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.8, 8), legFrameMat);
+      outerRail.position.set(0.45, 1.35, lz);
+      outerRail.rotation.z = 0.22;
+      var innerRail = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.8, 8), legFrameMat);
+      innerRail.position.set(-0.45, 1.35, lz);
+      innerRail.rotation.z = -0.22;
+      ladderG.add(outerRail, innerRail);
+    });
+    for (var stp = 0; stp < 4; stp++) {
+      var stepOut = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.92), new THREE.MeshStandardMaterial({ color: 0x0284c7 }));
+      stepOut.position.set(0.65 - stp * 0.14, 0.55 + stp * 0.55, 0);
+      ladderG.add(stepOut);
+    }
+
+    // EXTERNAL SAND FILTER PUMP & SALTWATER CHLORINATOR ("s pískovou filtrací a chlorinátorem")
+    var equipPad = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.24, 2.6), stoneStepMat);
+    equipPad.position.set(-1.2, 0.12, -poolRad - 2.1);
+
+    var sandTankMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.35, metalness: 0.2 });
+    var valveBlackMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.45 });
+    var sandTank = new THREE.Mesh(new THREE.SphereGeometry(0.88, 18, 16), sandTankMat);
+    sandTank.scale.set(1.0, 1.25, 1.0);
+    sandTank.position.set(-2.0, 1.25, -poolRad - 2.1);
+    var tankBase = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.82, 0.32, 16), valveBlackMat);
+    tankBase.position.set(-2.0, 0.28, -poolRad - 2.1);
+    var multiportValve = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 0.52, 12), valveBlackMat);
+    multiportValve.position.set(-2.0, 2.48, -poolRad - 2.1);
+    var valveHandle = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.12, 0.16), valveBlackMat);
+    valveHandle.position.set(-1.85, 2.78, -poolRad - 2.1);
+    var pressureGauge = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.14, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    pressureGauge.rotation.x = Math.PI / 2;
+    pressureGauge.position.set(-2.0, 2.45, -poolRad - 1.62);
+
+    var pumpMotor = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.15, 14), new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.35 }));
+    pumpMotor.rotation.z = Math.PI / 2;
+    pumpMotor.position.set(-0.85, 0.72, -poolRad - 2.2);
+
+    var chlorinatorBox = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.92, 0.78), sandTankMat);
+    chlorinatorBox.position.set(0.25, 0.68, -poolRad - 2.0);
+    var chlorinatorScreen = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.32, 0.82), new THREE.MeshBasicMaterial({ color: 0x22c55e }));
+    chlorinatorScreen.position.set(0.25, 0.82, -poolRad - 2.0);
+    var electrolyticCell = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.78, 12), glassDoorMat);
+    electrolyticCell.rotation.z = Math.PI / 2;
+    electrolyticCell.position.set(0.25, 1.32, -poolRad - 1.85);
+
+    var hoseMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 });
+    var hoseBlueMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.4 });
+    var intakeHose = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 2.45, 10), hoseMat);
+    intakeHose.rotation.x = Math.PI / 2 + 0.25;
+    intakeHose.position.set(-1.35, 1.15, -poolRad - 1.05);
+    var returnHose = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 2.35, 10), hoseBlueMat);
+    returnHose.rotation.x = Math.PI / 2 + 0.18;
+    returnHose.position.set(0.25, 1.32, -poolRad - 0.95);
+
+    poolG.add(
+      linerWall, topCollar, mosaicFloor, clearWaterSurface, ladderG,
+      equipPad, sandTank, tankBase, multiportValve, valveHandle, pressureGauge,
+      pumpMotor, chlorinatorBox, chlorinatorScreen, electrolyticCell, intakeHose, returnHose
+    );
+    g.add(poolG);
+  })();
+
+  // 7. 3-METER-WIDE TROPICAL STREAM ON THE RIGHT SIDE WITH JUMPING FISH & CRAWLING CRABS
+  //    ("Vedle domu z pravé strany teče 3 metry široký potok, ve kterém skáčou ryby a kolem lezou krabi")
+  (function buildRightSideStreamWithFishAndCrabs() {
+    var streamX = 16.5;
+    var streamLen = 46.0;
+    var streamWidth = 3.5;
+
+    var streamG = new THREE.Group();
+    streamG.position.set(streamX, 0.42, 0.5);
+
+    var streamBed = new THREE.Mesh(
+      new THREE.BoxGeometry(streamWidth + 1.2, 0.28, streamLen),
+      new THREE.MeshStandardMaterial({ color: 0xd6d3d1, roughness: 0.85 })
+    );
+    streamBed.position.y = 0.08;
+    var streamWater = new THREE.Mesh(
+      new THREE.BoxGeometry(streamWidth, 0.36, streamLen - 0.4),
+      new THREE.MeshStandardMaterial({
+        color: 0x0ea5e9,
+        emissive: 0x0284c7,
+        emissiveIntensity: 0.22,
+        roughness: 0.12,
+        metalness: 0.18,
+        transparent: true,
+        opacity: 0.82
+      })
+    );
+    streamWater.position.y = 0.24;
+    streamG.add(streamBed, streamWater);
+
+    var rockMatA = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.75 });
+    var rockMatB = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.80 });
+    for (var rz = -21; rz <= 21; rz += 2.2) {
+      [-1, 1].forEach(function(bankSide) {
+        var rock = new THREE.Mesh(
+          new THREE.DodecahedronGeometry(0.52 + (Math.abs(rz) % 3) * 0.16, 1),
+          (Math.round(rz) + bankSide) % 2 === 0 ? rockMatA : rockMatB
+        );
+        rock.scale.set(1.2, 0.65, 1.1);
+        rock.position.set(bankSide * (streamWidth * 0.5 + 0.35), 0.32, rz);
+        streamG.add(rock);
+      });
+    }
+
+    var bridgeG = new THREE.Group();
+    bridgeG.position.set(0, 0.55, 8.5);
+    var bridgeDeck = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.26, 2.6), teakWoodMat);
+    bridgeDeck.position.y = 0.35;
+    [-1.15, 1.15].forEach(function(bz) {
+      var bRail = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.16, 0.16), teakWoodMat);
+      bRail.position.set(0, 1.15, bz);
+      var bPostL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.95, 0.18), teakWoodMat);
+      bPostL.position.set(-2.3, 0.72, bz);
+      var bPostR = bPostL.clone();
+      bPostR.position.x = 2.3;
+      bridgeG.add(bRail, bPostL, bPostR);
+    });
+    streamG.add(bridgeG);
+
+    // 6 ANIMATED JUMPING FISH ("ve kterém skáčou ryby")
+    var fishColors = [0xf97316, 0xfacc15, 0xef4444, 0x38bdf8, 0xfb7185, 0xf59e0b];
+    for (var fi = 0; fi < 6; fi++) {
+      var fishG = new THREE.Group();
+      var fMat = new THREE.MeshStandardMaterial({ color: fishColors[fi % fishColors.length], roughness: 0.25, metalness: 0.3 });
+      var fBody = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 10), fMat);
+      fBody.scale.set(0.65, 0.85, 1.65);
+      var fTail = new THREE.Mesh(new THREE.ConeGeometry(0.38, 0.55, 4), fMat);
+      fTail.rotation.x = -Math.PI / 2;
+      fTail.position.set(0, 0, -0.75);
+      var fEyeL = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), new THREE.MeshBasicMaterial({ color: 0x0f172a }));
+      fEyeL.position.set(-0.22, 0.10, 0.45);
+      var fEyeR = fEyeL.clone();
+      fEyeR.position.x = 0.22;
+      fishG.add(fBody, fTail, fEyeL, fEyeR);
+
+      var baseZ = -16.0 + fi * 6.2;
+      fishG.position.set((fi % 2 === 0 ? -0.45 : 0.45), 0.3, baseZ);
+      streamG.add(fishG);
+      window.vietnamJumpingFish.push({
+        mesh: fishG,
+        baseX: (fi % 2 === 0 ? -0.55 : 0.55),
+        baseZ: baseZ,
+        phase: fi * 1.15
+      });
+    }
+
+    // 6 ANIMATED CRAWLING CRABS ON THE STREAM BANKS ("a kolem lezou krabi")
+    var crabRedMat = new THREE.MeshStandardMaterial({ color: 0xe11d48, roughness: 0.35 });
+    var crabOrangeMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.38 });
+    for (var ci = 0; ci < 6; ci++) {
+      var crabG = new THREE.Group();
+      var cMat = (ci % 2 === 0) ? crabRedMat : crabOrangeMat;
+      var carapace = new THREE.Mesh(new THREE.SphereGeometry(0.46, 12, 10), cMat);
+      carapace.scale.set(1.35, 0.55, 1.05);
+      carapace.position.y = 0.28;
+      crabG.add(carapace);
+
+      [-0.22, 0.22].forEach(function(cx2) {
+        var stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.26, 6), cMat);
+        stalk.position.set(cx2, 0.52, 0.32);
+        var cEye = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 8), new THREE.MeshBasicMaterial({ color: 0x0f172a }));
+        cEye.position.set(cx2, 0.66, 0.34);
+        var clawArm = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.42, 8), cMat);
+        clawArm.position.set(cx2 * 2.4, 0.38, 0.38);
+        clawArm.rotation.z = cx2 > 0 ? -0.45 : 0.45;
+        var pincer = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8), cMat);
+        pincer.scale.set(0.85, 0.65, 1.45);
+        pincer.position.set(cx2 * 2.8, 0.52, 0.52);
+        crabG.add(stalk, cEye, clawArm, pincer);
+      });
+
+      [-1, 1].forEach(function(side) {
+        [-0.24, 0, 0.24].forEach(function(lz) {
+          var cLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.48, 6), cMat);
+          cLeg.position.set(side * 0.68, 0.18, lz);
+          cLeg.rotation.z = side * 0.85;
+          crabG.add(cLeg);
+        });
+      });
+
+      var bankX = (ci % 2 === 0 ? -1 : 1) * (streamWidth * 0.5 + 1.15);
+      var bankZ = -14.0 + ci * 5.6;
+      crabG.position.set(bankX, 0.22, bankZ);
+      streamG.add(crabG);
+      window.vietnamCrawlingCrabs.push({
+        mesh: crabG,
+        baseX: bankX,
+        baseZ: bankZ,
+        phase: ci * 1.4
+      });
+    }
+
+    g.add(streamG);
+  })();
+
+  // 8. ~12 CURVED VIETNAMESE COCONUT PALMS & 5 JACKFRUIT TREES AROUND THE HOUSE & STREAM
+  //    ("Kolem domu, kde bydlí mamka s taťkou by mělo být asi 10 kokosových palem" + "kolem potoka jsou všude palmy a jackfruity")
+  var palmTrunkMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.72 });
+  var palmFrondMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.48, side: THREE.DoubleSide });
+  var palmLimeMat  = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.45, side: THREE.DoubleSide });
+  var coconutMat   = new THREE.MeshStandardMaterial({ color: 0x713f12, roughness: 0.55 });
+
+  function addCoconutPalm(px, pz, scaleVal, leanAng) {
+    var palmG = new THREE.Group();
+    palmG.position.set(px, 0.45, pz);
+    palmG.scale.set(scaleVal, scaleVal, scaleVal);
+    palmG.rotation.y = leanAng || 0;
+
+    var segCount = 7;
+    var curX = 0, curY = 0;
+    for (var s = 0; s < segCount; s++) {
+      var segH = 1.45;
+      var tilt = 0.08 + s * 0.032;
+      var rBot = 0.48 * (1 - s * 0.07);
+      var rTop = 0.48 * (1 - (s + 1) * 0.07);
+      var seg = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, segH, 10), palmTrunkMat);
+      seg.position.set(curX + Math.sin(tilt) * segH * 0.5, curY + Math.cos(tilt) * segH * 0.5, 0);
+      seg.rotation.z = -tilt;
+      seg.castShadow = true;
+      palmG.add(seg);
+      curX += Math.sin(tilt) * segH;
+      curY += Math.cos(tilt) * segH;
+    }
+
+    for (var ci = 0; ci < 5; ci++) {
+      var cAng = (ci / 5) * Math.PI * 2;
+      var coco = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 8), coconutMat);
+      coco.position.set(curX + Math.cos(cAng) * 0.42, curY - 0.25, Math.sin(cAng) * 0.42);
+      palmG.add(coco);
+    }
+
+    for (var fi = 0; fi < 8; fi++) {
+      var fAng = (fi / 8) * Math.PI * 2;
+      var frondPivot = new THREE.Group();
+      frondPivot.position.set(curX, curY + 0.1, 0);
+      frondPivot.rotation.y = fAng;
+      var frondBlade = new THREE.Mesh(
+        new THREE.BoxGeometry(3.8, 0.14, 1.15),
+        fi % 2 === 0 ? palmFrondMat : palmLimeMat
+      );
+      frondBlade.position.set(1.85, -0.35, 0);
+      frondBlade.rotation.z = -0.34;
+      frondPivot.add(frondBlade);
+      palmG.add(frondPivot);
+    }
+    g.add(palmG);
   }
+
+  var coconutPalmCoords = [
+    [-12.5, -10.5, 1.15,  0.4], [-4.5, -12.0, 1.22,  0.8], [ 4.5, -12.0, 1.18, -0.5], [11.5, -10.5, 1.20, -0.3],
+    [-22.5,  -6.5, 1.12,  0.2], [-22.5,  6.5, 1.16, -0.4], [-13.5, 14.5, 1.08,  0.6],
+    [ 12.2,  13.5, 1.15, -0.2], [ 21.5, 14.0, 1.18, -0.7], [ 22.0,  2.5, 1.24, -0.4],
+    [ 21.8,  -8.5, 1.16,  0.3], [ 21.2, -16.5, 1.12, 0.9]
+  ];
+  coconutPalmCoords.forEach(function(cp) {
+    addCoconutPalm(cp[0], cp[1], cp[2], cp[3]);
+  });
+
+  // 5 Vietnamese Jackfruit Trees ("jackfruity" - lush canopy with bumpy green-gold jackfruits hanging from trunk & branches!)
+  var jackfruitSkinMat = new THREE.MeshStandardMaterial({ color: 0xa3e635, roughness: 0.65 });
+  var jackfruitGoldMat = new THREE.MeshStandardMaterial({ color: 0xca8a04, roughness: 0.58 });
+  var darkLeafMat      = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.55 });
+
+  function addJackfruitTree(jx, jz, jScale) {
+    var jfTree = new THREE.Group();
+    jfTree.position.set(jx, 0.45, jz);
+    jfTree.scale.set(jScale, jScale, jScale);
+
+    var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.78, 5.2, 12), palmTrunkMat);
+    trunk.position.y = 2.6;
+    trunk.castShadow = true;
+    var crownMain = new THREE.Mesh(new THREE.SphereGeometry(3.2, 16, 14), darkLeafMat);
+    crownMain.position.set(0, 6.2, 0);
+    var crownL = new THREE.Mesh(new THREE.SphereGeometry(2.4, 14, 12), palmFrondMat);
+    crownL.position.set(-1.6, 5.6, 0.7);
+    var crownR = new THREE.Mesh(new THREE.SphereGeometry(2.4, 14, 12), palmLimeMat);
+    crownR.position.set(1.6, 5.7, -0.6);
+    jfTree.add(trunk, crownMain, crownL, crownR);
+
+    for (var ji = 0; ji < 6; ji++) {
+      var jAng = (ji / 6) * Math.PI * 2;
+      var jf = new THREE.Mesh(
+        new THREE.SphereGeometry(0.46, 10, 10),
+        ji % 2 === 0 ? jackfruitSkinMat : jackfruitGoldMat
+      );
+      jf.scale.set(0.85, 1.45, 0.85);
+      var rDist = (ji < 3) ? 0.78 : 1.55;
+      var yHeight = (ji < 3) ? (2.2 + ji * 0.65) : (4.1 + (ji % 2) * 0.45);
+      jf.position.set(Math.cos(jAng) * rDist, yHeight, Math.sin(jAng) * rDist);
+      jfTree.add(jf);
+    }
+    g.add(jfTree);
+  }
+
+  [
+    [12.2, -4.5, 1.15],
+    [12.4,  4.8, 1.18],
+    [21.6, -3.2, 1.14],
+    [21.5,  8.8, 1.16],
+    [13.0, -14.0, 1.10]
+  ].forEach(function(jp) {
+    addJackfruitTree(jp[0], jp[1], jp[2]);
+  });
 
   scene.add(g);
 
-  // 11. Hero-Proportioned 3D Cartoon Mom & Dad standing prominently on the Front Cobblestone Path by the Gate
-  //     and waving warmly toward Little Train Toby and the Gameplay Camera (`image_3d2fa6b1.png`!)
+  // 9. HERO VIETNAMESE MOM (WITH JET-BLACK HAIR) & DAD WAVING IN FRONT OF THEIR BUNGALOW!
   var cosH = Math.cos(houseRotY);
   var sinH = Math.sin(houseRotY);
-  function placeParentInGarden(role, localX, localZ, faceYawOffset) {
+  function placeParentInGarden(role, localX, localZ, yawOff) {
     var wx = mx + localX * cosH + localZ * sinH;
     var wz = mz - localX * sinH + localZ * cosH;
-    return buildDetailedFamilyPerson(role, wx, wz, houseRotY + (faceYawOffset || 0), 2.02);
+    return buildDetailedFamilyPerson(role, wx, wz, houseRotY + (yawOff || 0), 2.08);
   }
-  placeParentInGarden('dad', -2.1, 13.6, 0.08);
-  placeParentInGarden('mom',  2.1, 13.6, -0.08);
+  placeParentInGarden('dad', -2.4, 13.8, 0.08);
+  placeParentInGarden('mom',  2.4, 13.8, -0.08);
 
-  // Register 3D Landmark Camera Showcase for `J_WEST -> J_NW`:
-  // Framed close enough and at a warm 3D angle so Mom & Dad's faces, the front terracotta tiled roof,
-  // the arched blue door, blue shutters, flower beds, and SUV are crystal-clear!
-  var frontLookX = mx + 7.5 * sinH;
-  var frontLookZ = mz + 7.5 * cosH;
+  var frontLookX = mx + 6.5 * sinH;
+  var frontLookZ = mz + 6.5 * cosH;
   window.registerLandmarkShowcase('J_WEST', 'J_NW', {
-    lookTarget: new THREE.Vector3(frontLookX, my + 6.8, frontLookZ),
-    camHeight: 15.5,
-    camBack: 30,
-    camSide: -22,
+    lookTarget: new THREE.Vector3(frontLookX, my + 5.5, frontLookZ),
+    camHeight: 16.5,
+    camBack: 32,
+    camSide: -24,
     lookLerp: 0.68
   });
 })();
 
-// 7. GRANDMA & GRANDPA'S COZY COUNTRY COTTAGE (`J_NORTH -> J_NE` at x = 148, z = -226)
+// 7. GRANDMA & GRANDPA'S 3-STORY YELLOW HOUSE IN BOHUMÍN (`J_NORTH -> J_NE` at x = 148, z = -226)
+//    - Standing on flat level ground ("postav ho na rovinu")
+//    - 3-story yellow house ("udělej ho žlutý se třemi patry")
+//    - Municipal sign "BOHUMÍN" beside the house ("vedle domu dej i ceduli BOHUMÍN")
+//    - Two parked cars beside the house:
+//      1) White 2001 Škoda Fabia ("bílá škoda fabia rok výroby 2001")
+//      2) Metallic Green 2000 Renault Mégane ("renault megane rok výroby 2000 zelená metalíza")
+//    - Kaufland hypermarket in the background ("V pozadí je kaufland")
 (function buildGrandmaAndGrandpaHouseLandmark() {
   var gx = 148, gz = -226;
-  var gy = terrainY(gx, gz);
+  var gy = 3.20; // Matches natural Bohumín terrain height so the J_NORTH->J_NE railway track is never buried!
   var g = new THREE.Group();
   g.position.set(gx, gy, gz);
-  g.rotation.y = -0.35;
+  var houseRotY = -0.32;
+  g.rotation.y = houseRotY;
 
-  var cottageWallMat = new THREE.MeshStandardMaterial({ color: 0xfed7aa, roughness: 0.55 });
-  var cottageRoofMat = new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.50 });
-  var timberMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.68 });
-  var greenShutterMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.45 });
+  var grandmaSunLight = new THREE.PointLight(0xfff7ed, 0.26, 75);
+  grandmaSunLight.position.set(0, 22, 18);
+  g.add(grandmaSunLight);
 
-  var garden = new THREE.Mesh(new THREE.CylinderGeometry(22, 23, 0.6, 28), new THREE.MeshStandardMaterial({ color: 0x86efac }));
-  garden.position.y = 0.25;
-  var house = new THREE.Mesh(new THREE.BoxGeometry(17, 10.5, 13.5), cottageWallMat);
-  house.position.y = 5.5;
-  house.castShadow = true;
-  var roof = new THREE.Mesh(new THREE.ConeGeometry(14.5, 7.5, 4), cottageRoofMat);
-  roof.position.y = 14.3;
-  roof.rotation.y = Math.PI / 4;
-  var porch = new THREE.Mesh(new THREE.BoxGeometry(15.5, 0.8, 4.5), timberMat);
-  porch.position.set(0, 0.8, 8.2);
-  var porchRoof = new THREE.Mesh(new THREE.BoxGeometry(15.8, 0.55, 4.6), cottageRoofMat);
-  porchRoof.position.set(0, 5.8, 8.2);
-  porchRoof.rotation.x = 0.18;
-  var chimney = new THREE.Mesh(new THREE.BoxGeometry(2.5, 6.8, 2.5), new THREE.MeshStandardMaterial({ color: 0x7c2d12 }));
-  chimney.position.set(-4.8, 14.8, -2.0);
-  var frontDoor = new THREE.Mesh(new THREE.BoxGeometry(2.7, 4.4, 0.42), greenShutterMat);
-  frontDoor.position.set(0, 3.0, 6.8);
-
-  [-4.6, 4.6].forEach(function(wx) {
-    var win = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.6, 0.4), sharedWindowMat);
-    win.position.set(wx, 5.2, 6.8);
-    var shL = new THREE.Mesh(new THREE.BoxGeometry(0.68, 2.7, 0.42), greenShutterMat);
-    shL.position.set(wx - 1.7, 5.2, 6.82);
-    var shR = shL.clone();
-    shR.position.x = wx + 1.7;
-    g.add(win, shL, shR);
-  });
-
-  // Apple Orchard Trees with Red Apples & Wooden Greenhouse/Coop beside Grandma's Cottage
-  [-13.5, 13.5].forEach(function(tx) {
-    var appleTree = new THREE.Group();
-    appleTree.position.set(tx, 0.4, 4.0);
-    var tr = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.8, 4.2, 8), timberMat);
-    tr.position.y = 2.1;
-    var cr = new THREE.Mesh(new THREE.SphereGeometry(3.4, 14, 12), new THREE.MeshStandardMaterial({ color: 0x16a34a }));
-    cr.position.y = 5.4;
-    appleTree.add(tr, cr);
-    for (var ap = 0; ap < 6; ap++) {
-      var apple = new THREE.Mesh(new THREE.SphereGeometry(0.40, 8, 8), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
-      var aAng = (ap / 6) * Math.PI * 2;
-      apple.position.set(Math.cos(aAng) * 2.7, 5.0 + (ap % 2) * 0.8, Math.sin(aAng) * 2.7);
-      appleTree.add(apple);
+  // Procedural Terracotta Roof Tile Texture
+  function createGrandmaRoofTileTex() {
+    var c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#9a3412';
+    ctx.fillRect(0, 0, 512, 512);
+    var cols = 8, rows = 8;
+    var cw = 512 / cols, rh = 512 / rows;
+    for (var r = 0; r < rows; r++) {
+      for (var col = 0; col < cols; col++) {
+        var x = col * cw, y = r * rh;
+        var gTile = ctx.createLinearGradient(x, y, x + cw, y);
+        gTile.addColorStop(0.0, '#7c2d12');
+        gTile.addColorStop(0.3, '#b45309');
+        gTile.addColorStop(0.55, ((r + col) % 2 === 0) ? '#ea580c' : '#d97706');
+        gTile.addColorStop(0.85, '#9a3412');
+        gTile.addColorStop(1.0, '#431407');
+        ctx.fillStyle = gTile;
+        ctx.fillRect(x, y, cw, rh);
+      }
     }
-    g.add(appleTree);
+    var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c, 2.5, 2.0) : new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+
+  var roofTileTex     = createGrandmaRoofTileTex();
+  var cottageRoofMat  = new THREE.MeshStandardMaterial({ map: roofTileTex, color: 0xea580c, roughness: 0.42, metalness: 0.05 });
+  var yellowWallMat   = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.40 }); // Sunny Yellow 3-Story Facade!
+  var yellowAccentMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.38 });
+  var stonePlinthMat  = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.65 });
+  var timberMat       = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.58 });
+  var greenShutterMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.38 });
+  var warmWinMat      = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+  var whiteTrimMat    = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.32 });
+  var asphaltMat      = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.72 });
+
+  // 1. Wide Flat Bohumín Meadow Pad & Paved Driveway for the 2 Cars
+  var gardenPad = new THREE.Mesh(
+    new THREE.CylinderGeometry(38.0, 40.0, 0.60, 44),
+    new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.70 })
+  );
+  gardenPad.position.y = 0.22;
+  g.add(gardenPad);
+
+  var driveway = new THREE.Mesh(new THREE.BoxGeometry(14.5, 0.34, 15.0), asphaltMat);
+  driveway.position.set(17.2, 0.48, 6.2);
+  g.add(driveway);
+
+  // 2. 3-STORY YELLOW HOUSE ("udělej ho žlutý se třemi patry")
+  var plinth = new THREE.Mesh(new THREE.BoxGeometry(18.2, 1.6, 13.8), stonePlinthMat);
+  plinth.position.y = 1.0;
+  var yellowHouseBody = new THREE.Mesh(new THREE.BoxGeometry(17.6, 14.4, 13.2), yellowWallMat);
+  yellowHouseBody.position.y = 8.8; // 3 full stories: y = 1.6 -> 16.0m!
+  yellowHouseBody.castShadow = true;
+  g.add(plinth, yellowHouseBody);
+
+  // Crisp White Horizontal Cornice Bands dividing Floor 1, Floor 2 & Floor 3 + Corner Pilasters
+  [6.2, 10.8, 15.8].forEach(function(cyBand) {
+    var band = new THREE.Mesh(new THREE.BoxGeometry(18.0, 0.38, 13.6), whiteTrimMat);
+    band.position.y = cyBand;
+    g.add(band);
+  });
+  [[-8.75, -6.55], [8.75, -6.55], [-8.75, 6.55], [8.75, 6.55]].forEach(function(cp) {
+    var pilaster = new THREE.Mesh(new THREE.BoxGeometry(0.65, 14.5, 0.65), yellowAccentMat);
+    pilaster.position.set(cp[0], 8.8, cp[1]);
+    g.add(pilaster);
   });
 
-  g.add(garden, house, roof, porch, porchRoof, chimney, frontDoor);
+  // Pitched Hip/Gable Terracotta Roof on Top of the 3rd Story (y = 16.0m)
+  var roofGroup = new THREE.Group();
+  roofGroup.position.y = 16.0;
+  var roofPitch = 0.54;
+  var slopeW = 9.8;
+  var roofSpanX = 19.2;
+  [-1, 1].forEach(function(sideZ) {
+    var slopePivot = new THREE.Group();
+    slopePivot.position.set(0, 2.5, sideZ * 3.8);
+    slopePivot.rotation.x = sideZ * roofPitch;
+    var deck = new THREE.Mesh(new THREE.BoxGeometry(roofSpanX, 0.52, slopeW), cottageRoofMat);
+    slopePivot.add(deck);
+    roofGroup.add(slopePivot);
+  });
+  [-8.6, 8.6].forEach(function(gxSide) {
+    for (var gs = 0; gs < 6; gs++) {
+      var gw = 13.0 * (1 - gs / 6);
+      var gSl = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.85, gw), yellowWallMat);
+      gSl.position.set(gxSide, 0.42 + gs * 0.78, 0);
+      roofGroup.add(gSl);
+    }
+  });
+  var chimney = new THREE.Mesh(new THREE.BoxGeometry(2.2, 6.5, 2.2), new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.65 }));
+  chimney.position.set(-5.5, 4.2, -1.8);
+  roofGroup.add(chimney);
+  g.add(roofGroup);
+
+  // 3 Rows of Windows across All 3 Floors (1st Floor y = 3.9, 2nd Floor y = 8.5, 3rd Floor y = 13.2)
+  var flowerCols = [0xf43f5e, 0xec4899, 0xa855f7, 0xef4444];
+  [3.9, 8.5, 13.2].forEach(function(wy, floorIdx) {
+    [-5.4, 0.0, 5.4].forEach(function(wx, colIdx) {
+      if (floorIdx === 0 && colIdx === 1) return; // Ground-floor center has the front door
+      var winFrame = new THREE.Mesh(new THREE.BoxGeometry(2.65, 2.55, 0.36), whiteTrimMat);
+      winFrame.position.set(wx, wy, 6.64);
+      var winGlass = new THREE.Mesh(new THREE.BoxGeometry(2.25, 2.15, 0.42), warmWinMat);
+      winGlass.position.set(wx, wy, 6.68);
+      var shL = new THREE.Mesh(new THREE.BoxGeometry(0.68, 2.48, 0.42), greenShutterMat);
+      shL.position.set(wx - 1.62, wy, 6.70);
+      var shR = shL.clone();
+      shR.position.x = wx + 1.62;
+      var planter = new THREE.Mesh(new THREE.BoxGeometry(2.75, 0.52, 0.72), timberMat);
+      planter.position.set(wx, wy - 1.42, 6.95);
+      g.add(winFrame, winGlass, shL, shR, planter);
+
+      for (var fb = -1; fb <= 1; fb++) {
+        var flBall = new THREE.Mesh(
+          new THREE.SphereGeometry(0.34, 8, 8),
+          new THREE.MeshBasicMaterial({ color: flowerCols[(floorIdx + colIdx + fb + 3) % flowerCols.length] })
+        );
+        flBall.position.set(wx + fb * 0.72, wy - 0.98, 7.05);
+        g.add(flBall);
+      }
+    });
+  });
+
+  // Ground-Floor Entrance Porch & 2nd-Floor Balcony with White Balustrade
+  var porchDeck = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.75, 3.6), stonePlinthMat);
+  porchDeck.position.set(0, 0.65, 8.2);
+  var balconySlab = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.45, 3.8), whiteTrimMat);
+  balconySlab.position.set(0, 6.2, 8.2);
+  var balconyRail = new THREE.Mesh(new THREE.BoxGeometry(7.4, 1.15, 0.22), whiteTrimMat);
+  balconyRail.position.set(0, 6.95, 9.95);
+  [-3.2, 3.2].forEach(function(px) {
+    var pCol = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.28, 5.2, 12), whiteTrimMat);
+    pCol.position.set(px, 3.4, 9.7);
+    g.add(pCol);
+  });
+  var doorFrame = new THREE.Mesh(new THREE.BoxGeometry(3.1, 4.4, 0.36), whiteTrimMat);
+  doorFrame.position.set(0, 3.2, 6.66);
+  var frontDoor = new THREE.Mesh(new THREE.BoxGeometry(2.6, 4.1, 0.44), timberMat);
+  frontDoor.position.set(0, 3.1, 6.72);
+  g.add(porchDeck, balconySlab, balconyRail, doorFrame, frontDoor);
+
+  // 3. CZECH MUNICIPAL SIGN "BOHUMÍN" ("a vedle domu dej i ceduli BOHUMÍN")
+  (function buildBohuminSign() {
+    var signG = new THREE.Group();
+    signG.position.set(-13.8, 0.45, 11.8);
+    signG.rotation.y = 0.22;
+
+    var c = document.createElement('canvas');
+    c.width = 512; c.height = 192;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 512, 192);
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 14;
+    ctx.strokeRect(10, 10, 492, 172);
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '900 72px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('BOHUMÍN', 256, 100);
+
+    var bTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new THREE.CanvasTexture(c);
+    var signMat = new THREE.MeshBasicMaterial({ map: bTex });
+    var signBacking = new THREE.Mesh(new THREE.BoxGeometry(8.2, 3.0, 0.28), stonePlinthMat);
+    signBacking.position.y = 4.4;
+    var signFront = new THREE.Mesh(new THREE.PlaneGeometry(8.0, 2.85), signMat);
+    signFront.position.set(0, 4.4, 0.16);
+    var signBack = signFront.clone();
+    signBack.rotation.y = Math.PI;
+    signBack.position.z = -0.16;
+
+    [-3.0, 3.0].forEach(function(px) {
+      var post = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 4.5, 10), stonePlinthMat);
+      post.position.set(px, 2.25, 0);
+      signG.add(post);
+    });
+    signG.add(signBacking, signFront, signBack);
+    g.add(signG);
+  })();
+
+  // 4. TWO HIGH-CRAFT ICONIC REAL-WORLD CARS BESIDE GRANDMA'S HOUSE IN BOHUMÍN:
+  //    ("4. U domečku od babičky prosím o vylepšení aut fabia a megane, aby byly v krásné grafice a šlo podle tvaru a detailů poznat, že se opravdu jedná o tato vozidla.")
+  //    - White 2001 Škoda Fabia Mk1 (6Y) 5-Door Hatchback ("bílá škoda fabia rok výroby 2001")
+  //    - Metallic Emerald Green 2000 Renault Mégane Mk1 Phase 2 ("renault megane rok výroby 2000 zelená metalíza")
+  function createBohuminCarFrontFasciaTex(isFabia) {
+    var c = document.createElement('canvas');
+    c.width = 512; c.height = 256;
+    var ctx = c.getContext('2d');
+
+    if (isFabia) {
+      // Candy White 2001 Škoda Fabia Mk1 Front Fascia
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, 512, 256);
+
+      // Black protective bumper impact strip & lower air dam with fog lights
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(24, 142, 464, 24);
+      ctx.fillRect(68, 186, 376, 46);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(115, 202); ctx.lineTo(397, 202);
+      ctx.moveTo(115, 216); ctx.lineTo(397, 216);
+      ctx.stroke();
+      ctx.fillStyle = '#fef9c3';
+      ctx.fillRect(76, 194, 42, 28);
+      ctx.fillRect(394, 194, 42, 28);
+
+      // Iconic 2001 Škoda Fabia Trapezoidal Chrome-Surround Grille with Vertical Slats
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath();
+      ctx.moveTo(156, 48); ctx.lineTo(356, 48);
+      ctx.lineTo(344, 122); ctx.lineTo(168, 122);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.moveTo(168, 58); ctx.lineTo(344, 58);
+      ctx.lineTo(334, 114); ctx.lineTo(178, 114);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 3;
+      for (var gx = 182; gx <= 330; gx += 10) {
+        ctx.beginPath();
+        ctx.moveTo(gx, 60); ctx.lineTo(gx, 112);
+        ctx.stroke();
+      }
+
+      // Round Škoda Green Winged-Arrow Emblem on top chrome grille boss
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath(); ctx.arc(256, 54, 20, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.arc(256, 54, 16, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath(); ctx.arc(256, 54, 12, 0, Math.PI * 2); ctx.fill();
+
+      // Clear-lens Rectangular-Trapezoidal Halogen Headlamps + Amber Corner Indicators
+      [[34, 148, true], [364, 478, false]].forEach(function(hl) {
+        var x0 = hl[0], x1 = hl[1], isLeft = hl[2];
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillRect(x0, 54, x1 - x0, 66);
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(x0, 54, x1 - x0, 66);
+        ctx.fillStyle = '#f59e0b';
+        if (isLeft) ctx.fillRect(x0 + 4, 58, 26, 58);
+        else ctx.fillRect(x1 - 30, 58, 26, 58);
+        ctx.fillStyle = '#fefce8';
+        ctx.beginPath();
+        ctx.arc(isLeft ? x0 + 58 : x1 - 58, 87, 22, 0, Math.PI * 2);
+        ctx.arc(isLeft ? x0 + 94 : x1 - 94, 87, 16, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    } else {
+      // Emerald Metallic Green 2000 Renault Mégane Mk1 Phase 2 Front Fascia
+      ctx.fillStyle = '#047857';
+      ctx.fillRect(0, 0, 512, 256);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(28, 146, 456, 20);
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(84, 184, 344, 46, 22);
+      else ctx.rect(84, 184, 344, 46);
+      ctx.fill();
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(112, 207, 16, 0, Math.PI * 2);
+      ctx.arc(400, 207, 16, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Signature 2000 Renault Mégane Phase-2 Twin Split "Bird-Beak" Honeycomb Grilles
+      [146, 278].forEach(function(gx) {
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(gx, 64, 88, 52, 14);
+        else ctx.rect(gx, 64, 88, 52);
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      // Central Chrome Renault Diamond ("Kosočtverec") Emblem on the Nose Beak
+      ctx.save();
+      ctx.translate(256, 92);
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.moveTo(0, -26); ctx.lineTo(20, 0); ctx.lineTo(0, 26); ctx.lineTo(-20, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#047857';
+      ctx.beginPath();
+      ctx.moveTo(0, -12); ctx.lineTo(9, 0); ctx.lineTo(0, 12); ctx.lineTo(-9, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // Swept-Back Almond "Cat-Eye" Headlamps with Inner Amber Turn Signals
+      [[32, 138, true], [374, 480, false]].forEach(function(hl) {
+        var x0 = hl[0], x1 = hl[1], isLeft = hl[2];
+        var cx = (x0 + x1) * 0.5;
+        ctx.fillStyle = '#e2e8f0';
+        ctx.beginPath();
+        ctx.ellipse(cx, 88, 54, 30, isLeft ? 0.12 : -0.12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.fillStyle = '#fef9c3';
+        ctx.beginPath();
+        ctx.arc(isLeft ? cx - 12 : cx + 12, 88, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(isLeft ? cx + 26 : cx - 26, 90, 13, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    return window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new THREE.CanvasTexture(c);
+  }
+
+  function createBohuminCarRearFasciaTex(isFabia) {
+    var c = document.createElement('canvas');
+    c.width = 512; c.height = 256;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = isFabia ? '#f8fafc' : '#047857';
+    ctx.fillRect(0, 0, 512, 256);
+
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(24, 168, 464, 24);
+
+    if (isFabia) {
+      // Iconic 2001 Škoda Fabia Mk1 Tall Vertical Red-White-Red Tail Light Clusters
+      [28, 412].forEach(function(tx) {
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(tx, 28, 72, 124);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(tx + 10, 68, 52, 24);
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(tx + 10, 92, 52, 18);
+        ctx.strokeStyle = '#7f1d1d';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(tx, 28, 72, 124);
+      });
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath(); ctx.arc(256, 62, 16, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#334155';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('FABIA', 356, 136);
+    } else {
+      // 2000 Renault Mégane Mk1 Phase 2 Curved Wrap-Around Red/Tinted Tail Lights
+      [26, 396].forEach(function(tx) {
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(tx, 46, 90, 96, 22);
+        else ctx.rect(tx, 46, 90, 96);
+        ctx.fill();
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillRect(tx + 12, 82, 66, 22);
+      });
+      ctx.save();
+      ctx.translate(256, 64);
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.moveTo(0, -18); ctx.lineTo(14, 0); ctx.lineTo(0, 18); ctx.lineTo(-14, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'italic bold 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('MÉGANE', 256, 136);
+    }
+
+    return window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new THREE.CanvasTexture(c);
+  }
+
+  function createDetailedAlloyWheel(radius, width) {
+    var wg = new THREE.Group();
+    var tireMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.82 });
+    var alloyMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.22, metalness: 0.78 });
+    var darkHubMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5 });
+
+    var tire = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, width, 24), tireMat);
+    tire.rotation.z = Math.PI / 2;
+    var rim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.68, radius * 0.68, width + 0.04, 20), darkHubMat);
+    rim.rotation.z = Math.PI / 2;
+    var rimLip = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.66, 0.05, 8, 20), alloyMat);
+    rimLip.rotation.y = Math.PI / 2;
+    rimLip.position.x = width * 0.52;
+    var rimLip2 = rimLip.clone();
+    rimLip2.position.x = -width * 0.52;
+    wg.add(tire, rim, rimLip, rimLip2);
+
+    for (var sp = 0; sp < 5; sp++) {
+      var sa = (sp / 5) * Math.PI * 2;
+      var spoke = new THREE.Mesh(new THREE.BoxGeometry(width + 0.08, radius * 0.62, 0.11), alloyMat);
+      spoke.rotation.x = sa;
+      spoke.position.set(0, Math.cos(sa) * radius * 0.30, Math.sin(sa) * radius * 0.30);
+      wg.add(spoke);
+    }
+    var centerCap = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.18, radius * 0.18, width + 0.10, 12), alloyMat);
+    centerCap.rotation.z = Math.PI / 2;
+    wg.add(centerCap);
+    return wg;
+  }
+
+  function buildParkedBohuminCar(modelType, localX, localZ) {
+    var carG = new THREE.Group();
+    carG.position.set(localX, 0.65, localZ);
+    carG.scale.set(1.18, 1.18, 1.18);
+
+    var isFabia = (modelType === 'fabia2001');
+    var bodyMat = new THREE.MeshStandardMaterial(
+      isFabia
+        ? { color: 0xf8fafc, roughness: 0.20, metalness: 0.15 } // Candy White 2001 Škoda Fabia Mk1
+        : { color: 0x047857, roughness: 0.18, metalness: 0.72 } // Emerald Metallic Green 2000 Renault Mégane Mk1 Phase 2
+    );
+    var trimBlackMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.55 });
+    var glassMat     = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.08, metalness: 0.45 });
+    var darkGlassMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.10, metalness: 0.60 });
+    var chromeMat    = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.15, metalness: 0.88 });
+
+    // 1. Authentic Sculpted 2D Side-Profile ExtrudeGeometry Car Body
+    var profShape = new THREE.Shape();
+    if (isFabia) {
+      profShape.moveTo(-3.05, 0.48);
+      profShape.lineTo( 3.05, 0.46);
+      profShape.quadraticCurveTo(3.22, 0.78, 3.16, 1.28);
+      profShape.lineTo( 1.55, 1.48);
+      profShape.lineTo( 0.55, 2.52);
+      profShape.lineTo(-2.15, 2.50);
+      profShape.lineTo(-2.35, 2.54);
+      profShape.lineTo(-2.98, 1.46);
+      profShape.lineTo(-3.16, 1.05);
+      profShape.closePath();
+    } else {
+      profShape.moveTo(-3.12, 0.48);
+      profShape.lineTo( 3.12, 0.46);
+      profShape.quadraticCurveTo(3.32, 0.82, 3.15, 1.20);
+      profShape.quadraticCurveTo(2.30, 1.42, 1.42, 1.46);
+      profShape.quadraticCurveTo(0.85, 2.15, 0.35, 2.44);
+      profShape.quadraticCurveTo(-0.85, 2.56, -1.95, 2.34);
+      profShape.quadraticCurveTo(-2.65, 1.92, -3.02, 1.42);
+      profShape.quadraticCurveTo(-3.24, 1.05, -3.12, 0.48);
+      profShape.closePath();
+    }
+
+    var bodyExtrude = new THREE.ExtrudeGeometry(profShape, {
+      depth: 2.76,
+      bevelEnabled: true,
+      bevelThickness: 0.24,
+      bevelSize: 0.20,
+      bevelSegments: 4,
+      curveSegments: 20
+    });
+    bodyExtrude.translate(0, 0, -1.38);
+    bodyExtrude.rotateY(Math.PI / 2);
+    var mainBodyMesh = new THREE.Mesh(bodyExtrude, bodyMat);
+    mainBodyMesh.castShadow = true;
+    mainBodyMesh.receiveShadow = true;
+    carG.add(mainBodyMesh);
+
+    // 2. Front & Rear High-Resolution Textured Fascia Plates + 3D Bumpers
+    var frontFasciaMat = new THREE.MeshBasicMaterial({ map: createBohuminCarFrontFasciaTex(isFabia) });
+    var rearFasciaMat  = new THREE.MeshBasicMaterial({ map: createBohuminCarRearFasciaTex(isFabia) });
+
+    var frontFascia = new THREE.Mesh(new THREE.PlaneGeometry(2.96, 1.02), frontFasciaMat);
+    frontFascia.position.set(0, 1.02, 3.38);
+    var rearFascia = new THREE.Mesh(new THREE.PlaneGeometry(2.96, 1.05), rearFasciaMat);
+    rearFascia.rotation.y = Math.PI;
+    rearFascia.position.set(0, 1.08, -3.38);
+    carG.add(frontFascia, rearFascia);
+
+    var frontBumper = new THREE.Mesh(new THREE.BoxGeometry(3.16, 0.46, 0.42), bodyMat);
+    frontBumper.position.set(0, 0.66, 3.25);
+    var frontStrip = new THREE.Mesh(new THREE.BoxGeometry(3.22, 0.14, 0.46), trimBlackMat);
+    frontStrip.position.set(0, 0.76, 3.26);
+    var rearBumper = new THREE.Mesh(new THREE.BoxGeometry(3.16, 0.48, 0.42), bodyMat);
+    rearBumper.position.set(0, 0.68, -3.25);
+    var rearStrip = new THREE.Mesh(new THREE.BoxGeometry(3.22, 0.14, 0.46), trimBlackMat);
+    rearStrip.position.set(0, 0.78, -3.26);
+    carG.add(frontBumper, frontStrip, rearBumper, rearStrip);
+
+    // 3. Glazed Front Windshield, Rear Heated Window & Side Door Windows with B/C Pillars
+    var frontWindshield = new THREE.Mesh(new THREE.PlaneGeometry(2.58, 1.18), glassMat);
+    frontWindshield.position.set(0, 2.02, isFabia ? 1.18 : 1.05);
+    frontWindshield.rotation.x = isFabia ? -0.74 : -0.82;
+
+    var rearWindow = new THREE.Mesh(new THREE.PlaneGeometry(2.48, 1.08), darkGlassMat);
+    rearWindow.position.set(0, 2.00, isFabia ? -2.56 : -2.42);
+    rearWindow.rotation.x = isFabia ? (Math.PI + 0.56) : (Math.PI + 0.68);
+    carG.add(frontWindshield, rearWindow);
+
+    [-1, 1].forEach(function(sideSign) {
+      var sx = sideSign * 1.62;
+      var winFront = new THREE.Mesh(new THREE.PlaneGeometry(1.18, 0.76), glassMat);
+      winFront.rotation.y = sideSign > 0 ? Math.PI / 2 : -Math.PI / 2;
+      winFront.position.set(sx, 2.02, 0.12);
+      var winRear = new THREE.Mesh(new THREE.PlaneGeometry(isFabia ? 1.12 : 1.05, 0.74), glassMat);
+      winRear.rotation.y = sideSign > 0 ? Math.PI / 2 : -Math.PI / 2;
+      winRear.position.set(sx, 2.02, -1.18);
+      var bPillar = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.80, 0.22), trimBlackMat);
+      bPillar.position.set(sx, 2.02, -0.52);
+
+      var sideMolding = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.13, 3.85), trimBlackMat);
+      sideMolding.position.set(sx, 0.92, -0.10);
+
+      var handle1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.10, 0.34), isFabia ? trimBlackMat : bodyMat);
+      handle1.position.set(sx, 1.42, -0.22);
+      var handle2 = handle1.clone();
+      handle2.position.set(sx, 1.42, -1.42);
+
+      var mirrorArm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.12, 0.18), trimBlackMat);
+      mirrorArm.position.set(sx + sideSign * 0.10, 1.66, 0.72);
+      var mirrorHousing = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), bodyMat);
+      mirrorHousing.scale.set(1.2, 0.75, 0.85);
+      mirrorHousing.position.set(sx + sideSign * 0.24, 1.68, 0.68);
+
+      [1.92, -1.95].forEach(function(wz) {
+        var arch = new THREE.Mesh(new THREE.TorusGeometry(0.74, 0.12, 8, 16, Math.PI), bodyMat);
+        arch.rotation.y = Math.PI / 2;
+        arch.position.set(sx * 0.95, 0.68, wz);
+        carG.add(arch);
+      });
+
+      carG.add(winFront, winRear, bPillar, sideMolding, handle1, handle2, mirrorArm, mirrorHousing);
+    });
+
+    if (isFabia) {
+      var fabiaGrille3D = new THREE.Mesh(new THREE.BoxGeometry(1.36, 0.38, 0.14), chromeMat);
+      fabiaGrille3D.position.set(0, 1.18, 3.36);
+      var fabiaGrilleBlack = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.28, 0.16), trimBlackMat);
+      fabiaGrilleBlack.position.set(0, 1.18, 3.37);
+      var skodaRoundel = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.18, 14), new THREE.MeshBasicMaterial({ color: 0x16a34a }));
+      skodaRoundel.rotation.x = Math.PI / 2;
+      skodaRoundel.position.set(0, 1.34, 3.38);
+      carG.add(fabiaGrille3D, fabiaGrilleBlack, skodaRoundel);
+    } else {
+      var meganeBeak = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 1.65), bodyMat);
+      meganeBeak.position.set(0, 1.40, 2.38);
+      meganeBeak.rotation.x = 0.11;
+      var renaultDiamond3D = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.16), chromeMat);
+      renaultDiamond3D.rotation.z = Math.PI / 4;
+      renaultDiamond3D.position.set(0, 1.16, 3.38);
+      carG.add(meganeBeak, renaultDiamond3D);
+    }
+
+    var antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.95, 6), trimBlackMat);
+    antenna.position.set(0, 2.88, isFabia ? -1.85 : 0.15);
+    antenna.rotation.x = -0.52;
+    carG.add(antenna);
+
+    var lpCanv = document.createElement('canvas');
+    lpCanv.width = 256; lpCanv.height = 64;
+    var lpCtx = lpCanv.getContext('2d');
+    lpCtx.fillStyle = '#ffffff';
+    lpCtx.fillRect(0, 0, 256, 64);
+    lpCtx.fillStyle = '#1d4ed8';
+    lpCtx.fillRect(0, 0, 30, 64);
+    lpCtx.fillStyle = '#ffffff';
+    lpCtx.font = 'bold 16px sans-serif';
+    lpCtx.textAlign = 'center';
+    lpCtx.fillText('CZ', 15, 52);
+    lpCtx.strokeStyle = '#0f172a';
+    lpCtx.lineWidth = 6;
+    lpCtx.strokeRect(3, 3, 250, 58);
+    lpCtx.fillStyle = '#0f172a';
+    lpCtx.font = 'bold 32px sans-serif';
+    lpCtx.fillText(isFabia ? 'FABIA 01' : 'MEGANE 00', 142, 43);
+    var lpTex = new THREE.CanvasTexture(lpCanv);
+    var lpFront = new THREE.Mesh(new THREE.PlaneGeometry(1.32, 0.32), new THREE.MeshBasicMaterial({ map: lpTex }));
+    lpFront.position.set(0, 0.62, 3.48);
+    var lpRear = lpFront.clone();
+    lpRear.rotation.y = Math.PI;
+    lpRear.position.set(0, 0.72, -3.48);
+    carG.add(lpFront, lpRear);
+
+    [[-1.60, 1.92], [1.60, 1.92], [-1.60, -1.95], [1.60, -1.95]].forEach(function(wp) {
+      var wh = createDetailedAlloyWheel(0.68, 0.44);
+      wh.position.set(wp[0], 0.68, wp[1]);
+      carG.add(wh);
+    });
+    if (typeof addContactShadow === 'function') {
+      addContactShadow(carG, 3.8, 6.8, 0.04);
+    }
+
+    g.add(carG);
+  }
+
+  buildParkedBohuminCar('fabia2001',  14.2, 6.2);
+  buildParkedBohuminCar('megane2000', 20.2, 6.2);
+
+  // 5. KAUFLAND HYPERMARKET ~50M IN THE BACKGROUND ("Kaufland v Bohumíně by měl být v pozadí, asi 50m, ne hned u domu")
+  (function buildKauflandHypermarket() {
+    var kfG = new THREE.Group();
+    kfG.position.set(4.0, 0.25, -66.0);
+
+    var kfWhiteMat  = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.38 });
+    var kfSilverMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.35, metalness: 0.35 });
+    var kfRedMat    = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.32 });
+    var kfGlassMat  = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.15, metalness: 0.4, transparent: true, opacity: 0.78 });
+
+    var mainHall = new THREE.Mesh(new THREE.BoxGeometry(38.0, 11.5, 16.5), kfSilverMat);
+    mainHall.position.y = 5.75;
+    mainHall.castShadow = true;
+    var redRoofBand = new THREE.Mesh(new THREE.BoxGeometry(38.6, 1.85, 17.0), kfRedMat);
+    redRoofBand.position.y = 11.2;
+    var entranceTower = new THREE.Mesh(new THREE.BoxGeometry(14.5, 14.2, 17.6), kfWhiteMat);
+    entranceTower.position.set(0, 7.1, 0.8);
+    var entranceGlass = new THREE.Mesh(new THREE.BoxGeometry(11.5, 6.8, 1.2), kfGlassMat);
+    entranceGlass.position.set(0, 3.6, 9.2);
+    kfG.add(mainHall, redRoofBand, entranceTower, entranceGlass);
+
+    // Giant Illuminated "KAUFLAND" Facade Sign & Tall Roadside Kaufland Pylon Tower!
+    var kfCanv = document.createElement('canvas');
+    kfCanv.width = 512; kfCanv.height = 160;
+    var kctx = kfCanv.getContext('2d');
+    kctx.fillStyle = '#ffffff';
+    kctx.fillRect(0, 0, 512, 160);
+    kctx.strokeStyle = '#dc2626';
+    kctx.lineWidth = 14;
+    kctx.strokeRect(7, 7, 498, 146);
+    kctx.fillStyle = '#dc2626';
+    kctx.fillRect(28, 28, 104, 104);
+    kctx.fillStyle = '#ffffff';
+    kctx.font = '900 76px sans-serif';
+    kctx.textAlign = 'center';
+    kctx.textBaseline = 'middle';
+    kctx.fillText('K', 80, 82);
+    kctx.fillStyle = '#dc2626';
+    kctx.font = '900 68px sans-serif';
+    kctx.fillText('Kaufland', 316, 84);
+
+    var kfTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(kfCanv) : new THREE.CanvasTexture(kfCanv);
+    var kfSignMat = new THREE.MeshBasicMaterial({ map: kfTex });
+
+    var facadeSignBack = new THREE.Mesh(new THREE.BoxGeometry(16.5, 4.8, 0.65), kfRedMat);
+    facadeSignBack.position.set(0, 16.5, 9.4);
+    var facadeSignFront = new THREE.Mesh(new THREE.PlaneGeometry(16.0, 4.5), kfSignMat);
+    facadeSignFront.position.set(0, 16.5, 9.78);
+    kfG.add(facadeSignBack, facadeSignFront);
+
+    var pylonMast = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.72, 22.0, 14), stonePlinthMat);
+    pylonMast.position.set(22.5, 11.0, 10.0);
+    var pylonBox = new THREE.Mesh(new THREE.BoxGeometry(9.6, 3.4, 1.2), kfRedMat);
+    pylonBox.position.set(22.5, 22.5, 10.0);
+    var pylonFace1 = new THREE.Mesh(new THREE.PlaneGeometry(9.2, 3.1), kfSignMat);
+    pylonFace1.position.set(22.5, 22.5, 10.65);
+    var pylonFace2 = pylonFace1.clone();
+    pylonFace2.rotation.y = Math.PI;
+    pylonFace2.position.z = 9.35;
+    kfG.add(pylonMast, pylonBox, pylonFace1, pylonFace2);
+
+    g.add(kfG);
+  })();
+
   scene.add(g);
 
-  // Detailed 3D Grandma & Grandpa waving warmly from the front garden path!
-  buildDetailedFamilyPerson('grandma', gx - 7.5, gz + 15.2, -0.35);
-  buildDetailedFamilyPerson('grandpa', gx - 3.8, gz + 16.4, -0.35);
+  // 6. Hero Grandma & Grandpa Waving in Front of Their 3-Story Yellow House in Bohumín!
+  var cosG = Math.cos(houseRotY);
+  var sinG = Math.sin(houseRotY);
+  function placeGrandparentInGarden(role, localX, localZ, yawOff) {
+    var wx = gx + localX * cosG + localZ * sinG;
+    var wz = gz - localX * sinG + localZ * cosG;
+    return buildDetailedFamilyPerson(role, wx, wz, houseRotY + (yawOff || 0), 2.02);
+  }
+  placeGrandparentInGarden('grandpa', -2.2, 13.8, 0.08);
+  placeGrandparentInGarden('grandma',  2.2, 13.8, -0.08);
 
+  var frontLookGX = gx + 4.0 * sinG;
+  var frontLookGZ = gz + 4.0 * cosG;
   window.registerLandmarkShowcase('J_NORTH', 'J_NE', {
-    lookTarget: new THREE.Vector3(gx, gy + 8.0, gz),
-    camHeight: 20,
-    camBack: 38,
-    camSide: -26,
-    lookLerp: 0.54
+    lookTarget: new THREE.Vector3(frontLookGX, gy + 9.5, frontLookGZ),
+    camHeight: 22.0,
+    camBack: 44,
+    camSide: -30,
+    lookLerp: 0.62
   });
 })();
 
@@ -4055,18 +6678,104 @@ river.position.set(-190, -0.35, -85);
 scene.add(river);
 window.riverMesh = river;
 
+// UPGRADED 3D FAIRYTALE SAILBOATS ON THE RIVER ("5. Prosím o vylepšení plachetnic, které plavou po řece")
 window.boats = [];
-for (var bi = 0; bi < 5; bi++) {
-  var bg = new THREE.Group();
-  bg.scale.set(0.80, 0.80, 0.80);
-  var hull = new THREE.Mesh(new THREE.BoxGeometry(8, 1.8, 3.8), new THREE.MeshStandardMaterial({ color: [0xffffff, 0xef4444, 0xfacc15][bi % 3] }));
-  hull.position.y = 0.6;
-  var sail = new THREE.Mesh(new THREE.ConeGeometry(2.8, 7.5, 3), new THREE.MeshStandardMaterial({ color: 0xffffff }));
-  sail.position.set(0, 4.9, 0);
-  bg.add(hull, sail);
-  scene.add(bg);
-  boats.push({ mesh: bg, x: -240 + bi * 75, dir: bi % 2 === 0 ? 1 : -1, speed: 0.22 });
-}
+(function buildDetailedRiverSailboats() {
+  var hullColors  = [0x1d4ed8, 0xdc2626, 0x047857, 0xf59e0b, 0x7c3aed];
+  var stripeCols  = [0xef4444, 0x38bdf8, 0xfacc15, 0xec4899, 0x10b981];
+  var teakDeckMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.52 });
+  var whiteHullMat= new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.28 });
+  var mastWoodMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.42 });
+  var brassMat    = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.22, metalness: 0.78 });
+  var glassPortMat= new THREE.MeshBasicMaterial({ color: 0xbae6fd });
+
+  for (var bi = 0; bi < 5; bi++) {
+    var bg = new THREE.Group();
+    bg.scale.set(0.92, 0.92, 0.92);
+
+    var hullColMat = new THREE.MeshStandardMaterial({ color: hullColors[bi % hullColors.length], roughness: 0.30, metalness: 0.15 });
+    var sailAccentMat = new THREE.MeshStandardMaterial({ color: stripeCols[bi % stripeCols.length], roughness: 0.38, side: THREE.DoubleSide });
+    var sailCreamMat  = new THREE.MeshStandardMaterial({ color: 0xfffbeb, roughness: 0.38, side: THREE.DoubleSide });
+
+    // Sculpted Yacht Hull: Main Midship + Tapered Bow Cone + White Gunwale Trim + Teak Deck
+    var hullMid = new THREE.Mesh(new THREE.CylinderGeometry(2.25, 1.55, 6.8, 16), hullColMat);
+    hullMid.rotation.z = Math.PI / 2;
+    hullMid.scale.set(0.55, 1.0, 1.0);
+    hullMid.position.set(-0.4, 0.85, 0);
+
+    var bowCone = new THREE.Mesh(new THREE.ConeGeometry(2.25, 3.6, 16), hullColMat);
+    bowCone.rotation.z = -Math.PI / 2;
+    bowCone.scale.set(0.55, 1.0, 1.0);
+    bowCone.position.set(4.6, 0.85, 0);
+
+    var gunwaleStripe = new THREE.Mesh(new THREE.BoxGeometry(8.2, 0.22, 4.1), whiteHullMat);
+    gunwaleStripe.position.set(0.4, 1.48, 0);
+
+    var teakDeck = new THREE.Mesh(new THREE.BoxGeometry(7.8, 0.18, 3.8), teakDeckMat);
+    teakDeck.position.set(0.3, 1.62, 0);
+
+    // Cozy Yacht Cabin with Porthole Windows & Lifebuoy Ring
+    var cabin = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.15, 2.5), whiteHullMat);
+    cabin.position.set(-0.6, 2.22, 0);
+    var cabinRoof = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.20, 2.7), teakDeckMat);
+    cabinRoof.position.set(-0.6, 2.85, 0);
+    [-0.8, 0.4].forEach(function(px) {
+      [-1.28, 1.28].forEach(function(pz) {
+        var portRim = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.12, 12), brassMat);
+        portRim.rotation.x = Math.PI / 2;
+        portRim.position.set(px, 2.25, pz);
+        var portGlass = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 0.15, 12), glassPortMat);
+        portGlass.rotation.x = Math.PI / 2;
+        portGlass.position.set(px, 2.25, pz);
+        bg.add(portRim, portGlass);
+      });
+    });
+
+    var lifebuoy = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.11, 8, 16), new THREE.MeshStandardMaterial({ color: 0xef4444 }));
+    lifebuoy.rotation.y = Math.PI / 2;
+    lifebuoy.position.set(-2.35, 2.25, 0);
+
+    var mast = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.20, 11.2, 12), mastWoodMat);
+    mast.position.set(0.8, 7.2, 0);
+    var boom = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.12, 5.2, 10), mastWoodMat);
+    boom.rotation.z = Math.PI / 2;
+    boom.position.set(-1.6, 3.3, 0);
+    var bowsprit = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 2.8, 8), mastWoodMat);
+    bowsprit.rotation.z = -Math.PI / 2 + 0.22;
+    bowsprit.position.set(6.4, 1.85, 0);
+
+    // Billowing Curved 3D Mainsail + Colorful Regatta Accent Band + Forward Headsail (Jib)
+    var mainSail = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.6, 3.6, 7.8, 16, 1, true, -0.42, 0.84),
+      sailCreamMat
+    );
+    mainSail.position.set(-0.9, 7.4, -2.2);
+    mainSail.scale.set(1.0, 1.0, 0.35);
+
+    var mainSailStripe = new THREE.Mesh(
+      new THREE.CylinderGeometry(3.0, 3.2, 1.35, 16, 1, true, -0.42, 0.84),
+      sailAccentMat
+    );
+    mainSailStripe.position.set(-0.9, 6.2, -2.22);
+    mainSailStripe.scale.set(1.02, 1.0, 0.36);
+
+    var jibSail = new THREE.Mesh(
+      new THREE.ConeGeometry(2.2, 7.2, 12, 1, true, 0, Math.PI),
+      sailAccentMat
+    );
+    jibSail.scale.set(1.15, 1.0, 0.28);
+    jibSail.position.set(3.4, 6.5, 0);
+    jibSail.rotation.z = 0.22;
+
+    var pennant = new THREE.Mesh(new THREE.ConeGeometry(0.38, 1.6, 4), sailAccentMat);
+    pennant.rotation.z = Math.PI / 2;
+    pennant.position.set(0.0, 12.6, 0);
+
+    bg.add(hullMid, bowCone, gunwaleStripe, teakDeck, cabin, cabinRoof, lifebuoy, mast, boom, bowsprit, mainSail, mainSailStripe, jibSail, pennant);
+    scene.add(bg);
+    boats.push({ mesh: bg, x: -240 + bi * 75, dir: bi % 2 === 0 ? 1 : -1, speed: 0.22 });
+  }
+})();
 
 window.windmillBlades = new THREE.Group();
 var wmG = new THREE.Group();
@@ -4083,52 +6792,84 @@ for (var wi = 0; wi < 4; wi++) {
 wmG.add(wmTower, windmillBlades);
 scene.add(wmG);
 
-// 8. FULL 3D FOOTBALL STADIUM BOWL WITH FLOODLIGHTS & ANIMATED MATCH (`J_SOUTH -> J_SW` at x = -115, z = 258)
+// 8. FULL 3D FOOTBALL STADIUM BOWL WITH FLOODLIGHTS & ANIMATED 3D CARTOON PLAYERS (`J_SOUTH -> J_SW` at x = -115, z = 282)
 window.soccerPlayers = [];
 var stadG = new THREE.Group();
-var stX = -115, stZ = 258;
+var stX = -115, stZ = 282;
 var stY = terrainY(stX, stZ);
 stadG.position.set(stX, stY, stZ);
 
-var pitch = new THREE.Mesh(new THREE.CylinderGeometry(24, 25, 1.2, 36), new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.75 }));
-pitch.position.y = 0.3;
+var stPromenade = new THREE.Mesh(
+  new THREE.BoxGeometry(10.5, 0.36, 22.0),
+  new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.55 })
+);
+stPromenade.position.set(6.0, 0.18, -42.0);
+stadG.add(stPromenade);
+
+// Striped Mowed Grass Pitch Texture
+(function() {
+  var pc = document.createElement('canvas');
+  pc.width = 256; pc.height = 256;
+  var pctx = pc.getContext('2d');
+  for (var stp = 0; stp < 8; stp++) {
+    pctx.fillStyle = (stp % 2 === 0) ? '#16a34a' : '#22c55e';
+    pctx.fillRect(0, stp * 32, 256, 32);
+  }
+  pctx.strokeStyle = '#ffffff';
+  pctx.lineWidth = 4;
+  pctx.strokeRect(24, 16, 208, 224);
+  pctx.strokeRect(76, 16, 104, 42);
+  pctx.strokeRect(76, 198, 104, 42);
+  var pitchTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(pc) : new THREE.CanvasTexture(pc);
+  var pitch = new THREE.Mesh(new THREE.CylinderGeometry(24, 25, 1.2, 40), new THREE.MeshStandardMaterial({ map: pitchTex, roughness: 0.72 }));
+  pitch.position.y = 0.3;
+  stadG.add(pitch);
+})();
+
 var centerCircle = new THREE.Mesh(new THREE.TorusGeometry(5.5, 0.18, 8, 28), new THREE.MeshBasicMaterial({ color: 0xffffff }));
 centerCircle.rotation.x = Math.PI / 2;
 centerCircle.position.y = 0.92;
 var halfwayLine = new THREE.Mesh(new THREE.BoxGeometry(36, 0.12, 0.32), new THREE.MeshBasicMaterial({ color: 0xffffff }));
 halfwayLine.position.y = 0.92;
 
-// Tiered Stadium Grandstand Bowl & White Cantilevered Roof Canopy
+// Tiered Stadium Grandstand Bowl, Exterior Architectural Ribbing & Wide Open-Bowl Roof Canopy Rim
 var lowerStand = new THREE.Mesh(
-  new THREE.CylinderGeometry(28.5, 24.5, 5.5, 36, 1, true),
+  new THREE.CylinderGeometry(28.5, 24.5, 5.5, 40, 1, true),
   new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.5, side: THREE.DoubleSide })
 );
 lowerStand.position.y = 3.2;
 var upperStand = new THREE.Mesh(
-  new THREE.CylinderGeometry(33.0, 28.5, 6.2, 36, 1, true),
+  new THREE.CylinderGeometry(33.0, 28.5, 6.2, 40, 1, true),
   new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.5, side: THREE.DoubleSide })
 );
 upperStand.position.y = 8.8;
 var outerFacade = new THREE.Mesh(
-  new THREE.CylinderGeometry(33.6, 33.6, 11.8, 36, 1, true),
+  new THREE.CylinderGeometry(33.6, 33.6, 11.8, 40, 1, true),
   new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.35, metalness: 0.25, side: THREE.DoubleSide })
 );
 outerFacade.position.y = 6.0;
 var stadiumCanopy = new THREE.Mesh(
-  new THREE.RingGeometry(24.5, 34.2, 36),
+  new THREE.RingGeometry(27.8, 34.4, 40),
   new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, side: THREE.DoubleSide })
 );
 stadiumCanopy.rotation.x = -Math.PI / 2;
 stadiumCanopy.position.y = 12.0;
 
-// 2 Soccer Goalposts on Opposite Ends of the Pitch
+var stRibMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.5, roughness: 0.3 });
+for (var sri = 0; sri < 20; sri++) {
+  var srAng = (sri / 20) * Math.PI * 2;
+  var rib = new THREE.Mesh(new THREE.BoxGeometry(0.85, 12.2, 1.4), stRibMat);
+  rib.position.set(Math.cos(srAng) * 33.9, 6.1, Math.sin(srAng) * 33.9);
+  rib.rotation.y = -srAng + Math.PI * 0.5;
+  stadG.add(rib);
+}
+
 [-16.5, 16.5].forEach(function(gz) {
   var goal = new THREE.Mesh(new THREE.BoxGeometry(6.8, 2.8, 1.8), new THREE.MeshStandardMaterial({ color: 0xffffff, wireframe: true }));
   goal.position.set(0, 2.2, gz);
   stadG.add(goal);
 });
 
-// 4 Tall Stadium Floodlight Towers
 for (var fli = 0; fli < 4; fli++) {
   var fang = (fli / 4) * Math.PI * 2 + Math.PI * 0.25;
   var fx = Math.cos(fang) * 34.5;
@@ -4141,24 +6882,93 @@ for (var fli = 0; fli < 4; fli++) {
   stadG.add(mast, lightBank);
 }
 
-window.soccerBall = new THREE.Mesh(new THREE.SphereGeometry(0.9, 10, 10), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-soccerBall.position.y = 1.4;
-stadG.add(pitch, centerCircle, halfwayLine, lowerStand, upperStand, outerFacade, stadiumCanopy, soccerBall);
+window.soccerBall = new THREE.Mesh(new THREE.SphereGeometry(0.95, 12, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+soccerBall.position.y = 1.45;
+stadG.add(centerCircle, halfwayLine, lowerStand, upperStand, outerFacade, stadiumCanopy, soccerBall);
 
-for (var spi = 0; spi < 6; spi++) {
-  var spMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 2.2, 8), new THREE.MeshStandardMaterial({ color: spi < 3 ? 0xef4444 : 0x2563eb }));
-  spMesh.position.y = 1.6;
-  stadG.add(spMesh);
-  soccerPlayers.push({ mesh: spMesh, angle: (spi / 6) * Math.PI * 2, radius: 7 + (spi % 2) * 6 });
-}
+// 6 Hero-Scale 3D Cartoon Soccer Players clearly visible from the high aerial camera!
+(function() {
+  var S = getPersonShared();
+  var whiteShortsMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45 });
+  for (var spi = 0; spi < 6; spi++) {
+    var spGroup = new THREE.Group();
+    spGroup.position.y = 0.9;
+    spGroup.scale.set(1.22, 1.22, 1.22);
+    var jerseyMat = new THREE.MeshStandardMaterial({ color: spi < 3 ? 0xef4444 : 0x2563eb, roughness: 0.42 });
+    var hairM = S.hairMats[spi % S.hairMats.length];
+
+    [-0.18, 0.18].forEach(function(lx) {
+      var leg = new THREE.Mesh(S.legGeo, S.skinMat);
+      leg.position.set(lx, 0.55, 0);
+      var boot = new THREE.Mesh(S.shoeGeo, S.shoeMat);
+      boot.scale.set(0.9, 0.6, 1.4);
+      boot.position.set(lx, 0.12, 0.10);
+      spGroup.add(leg, boot);
+    });
+    var shorts = new THREE.Mesh(S.hipsGeo, whiteShortsMat);
+    shorts.position.y = 1.12;
+    var torso = new THREE.Mesh(S.torsoGeo, jerseyMat);
+    torso.position.y = 1.75;
+    var head = new THREE.Mesh(S.headGeo, S.skinMat);
+    head.position.y = 2.75;
+    var hair = new THREE.Mesh(S.hairCapGeo, hairM);
+    hair.position.set(0, 2.82, -0.04);
+    hair.rotation.x = -0.24;
+    [-1, 1].forEach(function(side) {
+      var eye = new THREE.Mesh(S.pupilGeo, S.pupilMat);
+      eye.position.set(side * 0.16, 2.82, 0.48);
+      var arm = new THREE.Mesh(S.armGeo, jerseyMat);
+      arm.position.set(side * 0.52, 1.75, 0);
+      arm.rotation.z = side * -0.25;
+      spGroup.add(eye, arm);
+    });
+    spGroup.add(shorts, torso, head, hair);
+    stadG.add(spGroup);
+    soccerPlayers.push({ mesh: spGroup, angle: (spi / 6) * Math.PI * 2, radius: 7.5 + (spi % 2) * 6.5 });
+  }
+})();
 scene.add(stadG);
 
+// High aerial stadium camera perspective ("pohled z větší výšky, aby šli vidět fotbalisté jak hrají")
 window.registerLandmarkShowcase('J_SOUTH', 'J_SW', {
-  lookTarget: new THREE.Vector3(stX, stY + 7.5, stZ),
-  camHeight: 23,
-  camBack: 42,
-  camSide: -28
+  lookTarget: new THREE.Vector3(stX, stY + 2.0, stZ),
+  camHeight: 74,
+  camBack: 54,
+  camSide: -38,
+  lookLerp: 0.58
 });
+
+// Self-contained Animation Loop for Jumping Fish & Crawling Crabs in Mom & Dad's Vietnamese Stream
+(function startVietnamStreamWildlifeAnim() {
+  function tickVietnamWildlife() {
+    var t = performance.now() * 0.001;
+    if (window.vietnamJumpingFish && window.vietnamJumpingFish.length) {
+      for (var fi = 0; fi < window.vietnamJumpingFish.length; fi++) {
+        var fObj = window.vietnamJumpingFish[fi];
+        var cycle = (t * 1.45 + fObj.phase) % (Math.PI * 2);
+        var jumpSin = Math.sin(cycle);
+        if (jumpSin > 0) {
+          fObj.mesh.position.y = 0.25 + jumpSin * 2.35;
+          fObj.mesh.position.z = fObj.baseZ + Math.cos(cycle) * 1.25;
+          fObj.mesh.rotation.x = -Math.cos(cycle) * 0.95;
+        } else {
+          fObj.mesh.position.y = 0.12;
+          fObj.mesh.rotation.x = 0;
+        }
+      }
+    }
+    if (window.vietnamCrawlingCrabs && window.vietnamCrawlingCrabs.length) {
+      for (var ci = 0; ci < window.vietnamCrawlingCrabs.length; ci++) {
+        var cObj = window.vietnamCrawlingCrabs[ci];
+        var scurry = Math.sin(t * 2.2 + cObj.phase);
+        cObj.mesh.position.z = cObj.baseZ + scurry * 1.65;
+        cObj.mesh.rotation.z = Math.sin(t * 8.5 + cObj.phase) * 0.10;
+      }
+    }
+    requestAnimationFrame(tickVietnamWildlife);
+  }
+  requestAnimationFrame(tickVietnamWildlife);
+})();
 
 window.activeCrossings = [];
 window.roadVehicles = [];
@@ -4966,4 +7776,732 @@ window.createDetailedCoach = function(colHex, coachIndex) {
   addContactShadow(g, 4.4, 6.8, 0.06);
   return g;
 };
+
+// ============================================================================
+// METRO RAMP TRACK ISOLATION, DEADLOCK-FREE JUNCTIONS & CAMERA CHOREOGRAPHY
+// ============================================================================
+// 1) Move underground metro ramp track meshes (sleepers, rails, ballast outside the cavern `|x| > 63.0`)
+//    into their own Metro Line's `rampTunnelGroup` so the two diagonal metro lines NEVER cross tracks inside the tunnel!
+(function isolateMetroRampTrackMeshes() {
+  if (!window.undergroundWorldGroup || !window.subwayEdges || window.subwayEdges.length < 3) return;
+  var line0 = window.subwayEdges[0];
+  var line2 = window.subwayEdges[2];
+  if (!line0 || !line2 || !line0.rampTunnelGroup || !line2.rampTunnelGroup) return;
+
+  function minCurveDistSq(pt, curve) {
+    var best = 999999999;
+    for (var i = 0; i <= 48; i++) {
+      var u = 0.18 + (i / 48) * 0.64;
+      var cp = curve.getPointAt(u);
+      var dSq = (pt.x - cp.x) * (pt.x - cp.x) + (pt.y - cp.y) * (pt.y - cp.y) + (pt.z - cp.z) * (pt.z - cp.z);
+      if (dSq < best) best = dSq;
+    }
+    return best;
+  }
+
+  var childrenCopy = window.undergroundWorldGroup.children.slice();
+  for (var ci = 0; ci < childrenCopy.length; ci++) {
+    var ch = childrenCopy[ci];
+    if (ch && ch.isMesh && Math.abs(ch.position.x) > 63.0 && ch.position.y > -28.0) {
+      var d0 = minCurveDistSq(ch.position, line0.curve);
+      var d2 = minCurveDistSq(ch.position, line2.curve);
+      if (d0 <= d2) {
+        line0.rampTunnelGroup.add(ch);
+      } else {
+        line2.rampTunnelGroup.add(ch);
+      }
+    }
+  }
+})();
+
+// 2) Wrap `renderer.render` so every frame right before WebGL draw:
+//    - AI trains never deadlock with Toby inside turnouts/junctions (fixes train stopping at Jewel!).
+//    - Jewel camera looks smoothly FORWARD along the track at high elevation (showing all 7 floors & full waterfall without spinning!).
+//    - Eiffel Tower camera frames the ENTIRE 77m tower from legs to top antenna even while approaching J_NW!
+(function installModelsFrameEnhancer() {
+  if (typeof renderer === 'undefined' || !renderer || !renderer.render || renderer._modelsEnhanced) return;
+  renderer._modelsEnhanced = true;
+  var origRender = renderer.render.bind(renderer);
+
+  renderer.render = function(sceneArg, cameraArg) {
+    try {
+      // A) Prevent mutual AI-train / Player-train turnout deadlock at Jewel & all junctions
+      if (window.aiTrains && window.pState && window.playerLoco) {
+        for (var aii = 0; aii < window.aiTrains.length; aii++) {
+          var ai = window.aiTrains[aii];
+          if (!ai || !ai.edge) continue;
+          var nearPlayer = ai.loco && ai.loco.position && (ai.loco.position.distanceTo(window.playerLoco.position) < 30.0);
+          if (ai.edge.isTurnout || (nearPlayer && window.pState.t > 0.65)) {
+            var spd = ai.baseSpeed || 0.38;
+            ai.currentSpeed = spd;
+            var pCurve = ai.edge.parallelCurve || ai.edge.curve;
+            var cLen = (pCurve && pCurve.getLength) ? (pCurve.getLength() || 60) : 60;
+            ai.t += spd / cLen;
+            if (ai.edge.isTurnout && ai.t >= 1.0) {
+              ai.edge = ai.edge.targetEdge;
+              ai.t = 0.24;
+            }
+            var actC = ai.edge.parallelCurve || ai.edge.curve;
+            if (actC && actC.getPointAt) {
+              var ap = actC.getPointAt(Math.max(0, Math.min(1, ai.t)));
+              var atan = actC.getTangentAt(Math.max(0, Math.min(1, ai.t)));
+              ai.loco.position.copy(ap);
+              ai.loco.lookAt(ap.clone().add(atan));
+              var wp = actC.getPointAt(Math.max(0, ai.t - 5.8 / (actC.getLength() || 60)));
+              ai.wagon.position.copy(wp);
+              ai.wagon.lookAt(ap);
+            }
+          }
+        }
+      }
+
+      // A2) Animate Automatic Airport Parking Barrier Boom (`window.airportParkingBarrier`)
+      //     Raises smoothly whenever any road vehicle (`livingVehicles` on `loopIdx = 2` or `airportShuttleBuses`)
+      //     approaches the parking entrance, and lowers once it passes!
+      if (window.airportParkingBarrier && window.airportParkingBarrier.pivot) {
+        var apb = window.airportParkingBarrier;
+        var minVehDist = 999.0;
+        if (window.livingVehicles) {
+          for (var lvi = 0; lvi < window.livingVehicles.length; lvi++) {
+            var lv = window.livingVehicles[lvi];
+            if (lv && lv.mesh && lv.mesh.position) {
+              var dVeh = apb.worldPos.distanceTo(lv.mesh.position);
+              if (dVeh < minVehDist) minVehDist = dVeh;
+            }
+          }
+        }
+        if (window.airportShuttleBuses) {
+          for (var sbi = 0; sbi < window.airportShuttleBuses.length; sbi++) {
+            var sb = window.airportShuttleBuses[sbi];
+            if (sb && sb.mesh && sb.mesh.position) {
+              var dBus = apb.worldPos.distanceTo(sb.mesh.position);
+              if (dBus < minVehDist) minVehDist = dBus;
+            }
+          }
+        }
+        var targetOpenBoom = (minVehDist < 24.0) ? 1.0 : 0.0;
+        apb.openAmount += (targetOpenBoom - apb.openAmount) * 0.14;
+        // Rotate around X axis from 0 (horizontal across road) to -Math.PI * 0.44 (vertical open!)
+        apb.pivot.rotation.x = -apb.openAmount * Math.PI * 0.44;
+        if (apb.statusMat) {
+          apb.statusMat.color.setHex(apb.openAmount > 0.25 ? 0x22c55e : 0xef4444);
+        }
+      }
+
+      // B) 3-Stage Cinematic Camera for Jewel (`5s pre-entry high pull-back` -> `top-of-dome interior follow` + `3s waterfall close-up`)
+      //    & 5-Second Smooth Camera Showcase for Eiffel Tower
+      if (window.pState && window.pState.edge && window.playerLoco && window.smoothCamPos && window.smoothCamLook && cameraArg) {
+        if (!window._enhancerCamPos) {
+          window._enhancerCamPos = window.smoothCamPos.clone();
+          window._enhancerCamLook = window.smoothCamLook.clone();
+        }
+
+        var curEdge = window.pState.edge;
+        var baseEdge = curEdge.isTurnout ? curEdge.targetEdge : curEdge;
+        var edgeId = baseEdge ? baseEdge.id : curEdge.id;
+        var pos = window.playerLoco.position;
+        var ct = Math.max(0, Math.min(1, window.pState.t || 0));
+        var tan = (curEdge.curve && curEdge.curve.getTangentAt)
+          ? curEdge.curve.getTangentAt(ct).normalize()
+          : new THREE.Vector3(0, 0, 1);
+        var perpVec = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+
+        // Standard driving camera baseline
+        var normalCamPos = pos.clone()
+          .sub(tan.clone().multiplyScalar(54.0))
+          .add(perpVec.clone().multiplyScalar(36.0))
+          .add(new THREE.Vector3(0, 38.0, 0));
+        var normalCamLook = pos.clone()
+          .add(tan.clone().multiplyScalar(12.0))
+          .add(new THREE.Vector3(0, 2.5, 0));
+
+        // ====================================================================
+        // 1. JEWEL CHANGI CINEMATIC CAMERA CHOREOGRAPHY + 3-SECOND WATERFALL CLOSE-UP:
+        //    - STAGE 1 (5 seconds before entering Jewel):
+        //      Camera pulls back (`68m`) and rises high (`+44m`) behind the train, framing the train on the
+        //      elevated Skytrain bridge, the opening glass portal doors, and the entire toroidal Jewel dome!
+        //    - STAGE 2 (Inside Jewel):
+        //      Camera glides into the top of the dome (`od vrcholu kopule`, `+30.5m` above track) and follows
+        //      the train, capturing the entire Jewel interior!
+        //    - STAGE 3 (Special 3-Second Close-Up on the Rain Vortex Waterfall):
+        //      When the train reaches the heart of Jewel (`ct >= 0.34`), the camera glides in for a dedicated
+        //      3.0-second close-up shot purely of the cascading Rain Vortex waterfall, glowing turquoise plunge
+        //      pool, rising mist, and roof Oculus, synchronized with realistic cascading waterfall sound!
+        // ====================================================================
+        var isApproachingJewel = false;
+        var isInsideJewel = false;
+        var approachingSouthPortal = false;
+        var distToJewelPortal = 999.0;
+
+        if (!window.pState.inSubway && window.jewelDomeCenterWorld && window.jewelNorthPortalPos && window.jewelSouthPortalPos) {
+          if (!curEdge.isTurnout && (edgeId === 'J_EAST->J_SE' || edgeId === 'J_SE->J_EAST')) {
+            approachingSouthPortal = (edgeId === 'J_SE->J_EAST');
+            var jLen = (curEdge.curve && curEdge.curve.getLength) ? (curEdge.curve.getLength() || 200.0) : 200.0;
+            if (ct < 0.20) {
+              isApproachingJewel = true;
+              distToJewelPortal = (0.20 - ct) * jLen;
+            } else if (ct <= 0.88) {
+              isInsideJewel = true;
+              distToJewelPortal = 0.0;
+            }
+          } else if (curEdge.isTurnout && (edgeId === 'J_EAST->J_SE' || edgeId === 'J_SE->J_EAST')) {
+            approachingSouthPortal = (edgeId === 'J_SE->J_EAST');
+            var tLen = (curEdge.curve && curEdge.curve.getLength) ? (curEdge.curve.getLength() || 62.0) : 62.0;
+            isApproachingJewel = true;
+            distToJewelPortal = Math.max(0.0, 1.0 - ct) * tLen + 8.0;
+          } else if (!curEdge.isTurnout && (curEdge.to === 'J_EAST' || curEdge.to === 'J_SE') && window.getBranches) {
+            var brJ = window.getBranches(curEdge);
+            var nextJ = brJ ? (brJ[window.pState.switchChoice] || brJ.straight) : null;
+            if (nextJ && (nextJ.id === 'J_EAST->J_SE' || nextJ.id === 'J_SE->J_EAST')) {
+              approachingSouthPortal = (nextJ.id === 'J_SE->J_EAST');
+              var aLen = (curEdge.curve && curEdge.curve.getLength) ? (curEdge.curve.getLength() || 200.0) : 200.0;
+              var remCur = Math.max(0.0, 0.84 - ct) * aLen;
+              distToJewelPortal = remCur + 70.0;
+              isApproachingJewel = true;
+            }
+          }
+        }
+
+        var nowMs = performance.now();
+        if (isInsideJewel) {
+          if (ct >= 0.34 && !window._waterfallCloseUpTriggeredInPass) {
+            window._waterfallCloseUpTriggeredInPass = true;
+            window._waterfallCloseUpStartMs = nowMs;
+          }
+        } else {
+          window._waterfallCloseUpTriggeredInPass = false;
+        }
+
+        var targetWfCloseUpBlend = 0.0;
+        var wfProgress = 0.0;
+        if (isInsideJewel && window._waterfallCloseUpStartMs) {
+          var elapsedWfMs = nowMs - window._waterfallCloseUpStartMs;
+          if (elapsedWfMs >= 0 && elapsedWfMs <= 3000) {
+            wfProgress = elapsedWfMs / 3000.0;
+            if (elapsedWfMs < 520) {
+              var uWfIn = elapsedWfMs / 520.0;
+              targetWfCloseUpBlend = uWfIn * uWfIn * (3.0 - 2.0 * uWfIn);
+            } else if (elapsedWfMs > 2480) {
+              var uWfOut = (3000.0 - elapsedWfMs) / 520.0;
+              targetWfCloseUpBlend = uWfOut * uWfOut * (3.0 - 2.0 * uWfOut);
+            } else {
+              targetWfCloseUpBlend = 1.0;
+            }
+          }
+        }
+        window._jewelWfCloseUpBlend = (window._jewelWfCloseUpBlend || 0.0) + (targetWfCloseUpBlend - (window._jewelWfCloseUpBlend || 0.0)) * 0.14;
+
+        var speedMps = Math.max(12.0, Math.abs(window.pState.currentVel || 0.25) * 60.0);
+        var secondsToPortal = distToJewelPortal / speedMps;
+
+        var targetJewelMasterBlend = 0.0;
+        var targetStage2Blend = 0.0;
+
+        if (isApproachingJewel && secondsToPortal <= 5.0) {
+          // Stage 1: Ramp up smoothly starting 5.0 seconds before entering the Jewel portal!
+          var uPre = Math.max(0.0, Math.min(1.0, (5.0 - secondsToPortal) / 1.25));
+          targetJewelMasterBlend = uPre * uPre * (3.0 - 2.0 * uPre);
+          targetStage2Blend = 0.0;
+        } else if (isInsideJewel) {
+          // Stage 2: Inside Jewel — transition smoothly from Stage 1 (pre-entry high pull-back) to Stage 2 (top-of-dome interior follow)
+          if (ct > 0.78) {
+            var uExit = Math.max(0.0, Math.min(1.0, (0.88 - ct) / 0.10));
+            targetJewelMasterBlend = uExit * uExit * (3.0 - 2.0 * uExit);
+          } else {
+            targetJewelMasterBlend = 1.0;
+          }
+          var uInDome = Math.max(0.0, Math.min(1.0, (ct - 0.19) / 0.10));
+          targetStage2Blend = uInDome * uInDome * (3.0 - 2.0 * uInDome);
+        }
+
+        window._jewelCamBlend = (window._jewelCamBlend || 0.0) + (targetJewelMasterBlend - (window._jewelCamBlend || 0.0)) * 0.09;
+        window._jewelStage2Blend = (window._jewelStage2Blend || 0.0) + (targetStage2Blend - (window._jewelStage2Blend || 0.0)) * 0.08;
+
+        // Update Realistic Jewel Waterfall Sound (swells to full close-up waterfall roar during the 3s waterfall showcase!)
+        if (window.updateJewelWaterfallAudio) {
+          var distToVortex = window.jewelVortexWorldPos ? pos.distanceTo(window.jewelVortexWorldPos) : 999.0;
+          var proximityGain = (!window.pState.inSubway && distToVortex < 95.0)
+            ? Math.pow(Math.max(0.0, 1.0 - distToVortex / 95.0), 1.6) * 0.18
+            : 0.0;
+          var insideBoost = isInsideJewel ? 0.22 : 0.0;
+          var closeUpBoost = (window._jewelWfCloseUpBlend || 0.0) * 0.44;
+          var targetWfVol = Math.min(0.48, Math.max(proximityGain, insideBoost) + closeUpBoost);
+          window.updateJewelWaterfallAudio(targetWfVol, window._jewelWfCloseUpBlend || 0.0);
+        }
+
+        // Smoothly adjust glass dome shell opacity so from outside (Stage 1) the building glass is crisp & solid (0.64),
+        // and when inside at the top of the dome (Stage 2) the interior is 100% vivid and unobstructed (0.28)!
+        if (window.jewelGlassDomeMat) {
+          var desiredDomeOpacity = 0.64 - (window._jewelCamBlend * window._jewelStage2Blend) * 0.36;
+          window.jewelGlassDomeMat.opacity += (desiredDomeOpacity - window.jewelGlassDomeMat.opacity) * 0.12;
+        }
+
+        var activeCustomBlend = 0.0;
+        var customTargetCam = normalCamPos;
+        var customTargetLook = normalCamLook;
+
+        if (window._jewelCamBlend > 0.003 && window.jewelInwardLeftVec && window.jewelDomeCenterWorld && window.jewelVortexWorldPos) {
+          var inwardLeft = window.jewelInwardLeftVec;
+          var portalTargetPos = approachingSouthPortal ? window.jewelSouthPortalPos : window.jewelNorthPortalPos;
+          var domeEntryFocus = portalTargetPos.clone().lerp(window.jewelDomeCenterWorld, 0.36);
+
+          var toPortalDir = domeEntryFocus.clone().sub(pos);
+          toPortalDir.y = 0;
+          if (toPortalDir.lengthSq() > 0.001) toPortalDir.normalize();
+          else toPortalDir.copy(tan);
+
+          var chaseForward = tan.clone().lerp(toPortalDir, 0.65).normalize();
+
+          // STAGE 1 CAMERA: High (`+44m`) and pulled back (`68m`) behind the train, capturing the train
+          // on the Skytrain viaduct entering the Jewel building through the opening sliding glass doors!
+          var stage1CamPos = pos.clone()
+            .sub(chaseForward.clone().multiplyScalar(68.0))
+            .sub(inwardLeft.clone().multiplyScalar(8.5))
+            .add(new THREE.Vector3(0, 44.0, 0));
+          var stage1CamLook = pos.clone()
+            .lerp(domeEntryFocus, 0.54)
+            .add(new THREE.Vector3(0, 10.5, 0));
+
+          // STAGE 2 CAMERA: At the top of the dome (`od vrcholu kopule`, `y = domeCenter.y + 30.5m`) following
+          // the train and looking down across the entire Jewel interior (Oculus, Rain Vortex waterfall,
+          // turquoise plunge pool, 6 stepped rainforest terraces, shops, `JEWEL` living wall, and the train)!
+          var domeCrownY = window.jewelDomeCenterWorld.y + 30.5;
+          var followPos = pos.clone()
+            .sub(tan.clone().multiplyScalar(34.0))
+            .add(inwardLeft.clone().multiplyScalar(5.0));
+          var crownAnchor = window.jewelDomeCenterWorld.clone()
+            .sub(tan.clone().multiplyScalar(18.0))
+            .add(inwardLeft.clone().multiplyScalar(4.0));
+          var stage2CamPos = followPos.clone().lerp(crownAnchor, 0.38);
+          stage2CamPos.y = domeCrownY;
+
+          var trainLookAhead = pos.clone()
+            .add(tan.clone().multiplyScalar(8.0))
+            .add(new THREE.Vector3(0, 2.5, 0));
+          var stage2CamLook = trainLookAhead.clone().lerp(window.jewelVortexWorldPos, 0.56);
+
+          // STAGE 3 CAMERA (3-SECOND WATERFALL CLOSE-UP):
+          // Positioned inside the atrium right in front of the HSBC Rain Vortex waterfall (`16.2m` in front of the vortex),
+          // framing ONLY the cascading water funnel, glowing turquoise plunge pool, rising mist, and roof Oculus!
+          var wfLateralSweep = Math.sin(wfProgress * Math.PI * 2.0) * 3.8;
+          var wfCloseUpCamPos = window.jewelVortexWorldPos.clone()
+            .sub(inwardLeft.clone().multiplyScalar(16.2))
+            .add(tan.clone().multiplyScalar(wfLateralSweep - 2.0));
+          wfCloseUpCamPos.y = window.jewelDomeCenterWorld.y + 11.5 + wfProgress * 4.5;
+
+          var wfCloseUpCamLook = window.jewelVortexWorldPos.clone();
+          wfCloseUpCamLook.y = window.jewelDomeCenterWorld.y + 10.5 + Math.sin(wfProgress * Math.PI) * 7.5;
+
+          var interiorCamPos = stage2CamPos.clone().lerp(wfCloseUpCamPos, window._jewelWfCloseUpBlend || 0.0);
+          var interiorCamLook = stage2CamLook.clone().lerp(wfCloseUpCamLook, window._jewelWfCloseUpBlend || 0.0);
+
+          var jewelCombinedCam = stage1CamPos.clone().lerp(interiorCamPos, window._jewelStage2Blend);
+          var jewelCombinedLook = stage1CamLook.clone().lerp(interiorCamLook, window._jewelStage2Blend);
+
+          customTargetCam = normalCamPos.clone().lerp(jewelCombinedCam, window._jewelCamBlend);
+          customTargetLook = normalCamLook.clone().lerp(jewelCombinedLook, window._jewelCamBlend);
+          activeCustomBlend = window._jewelCamBlend;
+        }
+
+        // ====================================================================
+        // 2. EIFFEL TOWER 5-SECOND SMOOTH CAMERA SHOWCASE:
+        // ====================================================================
+        if (window.eiffelWorldCenter && !window.pState.inSubway) {
+          var isOnEiffelTrack = (edgeId === 'J_NW->J_NORTH' || edgeId === 'J_NORTH->J_NW') && !curEdge.isTurnout && ct >= 0.12 && ct <= 0.88;
+
+          if (isOnEiffelTrack) {
+            if (!window._wasOnEiffelTrack) {
+              window._wasOnEiffelTrack = true;
+              window._eiffelShowcaseStartMs = nowMs;
+            }
+          } else {
+            window._wasOnEiffelTrack = false;
+          }
+
+          var targetEiffelBlend = 0.0;
+          if (isOnEiffelTrack && window._eiffelShowcaseStartMs) {
+            var elapsedEiffelMs = nowMs - window._eiffelShowcaseStartMs;
+            if (elapsedEiffelMs >= 0 && elapsedEiffelMs <= 5000) {
+              if (elapsedEiffelMs < 1100) {
+                var uIn = elapsedEiffelMs / 1100.0;
+                targetEiffelBlend = uIn * uIn * (3.0 - 2.0 * uIn);
+              } else if (elapsedEiffelMs > 3900) {
+                var uOut = (5000.0 - elapsedEiffelMs) / 1100.0;
+                targetEiffelBlend = uOut * uOut * (3.0 - 2.0 * uOut);
+              } else {
+                targetEiffelBlend = 1.0;
+              }
+            }
+          }
+
+          window._eiffelCamBlend = (window._eiffelCamBlend || 0.0) + (targetEiffelBlend - (window._eiffelCamBlend || 0.0)) * 0.09;
+
+          if (window._eiffelCamBlend > 0.003 && activeCustomBlend < 0.01) {
+            var toEiffel = window.eiffelWorldCenter.clone().sub(pos);
+            var horizToEiffel = new THREE.Vector3(toEiffel.x, 0, toEiffel.z);
+            if (horizToEiffel.lengthSq() < 0.001) horizToEiffel.set(0, 0, -1);
+            horizToEiffel.normalize();
+
+            var targetCamEiffel = pos.clone()
+              .sub(tan.clone().multiplyScalar(92.0))
+              .sub(horizToEiffel.clone().multiplyScalar(96.0))
+              .add(new THREE.Vector3(0, 32.0, 0));
+
+            var eiffelMidSpire = new THREE.Vector3(
+              window.eiffelWorldCenter.x,
+              window.eiffelWorldCenter.y + 39.0,
+              window.eiffelWorldCenter.z
+            );
+            var targetLookEiffel = pos.clone()
+              .add(tan.clone().multiplyScalar(8.0))
+              .add(new THREE.Vector3(0, 6.0, 0))
+              .lerp(eiffelMidSpire, 0.72);
+
+            customTargetCam = normalCamPos.clone().lerp(targetCamEiffel, window._eiffelCamBlend);
+            customTargetLook = normalCamLook.clone().lerp(targetLookEiffel, window._eiffelCamBlend);
+            activeCustomBlend = window._eiffelCamBlend;
+          }
+        }
+
+        // Apply custom camera smoothly without any tug-of-war against `game.js`
+        if (activeCustomBlend > 0.003) {
+          var camLerpSpeed = (window._jewelWfCloseUpBlend && window._jewelWfCloseUpBlend > 0.05) ? 0.18 : 0.14;
+          var lookLerpSpeed = (window._jewelWfCloseUpBlend && window._jewelWfCloseUpBlend > 0.05) ? 0.20 : 0.16;
+          window._enhancerCamPos.lerp(customTargetCam, camLerpSpeed);
+          window._enhancerCamLook.lerp(customTargetLook, lookLerpSpeed);
+          window.smoothCamPos.copy(window._enhancerCamPos);
+          window.smoothCamLook.copy(window._enhancerCamLook);
+          cameraArg.position.copy(window._enhancerCamPos);
+          cameraArg.lookAt(window._enhancerCamLook);
+        } else {
+          window._enhancerCamPos.copy(window.smoothCamPos);
+          window._enhancerCamLook.copy(window.smoothCamLook);
+        }
+      }
+    } catch (err) {}
+
+    return origRender(sceneArg, cameraArg);
+  };
+})();
+
+// ============================================================================
+// REALISTIC ACOUSTIC WATERFALL SOUND ENGINE (For Jewel Rain Vortex) &
+// AUTHENTIC MULTI-CHIME STEAM LOCOMOTIVE WHISTLE (`window.playTrainHorn`)
+// ============================================================================
+(function installRealisticWaterfallAndSteamWhistleAudio() {
+  var wfNodes = null;
+  var currentWfGain = 0.0;
+
+  function ensureWaterfallAudioGraph() {
+    if (wfNodes) return wfNodes;
+    if (!hasUserGesture || !audioCtx) return null;
+    try {
+      var sr = audioCtx.sampleRate || 44100;
+      var loopSec = 4.0;
+      var len = Math.floor(sr * loopSec);
+      var buf = audioCtx.createBuffer(2, len, sr);
+
+      for (var ch = 0; ch < 2; ch++) {
+        var data = buf.getChannelData(ch);
+        var b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+        var brown = 0;
+        for (var i = 0; i < len; i++) {
+          var t = i / sr;
+          // Seamless loop crossfade angle
+          var loopAng = (i / len) * Math.PI * 2.0;
+          var white = Math.random() * 2.0 - 1.0;
+
+          // Paul Kellet's Pink Noise filter (natural 1/f cascading water spectrum)
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          b3 = 0.86650 * b3 + white * 0.3104856;
+          b4 = 0.55000 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.0168980;
+          var pink = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.045;
+          b6 = white * 0.115926;
+
+          // Deep Brown Noise (heavy plunge pool water mass)
+          brown = (brown + 0.02 * white) / 1.02;
+          var deepRumble = brown * 0.42;
+
+          // Organic water stream surging modulation (seamless over 4.0s loop)
+          var surge1 = 0.86 + 0.14 * Math.sin(loopAng * 2.0 + ch * 1.1);
+          var surge2 = 0.90 + 0.10 * Math.cos(loopAng * 5.0 - ch * 0.8);
+          var dropletSparkle = white * 0.065 * (0.75 + 0.25 * Math.sin(loopAng * 11.0 + t * 3.0));
+
+          data[i] = (deepRumble * surge1 + pink * surge2 + dropletSparkle) * 0.85;
+        }
+      }
+
+      var src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+
+      // Warm resonant filter that opens up as the camera moves into the 3-second waterfall close-up
+      var lpFilter = audioCtx.createBiquadFilter();
+      lpFilter.type = 'lowpass';
+      lpFilter.frequency.setValueAtTime(1800, audioCtx.currentTime);
+      lpFilter.Q.setValueAtTime(0.65, audioCtx.currentTime);
+
+      // Plunge pool body resonance around 185 Hz
+      var poolEq = audioCtx.createBiquadFilter();
+      poolEq.type = 'peaking';
+      poolEq.frequency.setValueAtTime(185, audioCtx.currentTime);
+      poolEq.Q.setValueAtTime(0.9, audioCtx.currentTime);
+      poolEq.gain.setValueAtTime(5.5, audioCtx.currentTime);
+
+      var masterGain = audioCtx.createGain();
+      masterGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+
+      src.connect(poolEq);
+      poolEq.connect(lpFilter);
+      lpFilter.connect(masterGain);
+      masterGain.connect(audioCtx.destination);
+      src.start(0);
+
+      wfNodes = {
+        src: src,
+        lpFilter: lpFilter,
+        masterGain: masterGain
+      };
+      return wfNodes;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  window.updateJewelWaterfallAudio = function(targetGain, closeUpBlend) {
+    if (!hasUserGesture) return;
+    if (targetGain > 0.005 && !wfNodes) {
+      if (window.initAudio) window.initAudio();
+      ensureWaterfallAudioGraph();
+    }
+    if (!wfNodes || !audioCtx) return;
+
+    currentWfGain += (targetGain - currentWfGain) * 0.10;
+    var now = audioCtx.currentTime;
+    var safeGain = Math.max(0.0001, currentWfGain);
+    wfNodes.masterGain.gain.setTargetAtTime(safeGain, now, 0.06);
+
+    // Open filter brightness during the 3s waterfall close-up so individual cascading water streams & splashes shine
+    var targetCutoff = 1650 + (closeUpBlend || 0.0) * 3600;
+    wfNodes.lpFilter.frequency.setTargetAtTime(targetCutoff, now, 0.08);
+  };
+
+  // ==========================================================================
+  // AUTHENTIC HERITAGE STEAM LOCOMOTIVE WHISTLE (`window.playTrainHorn`)
+  // Multi-chamber cylindrical brass bell chord + steam pressure pitch bend +
+  // boiler vibrato + high-pressure steam valve hiss + outdoor valley echo!
+  // ==========================================================================
+  var cachedBrassWave = null;
+  var cachedWarmShaperCurve = null;
+
+  function getSteamBrassPeriodicWave(ctx) {
+    if (cachedBrassWave) return cachedBrassWave;
+    // Cylindrical stopped brass whistle pipe harmonic spectrum (strong fundamental + rich 2nd/3rd/4th/5th/6th harmonics)
+    var real = new Float32Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+    var imag = new Float32Array([0.0, 1.00, 0.42, 0.68, 0.24, 0.32, 0.12, 0.08]);
+    cachedBrassWave = ctx.createPeriodicWave(real, imag, { disableNormalization: false });
+    return cachedBrassWave;
+  }
+
+  function getWarmBrassShaperCurve() {
+    if (cachedWarmShaperCurve) return cachedWarmShaperCurve;
+    var samples = 1024;
+    var curve = new Float32Array(samples);
+    for (var i = 0; i < samples; i++) {
+      var x = (i * 2) / samples - 1;
+      curve[i] = Math.tanh(x * 1.85);
+    }
+    cachedWarmShaperCurve = curve;
+    return cachedWarmShaperCurve;
+  }
+
+  window.playTrainHorn = function() {
+    if (window.initAudio) window.initAudio();
+
+    // Trigger the signature glossy iridescent chimney steam/bubble bursts
+    if (typeof spawnGlossyChimneyBurst === 'function') {
+      spawnGlossyChimneyBurst(16);
+      setTimeout(function() { spawnGlossyChimneyBurst(12); }, 140);
+      setTimeout(function() { spawnGlossyChimneyBurst(10); }, 280);
+    }
+
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    var now = audioCtx.currentTime;
+    var brassWave = getSteamBrassPeriodicWave(audioCtx);
+
+    // Master Whistle Acoustic Chain: Resonant Horn Body Filter -> Warm Brass Saturation -> Valley Echo + Dry Out
+    var hornBodyFilter = audioCtx.createBiquadFilter();
+    hornBodyFilter.type = 'lowpass';
+    hornBodyFilter.frequency.setValueAtTime(2350, now);
+    hornBodyFilter.Q.setValueAtTime(1.15, now);
+
+    var throatResonance = audioCtx.createBiquadFilter();
+    throatResonance.type = 'peaking';
+    throatResonance.frequency.setValueAtTime(880, now);
+    throatResonance.Q.setValueAtTime(1.4, now);
+    throatResonance.gain.setValueAtTime(4.5, now);
+
+    var shaper = audioCtx.createWaveShaper();
+    shaper.curve = getWarmBrassShaperCurve();
+    shaper.oversample = '2x';
+
+    var masterWhistleGain = audioCtx.createGain();
+    masterWhistleGain.gain.setValueAtTime(0.26, now);
+
+    // Outdoor Valley Echo (dual-tap warm acoustic reflection)
+    var echoDelay1 = audioCtx.createDelay(1.0);
+    echoDelay1.delayTime.setValueAtTime(0.175, now);
+    var echoGain1 = audioCtx.createGain();
+    echoGain1.gain.setValueAtTime(0.22, now);
+
+    var echoDelay2 = audioCtx.createDelay(1.0);
+    echoDelay2.delayTime.setValueAtTime(0.355, now);
+    var echoGain2 = audioCtx.createGain();
+    echoGain2.gain.setValueAtTime(0.11, now);
+
+    var echoFilter = audioCtx.createBiquadFilter();
+    echoFilter.type = 'lowpass';
+    echoFilter.frequency.setValueAtTime(1350, now);
+
+    throatResonance.connect(hornBodyFilter);
+    hornBodyFilter.connect(shaper);
+    shaper.connect(masterWhistleGain);
+    masterWhistleGain.connect(audioCtx.destination);
+
+    // Connect Valley Echo taps
+    masterWhistleGain.connect(echoFilter);
+    echoFilter.connect(echoDelay1);
+    echoDelay1.connect(echoGain1);
+    echoGain1.connect(audioCtx.destination);
+    echoFilter.connect(echoDelay2);
+    echoDelay2.connect(echoGain2);
+    echoGain2.connect(audioCtx.destination);
+
+    // Authentic 5-Chime Heritage Steam Whistle Tuning (Rich C#6/9 / E-major/minor blend with natural pipe detuning)
+    // Plus a deep sub-harmonic boiler pipe resonance (146.83 Hz) for unmistakable heavy steam locomotive weight!
+    var chimePipes = [
+      { freq: 146.83, weight: 0.42, detune: -3.0 }, // Deep boiler resonance pipe (D3)
+      { freq: 293.66, weight: 1.00, detune:  0.0 }, // Main long bell chamber (D4)
+      { freq: 349.23, weight: 0.88, detune: +4.5 }, // Minor third / warm chime chamber (F4)
+      { freq: 440.00, weight: 0.92, detune: -2.5 }, // Fifth chime chamber (A4)
+      { freq: 523.25, weight: 0.68, detune: +3.5 }, // Seventh chime chamber (C5)
+      { freq: 587.33, weight: 0.50, detune: -4.0 }  // High crown chamber (D5)
+    ];
+
+    // Two expressive steam lever pulls: "WHOOOO — WHOOOOOOOO-ooo"
+    var pulls = [
+      { start: 0.02, dur: 0.44, level: 0.92, tailDrop: 0.965 },
+      { start: 0.54, dur: 0.88, level: 1.00, tailDrop: 0.925 }
+    ];
+
+    // Natural steam boiler pressure vibrato LFO (~5.8 Hz)
+    var vibLfo = audioCtx.createOscillator();
+    vibLfo.type = 'sine';
+    vibLfo.frequency.setValueAtTime(5.8, now);
+    var vibGain = audioCtx.createGain();
+    vibGain.gain.setValueAtTime(2.6, now); // +/- 2.6 Hz organic pressure flutter
+    vibLfo.connect(vibGain);
+    vibLfo.start(now);
+    vibLfo.stop(now + 1.65);
+
+    pulls.forEach(function(pull) {
+      var t0 = now + pull.start;
+      var tAttack = t0 + 0.065;
+      var tSustainEnd = t0 + pull.dur - 0.14;
+      var tEnd = t0 + pull.dur;
+
+      chimePipes.forEach(function(pipe) {
+        var osc = audioCtx.createOscillator();
+        if (brassWave) {
+          osc.setPeriodicWave(brassWave);
+        } else {
+          osc.type = 'sawtooth';
+        }
+        osc.detune.setValueAtTime(pipe.detune, t0);
+
+        // Steam pressure pitch envelope: scoops up as valve opens, holds steady, then sighs downward as valve closes!
+        var fBase = pipe.freq;
+        osc.frequency.setValueAtTime(fBase * 0.945, t0);
+        osc.frequency.exponentialRampToValueAtTime(fBase * 1.004, tAttack);
+        osc.frequency.exponentialRampToValueAtTime(fBase, tAttack + 0.06);
+        osc.frequency.setValueAtTime(fBase, tSustainEnd);
+        osc.frequency.exponentialRampToValueAtTime(fBase * pull.tailDrop, tEnd);
+
+        vibGain.connect(osc.frequency);
+
+        var pGain = audioCtx.createGain();
+        var peakVal = 0.16 * pipe.weight * pull.level;
+        pGain.gain.setValueAtTime(0.0001, t0);
+        pGain.gain.linearRampToValueAtTime(peakVal, tAttack);
+        pGain.gain.setValueAtTime(peakVal * 0.92, tSustainEnd);
+        pGain.gain.exponentialRampToValueAtTime(0.0001, tEnd);
+
+        osc.connect(pGain);
+        pGain.connect(throatResonance);
+
+        osc.start(t0);
+        osc.stop(tEnd + 0.02);
+      });
+    });
+
+    // High-Pressure Steam Jet & Valve Chuff Layer (starts 20ms before the brass bells speak, just like real steam!)
+    try {
+      var totalDur = 1.55;
+      var bufLen = Math.floor(audioCtx.sampleRate * totalDur);
+      var steamBuf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
+      var out = steamBuf.getChannelData(0);
+      var lastSample = 0;
+      for (var s = 0; s < bufLen; s++) {
+        var w = Math.random() * 2.0 - 1.0;
+        lastSample = 0.62 * lastSample + 0.38 * w;
+        out[s] = lastSample;
+      }
+
+      var steamNoise = audioCtx.createBufferSource();
+      steamNoise.buffer = steamBuf;
+
+      // Turbulent aperture hiss filter (1750 Hz bandpass)
+      var jetFilter = audioCtx.createBiquadFilter();
+      jetFilter.type = 'bandpass';
+      jetFilter.frequency.setValueAtTime(1750, now);
+      jetFilter.Q.setValueAtTime(0.85, now);
+
+      // High-pressure steam sizzle filter (3200 Hz highpass)
+      var sizzleFilter = audioCtx.createBiquadFilter();
+      sizzleFilter.type = 'highpass';
+      sizzleFilter.frequency.setValueAtTime(3200, now);
+
+      var steamEnv = audioCtx.createGain();
+      steamEnv.gain.setValueAtTime(0.0001, now);
+      // Pull 1 steam burst (initial valve chuff spike -> sustain -> brief dip)
+      steamEnv.gain.linearRampToValueAtTime(0.11, now + 0.025);
+      steamEnv.gain.exponentialRampToValueAtTime(0.055, now + 0.09);
+      steamEnv.gain.setValueAtTime(0.052, now + 0.42);
+      steamEnv.gain.exponentialRampToValueAtTime(0.012, now + 0.51);
+      // Pull 2 steam burst (second valve chuff spike -> sustain -> long steam exhaust tail)
+      steamEnv.gain.linearRampToValueAtTime(0.12, now + 0.555);
+      steamEnv.gain.exponentialRampToValueAtTime(0.062, now + 0.64);
+      steamEnv.gain.setValueAtTime(0.058, now + 1.28);
+      steamEnv.gain.exponentialRampToValueAtTime(0.0005, now + 1.52);
+
+      steamNoise.connect(jetFilter);
+      steamNoise.connect(sizzleFilter);
+      jetFilter.connect(steamEnv);
+      sizzleFilter.connect(steamEnv);
+      steamEnv.connect(audioCtx.destination);
+      steamEnv.connect(echoFilter);
+
+      steamNoise.start(now);
+      steamNoise.stop(now + totalDur);
+    } catch (e) {}
+  };
+})();
+
 
