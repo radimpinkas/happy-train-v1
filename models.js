@@ -8163,6 +8163,54 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           }
         }
 
+        // ====================================================================
+        // 3. INTERACTIVE MONSTERS & ANIMALS (RABBIT, SQUIRREL, OWL) CAMERA ZOOM
+        //    - Monsters: Smooth camera zoom 3s before startle from 5m above the
+        //      train (`z pozice 5m nad vláčkem`), framing both the front of the
+        //      train (`začátek vláčku`) AND the monster!
+        //    - Rabbit, Squirrel, Owl: Smooth camera zoom when the train passes
+        //      by, framing both the train AND the animal!
+        // ====================================================================
+        var targetCharBlend = (window._storybookCharCamActive && window._storybookCharCamPos && window._storybookCharCamLook) ? 1.0 : 0.0;
+        window._storybookCharCamBlend = (window._storybookCharCamBlend || 0.0) + (targetCharBlend - (window._storybookCharCamBlend || 0.0)) * 0.11;
+
+        if (window._storybookCharCamBlend > 0.003 && window._storybookCharCamPos && window._storybookCharCamLook && activeCustomBlend < 0.02) {
+          customTargetCam = normalCamPos.clone().lerp(window._storybookCharCamPos, window._storybookCharCamBlend);
+          customTargetLook = normalCamLook.clone().lerp(window._storybookCharCamLook, window._storybookCharCamBlend);
+          activeCustomBlend = window._storybookCharCamBlend;
+        }
+
+        // ====================================================================
+        // 4. AUTOMATIC SLOWDOWN TO MINIMUM SPEED DURING ALL DETAIL PERSPECTIVES
+        //    ("1. Prosím, aby vlak, když je změna perspektivy na detaily např.
+        //     eiffel tower, kolosea, při průjezdu budovou jewel a dalších objektů,
+        //     zpomalil na minimální rychlost.")
+        // ====================================================================
+        var landmarkShowcase = (!curEdge.isTurnout && window.landmarkShowcases)
+          ? window.landmarkShowcases[edgeId]
+          : null;
+        var inLandmarkZone = Boolean(landmarkShowcase && ct >= 0.22 && ct <= 0.78 && !window.pState.inSubway);
+        var inAnyDetailPerspective = Boolean(
+          inLandmarkZone ||
+          (window._jewelCamBlend && window._jewelCamBlend > 0.02) ||
+          (window._eiffelCamBlend && window._eiffelCamBlend > 0.02) ||
+          (window._storybookCharCamBlend && window._storybookCharCamBlend > 0.02) ||
+          window._storybookSlowdownRequested
+        );
+
+        if (inAnyDetailPerspective && window.pState) {
+          if (window.pState.speedStage > 1) {
+            window.pState.speedStage = 1;
+            if (typeof window.updateHUD === 'function') {
+              window.updateHUD();
+            }
+          }
+          var maxAllowedVel = window._storybookMonsterHoldCrawl ? 0.036 : 0.14;
+          if (window.pState.currentVel > maxAllowedVel) {
+            window.pState.currentVel += (maxAllowedVel - window.pState.currentVel) * 0.22;
+          }
+        }
+
         // Apply custom camera smoothly without any tug-of-war against `game.js`
         if (activeCustomBlend > 0.003) {
           var camLerpSpeed = (window._jewelWfCloseUpBlend && window._jewelWfCloseUpBlend > 0.05) ? 0.18 : 0.14;
@@ -8504,4 +8552,2191 @@ window.createDetailedCoach = function(colHex, coachIndex) {
   };
 })();
 
+// ============================================================================
+// 4 NEW INTERACTIVE STORYBOOK CHARACTERS MODULE
+// 1. Two Cute Track Monsters ("Strašidla sedící na kolejích" — behind Mom's house & behind Grandma's house)
+// 2. Cute White Rabbit by the Track ("Králík u cesty" — 3 energetic hops + front paw wave)
+// 3. Cheerful Orange Squirrel by a Colorful Tree ("Veverka u stromu" — 2 rapid 360° spins + parabolic leap onto branch)
+// 4. Friendly Owl on a Tree Branch ("Sova u stromu" — head turn toward train + wing flapping greeting + hoot)
+// ============================================================================
+(function installFourInteractiveStorybookCharacters() {
+  if (typeof THREE === 'undefined' || typeof scene === 'undefined' || !window.edges) return;
+  if (window._storybookInteractiveCharsInstalled) return;
+  window._storybookInteractiveCharsInstalled = true;
 
+  // --------------------------------------------------------------------------
+  // A) PROCEDURAL 3D SPEECH BUBBLE SPRITE HELPER
+  // --------------------------------------------------------------------------
+  function createComicBubbleSprite(text, bgColor, borderColor, textColor, widthWorld, heightWorld) {
+    var canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 192;
+    var ctx = canvas.getContext('2d');
+
+    ctx.clearRect(0, 0, 512, 192);
+    ctx.save();
+
+    // Rounded speech bubble with bottom pointer triangle
+    var rx = 24, ry = 18, rw = 464, rh = 122, rad = 36;
+    ctx.beginPath();
+    ctx.moveTo(rx + rad, ry);
+    ctx.lineTo(rx + rw - rad, ry);
+    ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rad);
+    ctx.lineTo(rx + rw, ry + rh - rad);
+    ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rad, ry + rh);
+    ctx.lineTo(286, ry + rh);
+    ctx.lineTo(256, 178);
+    ctx.lineTo(226, ry + rh);
+    ctx.lineTo(rx + rad, ry + rh);
+    ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rad);
+    ctx.lineTo(rx, ry + rad);
+    ctx.quadraticCurveTo(rx, ry, rx + rad, ry);
+    ctx.closePath();
+
+    ctx.fillStyle = bgColor || '#ffffff';
+    ctx.fill();
+    ctx.lineWidth = 12;
+    ctx.strokeStyle = borderColor || '#9333ea';
+    ctx.stroke();
+
+    ctx.fillStyle = textColor || '#1e1b4b';
+    ctx.font = '900 54px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 256, ry + rh * 0.52);
+    ctx.restore();
+
+    var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(canvas) : new THREE.CanvasTexture(canvas);
+    var mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+    var sprite = new THREE.Sprite(mat);
+    sprite.scale.set(widthWorld || 7.5, heightWorld || 2.8, 1);
+    sprite.renderOrder = 999;
+    sprite.visible = false;
+    return { sprite: sprite, canvas: canvas, ctx: ctx, tex: tex };
+  }
+
+  function updateComicBubbleText(bubbleObj, text, bgColor, borderColor, textColor) {
+    if (!bubbleObj || bubbleObj._lastText === text) return;
+    bubbleObj._lastText = text;
+    var ctx = bubbleObj.ctx;
+    ctx.clearRect(0, 0, 512, 192);
+    var rx = 24, ry = 18, rw = 464, rh = 122, rad = 36;
+    ctx.beginPath();
+    ctx.moveTo(rx + rad, ry);
+    ctx.lineTo(rx + rw - rad, ry);
+    ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rad);
+    ctx.lineTo(rx + rw, ry + rh - rad);
+    ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rad, ry + rh);
+    ctx.lineTo(286, ry + rh);
+    ctx.lineTo(256, 178);
+    ctx.lineTo(226, ry + rh);
+    ctx.lineTo(rx + rad, ry + rh);
+    ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rad);
+    ctx.lineTo(rx, ry + rad);
+    ctx.quadraticCurveTo(rx, ry, rx + rad, ry);
+    ctx.closePath();
+
+    ctx.fillStyle = bgColor || '#ffffff';
+    ctx.fill();
+    ctx.lineWidth = 12;
+    ctx.strokeStyle = borderColor || '#9333ea';
+    ctx.stroke();
+
+    ctx.fillStyle = textColor || '#1e1b4b';
+    ctx.font = '900 50px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 256, ry + rh * 0.52);
+    bubbleObj.tex.needsUpdate = true;
+  }
+
+  // --------------------------------------------------------------------------
+  // B) WEB AUDIO SOUND EFFECTS FOR MONSTERS & ANIMALS (STRICT < 20m PROXIMITY!)
+  //    ("3. Zvuk, který vydávají strašidla a ostatní zvířátka by měl jít slyšet
+  //     jen, když jsou od sebe blíže než 20m.")
+  // --------------------------------------------------------------------------
+  function isWithin20mOfPlayerTrain(worldPos) {
+    if (!window.playerLoco || !window.playerLoco.position || !worldPos) return false;
+    if (window.pState && window.pState.inSubway) return false;
+    return window.playerLoco.position.distanceTo(worldPos) < 20.0;
+  }
+
+  // Wrap existing sheep (`playSheepBaa`) and cow (`playCowMoo`) sounds so ALL animals obey the < 20m rule!
+  if (typeof window.playSheepBaa === 'function' && !window._sheepBaa20mWrapped) {
+    window._sheepBaa20mWrapped = true;
+    var origPlaySheepBaa = window.playSheepBaa;
+    window.playSheepBaa = function() {
+      if (!window.playerLoco || !window.playerLoco.position || !window.trackSheepFlocks) return;
+      var minSheepDist = 999999;
+      for (var sfi = 0; sfi < window.trackSheepFlocks.length; sfi++) {
+        var fl = window.trackSheepFlocks[sfi];
+        if (fl && fl.group && fl.group.position) {
+          var sd = window.playerLoco.position.distanceTo(fl.group.position);
+          if (sd < minSheepDist) minSheepDist = sd;
+        } else if (fl && fl.basePos) {
+          var sd2 = window.playerLoco.position.distanceTo(fl.basePos);
+          if (sd2 < minSheepDist) minSheepDist = sd2;
+        }
+      }
+      if (minSheepDist < 20.0) {
+        origPlaySheepBaa();
+      }
+    };
+  }
+
+  if (typeof window.playCowMoo === 'function' && !window._cowMoo20mWrapped) {
+    window._cowMoo20mWrapped = true;
+    var origPlayCowMoo = window.playCowMoo;
+    window.playCowMoo = function() {
+      if (!window.playerLoco || !window.playerLoco.position || !window.daisyTheCow || !window.daisyTheCow.position) return;
+      if (window.playerLoco.position.distanceTo(window.daisyTheCow.position) < 20.0) {
+        origPlayCowMoo();
+      }
+    };
+  }
+
+  function playMonsterHelpSound(pitchMultiplier, worldPos) {
+    if (!isWithin20mOfPlayerTrain(worldPos)) return;
+    if (typeof hasUserGesture !== 'undefined' && !hasUserGesture) return;
+    if (typeof audioCtx === 'undefined' || !audioCtx) return;
+    try {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      var now = audioCtx.currentTime;
+      var pm = pitchMultiplier || 1.0;
+
+      // Comical elongated cartoon "HEEEEELP!" vocal formant synth
+      var osc1 = audioCtx.createOscillator();
+      var osc2 = audioCtx.createOscillator();
+      osc1.type = 'sawtooth';
+      osc2.type = 'triangle';
+
+      // Dramatic rising startle pitch -> sustained vibrating "HEEELP!" -> trailing off
+      osc1.frequency.setValueAtTime(290 * pm, now);
+      osc1.frequency.exponentialRampToValueAtTime(640 * pm, now + 0.16);
+      osc1.frequency.setValueAtTime(620 * pm, now + 0.55);
+      osc1.frequency.exponentialRampToValueAtTime(380 * pm, now + 1.05);
+
+      osc2.frequency.setValueAtTime(580 * pm, now);
+      osc2.frequency.exponentialRampToValueAtTime(1280 * pm, now + 0.16);
+      osc2.frequency.setValueAtTime(1240 * pm, now + 0.55);
+      osc2.frequency.exponentialRampToValueAtTime(760 * pm, now + 1.05);
+
+      // Vibrato LFO for comical quivering voice
+      var lfo = audioCtx.createOscillator();
+      var lfoGain = audioCtx.createGain();
+      lfo.frequency.setValueAtTime(14.0, now);
+      lfoGain.gain.setValueAtTime(28.0 * pm, now);
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc1.frequency);
+      lfoGain.connect(osc2.frequency);
+
+      // Vowel formant filter ("EEE-AAH")
+      var formant = audioCtx.createBiquadFilter();
+      formant.type = 'bandpass';
+      formant.frequency.setValueAtTime(1450, now);
+      formant.frequency.linearRampToValueAtTime(1850, now + 0.25);
+      formant.frequency.linearRampToValueAtTime(1100, now + 1.0);
+      formant.Q.setValueAtTime(2.4, now);
+
+      var env = audioCtx.createGain();
+      env.gain.setValueAtTime(0.0001, now);
+      env.gain.linearRampToValueAtTime(0.20, now + 0.04);
+      env.gain.setValueAtTime(0.18, now + 0.68);
+      env.gain.exponentialRampToValueAtTime(0.0008, now + 1.08);
+
+      osc1.connect(formant);
+      osc2.connect(formant);
+      formant.connect(env);
+      env.connect(audioCtx.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+      lfo.start(now);
+      osc1.stop(now + 1.10);
+      osc2.stop(now + 1.10);
+      lfo.stop(now + 1.10);
+    } catch (e) {}
+  }
+
+  function playMonsterTongueSound(pitchMultiplier, worldPos) {
+    if (!isWithin20mOfPlayerTrain(worldPos)) return;
+    if (typeof hasUserGesture !== 'undefined' && !hasUserGesture) return;
+    if (typeof audioCtx === 'undefined' || !audioCtx) return;
+    try {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      var now = audioCtx.currentTime;
+      var pm = pitchMultiplier || 1.0;
+
+      // Playful cartoon "Bleh! / Blllrp!" tongue-sticking-out raspberry sound
+      var osc = audioCtx.createOscillator();
+      var lfo = audioCtx.createOscillator();
+      var lfoGain = audioCtx.createGain();
+      var env = audioCtx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(240 * pm, now);
+      osc.frequency.linearRampToValueAtTime(320 * pm, now + 0.14);
+      osc.frequency.linearRampToValueAtTime(210 * pm, now + 0.42);
+
+      lfo.type = 'square';
+      lfo.frequency.setValueAtTime(28.0, now);
+      lfoGain.gain.setValueAtTime(55.0 * pm, now);
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+
+      env.gain.setValueAtTime(0.0001, now);
+      env.gain.linearRampToValueAtTime(0.14, now + 0.03);
+      env.gain.setValueAtTime(0.12, now + 0.32);
+      env.gain.exponentialRampToValueAtTime(0.0008, now + 0.46);
+
+      osc.connect(env);
+      env.connect(audioCtx.destination);
+      osc.start(now);
+      lfo.start(now);
+      osc.stop(now + 0.48);
+      lfo.stop(now + 0.48);
+    } catch (e) {}
+  }
+
+  function playRabbitHopAndWaveSound(worldPos) {
+    if (!isWithin20mOfPlayerTrain(worldPos)) return;
+    if (typeof hasUserGesture !== 'undefined' && !hasUserGesture) return;
+    if (typeof audioCtx === 'undefined' || !audioCtx) return;
+    try {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      var now = audioCtx.currentTime;
+      // 3 cute springy hop boings at t = 0.0, 0.52, 1.04
+      [0.0, 0.52, 1.04].forEach(function(offset, idx) {
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = 'sine';
+        var baseF = 340 + idx * 55;
+        osc.frequency.setValueAtTime(baseF, now + offset);
+        osc.frequency.exponentialRampToValueAtTime(baseF * 1.85, now + offset + 0.22);
+        gain.gain.setValueAtTime(0.0001, now + offset);
+        gain.gain.linearRampToValueAtTime(0.14, now + offset + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + offset + 0.26);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.28);
+      });
+    } catch (e) {}
+  }
+
+  function playSquirrelSpinAndJumpSound(worldPos) {
+    if (!isWithin20mOfPlayerTrain(worldPos)) return;
+    if (typeof hasUserGesture !== 'undefined' && !hasUserGesture) return;
+    if (typeof audioCtx === 'undefined' || !audioCtx) return;
+    try {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      var now = audioCtx.currentTime;
+      // Rapid cheerful twirl notes (0.0 -> 0.7s) + upward branch leap whoosh (0.85 -> 1.35s)
+      var notes = [587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.5];
+      notes.forEach(function(freq, i) {
+        var t0 = now + i * 0.095;
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t0);
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.linearRampToValueAtTime(0.11, t0 + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.11);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(t0);
+        osc.stop(t0 + 0.12);
+      });
+      // Leap upward whistle
+      var leapOsc = audioCtx.createOscillator();
+      var leapGain = audioCtx.createGain();
+      leapOsc.type = 'sine';
+      leapOsc.frequency.setValueAtTime(480, now + 0.82);
+      leapOsc.frequency.exponentialRampToValueAtTime(1220, now + 1.35);
+      leapGain.gain.setValueAtTime(0.0001, now + 0.82);
+      leapGain.gain.linearRampToValueAtTime(0.12, now + 0.88);
+      leapGain.gain.exponentialRampToValueAtTime(0.0008, now + 1.40);
+      leapOsc.connect(leapGain);
+      leapGain.connect(audioCtx.destination);
+      leapOsc.start(now + 0.82);
+      leapOsc.stop(now + 1.42);
+    } catch (e) {}
+  }
+
+  function playOwlHootSound(worldPos) {
+    if (!isWithin20mOfPlayerTrain(worldPos)) return;
+    if (typeof hasUserGesture !== 'undefined' && !hasUserGesture) return;
+    if (typeof audioCtx === 'undefined' || !audioCtx) return;
+    try {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      var now = audioCtx.currentTime;
+      // Classic warm woodland owl "Hoo-hoo! Hoo-hoo!"
+      var pattern = [
+        { start: 0.00, dur: 0.28, f1: 440, f2: 415 },
+        { start: 0.36, dur: 0.58, f1: 392, f2: 349.23 },
+        { start: 1.18, dur: 0.26, f1: 440, f2: 415 },
+        { start: 1.52, dur: 0.56, f1: 392, f2: 349.23 }
+      ];
+      pattern.forEach(function(h) {
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(h.f1, now + h.start);
+        osc.frequency.exponentialRampToValueAtTime(h.f2, now + h.start + h.dur);
+        gain.gain.setValueAtTime(0.0001, now + h.start);
+        gain.gain.linearRampToValueAtTime(0.15, now + h.start + 0.045);
+        gain.gain.setValueAtTime(0.13, now + h.start + h.dur * 0.7);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + h.start + h.dur);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + h.start);
+        osc.stop(now + h.start + h.dur + 0.02);
+      });
+    } catch (e) {}
+  }
+
+  // Helper: Build 3D Expressive Sticking-Out Cartoon Tongue (`vyplázne jazyk`)
+  function createPeekingTongueMesh() {
+    var tg = new THREE.Group();
+    var pinkTongueMat = new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.28 });
+    var grooveMat = new THREE.MeshStandardMaterial({ color: 0xbe123c, roughness: 0.35 });
+
+    var shaft = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.14, 0.78), pinkTongueMat);
+    shaft.position.set(0, -0.10, 0.42);
+    shaft.rotation.x = 0.28;
+    tg.add(shaft);
+
+    var tip = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 12), pinkTongueMat);
+    tip.scale.set(1.02, 0.42, 1.15);
+    tip.position.set(0, -0.22, 0.78);
+    tip.rotation.x = 0.32;
+    tg.add(tip);
+
+    var groove = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 0.68), grooveMat);
+    groove.position.set(0, -0.04, 0.46);
+    groove.rotation.x = 0.28;
+    tg.add(groove);
+
+    tg.position.set(0, -0.18, 0.14);
+    tg.visible = false;
+    return tg;
+  }
+
+  // --------------------------------------------------------------------------
+  // C) 3D MODEL BUILDERS FOR THE 4 CHARACTERS & THEIR TREES
+  // --------------------------------------------------------------------------
+
+  // 1A. MONSTER #1: Glossy Purple Two-Eyed Antenna Monster (`image_27cfcc7b.png`)
+  function buildPurpleAntennaMonster() {
+    var root = new THREE.Group();
+    var bodyGroup = new THREE.Group();
+    root.add(bodyGroup);
+
+    var purpleMat = new THREE.MeshStandardMaterial({ color: 0xa855f7, roughness: 0.20, metalness: 0.08 });
+    var lightPurpleMat = new THREE.MeshStandardMaterial({ color: 0xd8b4fe, roughness: 0.26, metalness: 0.04 });
+    var darkMouthMat = new THREE.MeshStandardMaterial({ color: 0x2e1065, roughness: 0.65 });
+    var tongueMat = new THREE.MeshStandardMaterial({ color: 0x9333ea, roughness: 0.30 });
+    var whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.14 });
+    var irisMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.18 });
+    var pupilMat = new THREE.MeshBasicMaterial({ color: 0x09090b });
+
+    // Bean/pill-shaped glossy purple torso
+    var torso = new THREE.Mesh(new THREE.SphereGeometry(1.38, 28, 24), purpleMat);
+    torso.scale.set(1.04, 1.38, 0.90);
+    torso.position.set(0, 1.85, 0);
+    torso.castShadow = true;
+    bodyGroup.add(torso);
+
+    // Lighter lavender belly oval patches (matching reference image)
+    [-0.55, 0.55].forEach(function(bx) {
+      var patch = new THREE.Mesh(new THREE.SphereGeometry(0.46, 16, 14), lightPurpleMat);
+      patch.scale.set(1.1, 0.85, 0.45);
+      patch.position.set(bx, 0.68, 0.96);
+      patch.rotation.z = bx > 0 ? -0.25 : 0.25;
+      bodyGroup.add(patch);
+    });
+
+    // 2 Ball-Tipped Antennae on top of head
+    var leftAntennaPivot = new THREE.Group();
+    leftAntennaPivot.position.set(-0.62, 3.48, 0.10);
+    var rightAntennaPivot = new THREE.Group();
+    rightAntennaPivot.position.set(0.62, 3.48, 0.10);
+    [leftAntennaPivot, rightAntennaPivot].forEach(function(piv, idx) {
+      var side = idx === 0 ? -1 : 1;
+      var stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.18, 0.68, 12), purpleMat);
+      stalk.position.set(side * 0.18, 0.28, 0);
+      stalk.rotation.z = -side * 0.48;
+      var tipBall = new THREE.Mesh(new THREE.SphereGeometry(0.32, 18, 16), purpleMat);
+      tipBall.scale.set(1.12, 0.96, 1.0);
+      tipBall.position.set(side * 0.36, 0.62, 0);
+      piv.add(stalk, tipBall);
+      bodyGroup.add(piv);
+    });
+
+    // 2 Huge Bulging White Eyeballs side-by-side with Sky-Blue Irises & Black Pupils
+    var leftEyeGroup = new THREE.Group();
+    leftEyeGroup.position.set(-0.52, 2.58, 0.96);
+    var rightEyeGroup = new THREE.Group();
+    rightEyeGroup.position.set(0.52, 2.58, 0.96);
+
+    [leftEyeGroup, rightEyeGroup].forEach(function(eg, idx) {
+      var rim = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.08, 12, 24), purpleMat);
+      eg.add(rim);
+      var sclera = new THREE.Mesh(new THREE.SphereGeometry(0.51, 22, 20), whiteMat);
+      sclera.scale.set(0.96, 1.10, 0.76);
+      eg.add(sclera);
+      var iris = new THREE.Mesh(new THREE.SphereGeometry(0.23, 16, 14), irisMat);
+      iris.scale.set(1.0, 1.0, 0.45);
+      iris.position.set(idx === 0 ? 0.05 : -0.05, 0.08, 0.34);
+      eg.add(iris);
+      var pupil = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 12), pupilMat);
+      pupil.scale.set(1.0, 1.0, 0.45);
+      pupil.position.set(idx === 0 ? 0.05 : -0.05, 0.08, 0.41);
+      eg.add(pupil);
+      var highlight = new THREE.Mesh(new THREE.SphereGeometry(0.048, 10, 10), whiteMat);
+      highlight.position.set((idx === 0 ? 0.05 : -0.05) - 0.06, 0.15, 0.46);
+      eg.add(highlight);
+      bodyGroup.add(eg);
+    });
+
+    // Giant Expressive Mouth with Curved Upper Tooth Plate, 4 Lower Teeth & Purple Tongue
+    var mouthGroup = new THREE.Group();
+    mouthGroup.position.set(0, 1.46, 1.05);
+    bodyGroup.add(mouthGroup);
+
+    var mouthRim = new THREE.Mesh(new THREE.TorusGeometry(0.76, 0.11, 14, 28), purpleMat);
+    mouthRim.scale.set(1.18, 0.88, 0.70);
+    mouthGroup.add(mouthRim);
+
+    var mouthCavity = new THREE.Mesh(new THREE.SphereGeometry(0.74, 20, 18), darkMouthMat);
+    mouthCavity.scale.set(1.15, 0.84, 0.38);
+    mouthCavity.position.z = -0.06;
+    mouthGroup.add(mouthCavity);
+
+    // Curved upper white tooth plate
+    var upperTeeth = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.15, 12, 20, Math.PI * 0.82), whiteMat);
+    upperTeeth.rotation.z = Math.PI * 0.09;
+    upperTeeth.scale.set(1.22, 0.72, 0.55);
+    upperTeeth.position.set(0, 0.16, 0.10);
+    mouthGroup.add(upperTeeth);
+
+    // 4 individual lower white teeth
+    [-0.36, -0.12, 0.12, 0.36].forEach(function(tx) {
+      var lTooth = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.16, 0.14), whiteMat);
+      lTooth.position.set(tx, -0.46, 0.10);
+      mouthGroup.add(lTooth);
+    });
+
+    // Glossy purple tongue inside mouth + 3D Sticking-Out Tongue (`peekingTongue`)
+    var tongue = new THREE.Mesh(new THREE.SphereGeometry(0.46, 16, 12), tongueMat);
+    tongue.scale.set(1.25, 0.38, 0.65);
+    tongue.position.set(0, -0.32, 0.02);
+    mouthGroup.add(tongue);
+
+    var peekingTongue = createPeekingTongueMesh();
+    mouthGroup.add(peekingTongue);
+
+    // 2 Articulated Purple Arms with 5 Spread Fingers per Hand
+    function createFiveFingerArm(side) {
+      var armPivot = new THREE.Group();
+      armPivot.position.set(side * 1.28, 1.72, 0.10);
+
+      var armShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 1.05, 12), purpleMat);
+      armShaft.position.set(side * 0.45, 0.25, 0);
+      armShaft.rotation.z = -side * 1.10;
+      armPivot.add(armShaft);
+
+      var handGroup = new THREE.Group();
+      handGroup.position.set(side * 0.98, 0.48, 0.05);
+      var palm = new THREE.Mesh(new THREE.SphereGeometry(0.28, 14, 12), purpleMat);
+      palm.scale.set(1.15, 1.05, 0.62);
+      handGroup.add(palm);
+
+      // 5 spread fingers with bulbous tips
+      var fingerAngles = [-0.85, -0.42, 0.0, 0.42, 0.85];
+      fingerAngles.forEach(function(ang) {
+        var fG = new THREE.Group();
+        fG.rotation.z = -side * (ang - 0.35);
+        var fCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.075, 0.38, 10), purpleMat);
+        fCyl.position.y = 0.34;
+        var fTip = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 10), purpleMat);
+        fTip.position.y = 0.54;
+        fG.add(fCyl, fTip);
+        handGroup.add(fG);
+      });
+
+      armPivot.add(handGroup);
+      return armPivot;
+    }
+
+    var leftArm = createFiveFingerArm(-1);
+    var rightArm = createFiveFingerArm(1);
+    bodyGroup.add(leftArm, rightArm);
+
+    // 2 Articulated Legs with 3-Toed Purple Feet
+    function createThreeToedLeg(side) {
+      var legPivot = new THREE.Group();
+      legPivot.position.set(side * 0.65, 0.55, 0.05);
+
+      var legShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.22, 0.62, 12), purpleMat);
+      legShaft.position.set(side * 0.08, -0.24, 0);
+      legPivot.add(legShaft);
+
+      var footGroup = new THREE.Group();
+      footGroup.position.set(side * 0.14, -0.52, 0.22);
+      var footBase = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 12), purpleMat);
+      footBase.scale.set(1.25, 0.52, 1.35);
+      footGroup.add(footBase);
+
+      [-0.28, 0.0, 0.28].forEach(function(tx) {
+        var toe = new THREE.Mesh(new THREE.SphereGeometry(0.20, 12, 10), purpleMat);
+        toe.scale.set(0.92, 0.72, 1.35);
+        toe.position.set(tx, -0.03, 0.38);
+        footGroup.add(toe);
+      });
+
+      legPivot.add(footGroup);
+      return legPivot;
+    }
+
+    var leftLeg = createThreeToedLeg(-1);
+    var rightLeg = createThreeToedLeg(1);
+    bodyGroup.add(leftLeg, rightLeg);
+
+    // Floating Comic Speech Bubble ("HEEELP!")
+    var bubble = createComicBubbleSprite('HEEELP! 😱', '#fef08a', '#9333ea', '#581c87', 8.2, 3.1);
+    bubble.sprite.position.set(0, 5.2, 0);
+    root.add(bubble.sprite);
+
+    root.scale.setScalar(1.15);
+
+    return {
+      root: root,
+      bodyGroup: bodyGroup,
+      leftEye: leftEyeGroup,
+      rightEye: rightEyeGroup,
+      mouth: mouthGroup,
+      peekingTongue: peekingTongue,
+      leftArm: leftArm,
+      rightArm: rightArm,
+      leftLeg: leftLeg,
+      rightLeg: rightLeg,
+      leftAntenna: leftAntennaPivot,
+      rightAntenna: rightAntennaPivot,
+      bubble: bubble
+    };
+  }
+
+  // 1B. MONSTER #2: Fluffy Multi-Colored One-Eyed Horned Monster (`image_0d3e40c2.png`)
+  function buildFluffyCyclopsMonster() {
+    var root = new THREE.Group();
+    var bodyGroup = new THREE.Group();
+    root.add(bodyGroup);
+
+    // Procedural high-detail multi-colored curly fur canvas texture (blue, cyan, magenta-pink, violet)
+    var furCan = document.createElement('canvas');
+    furCan.width = 256;
+    furCan.height = 256;
+    var fCtx = furCan.getContext('2d');
+    fCtx.fillStyle = '#311068';
+    fCtx.fillRect(0, 0, 256, 256);
+    var furColors = ['#1d4ed8', '#2563eb', '#06b6d4', '#ec4899', '#db2777', '#7c3aed', '#9333ea', '#38bdf8'];
+    for (var fi = 0; fi < 2200; fi++) {
+      fCtx.strokeStyle = furColors[fi % furColors.length];
+      fCtx.lineWidth = 2.2;
+      var fx = Math.random() * 256;
+      var fy = Math.random() * 256;
+      fCtx.beginPath();
+      fCtx.moveTo(fx, fy);
+      fCtx.quadraticCurveTo(fx + (Math.random() - 0.5) * 18, fy + (Math.random() - 0.5) * 18, fx + (Math.random() - 0.5) * 22, fy + (Math.random() - 0.5) * 22);
+      fCtx.stroke();
+    }
+    var furTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(furCan) : new THREE.CanvasTexture(furCan);
+    var furryBodyMat = new THREE.MeshStandardMaterial({ map: furTex, roughness: 0.72, metalness: 0.02 });
+
+    var coreSphere = new THREE.Mesh(new THREE.SphereGeometry(1.56, 28, 24), furryBodyMat);
+    coreSphere.scale.set(1.06, 1.02, 0.96);
+    coreSphere.position.set(0, 2.05, 0);
+    coreSphere.castShadow = true;
+    bodyGroup.add(coreSphere);
+
+    // 72 3D multi-colored fur tufts around the body for authentic 3D fluffiness
+    var tuftPalette = [0x1d4ed8, 0x06b6d4, 0xec4899, 0x7c3aed, 0x3b82f6, 0xdb2777];
+    var tuftMats = tuftPalette.map(function(hex) {
+      return new THREE.MeshStandardMaterial({ color: hex, roughness: 0.65 });
+    });
+    var tuftGeo = new THREE.SphereGeometry(0.34, 10, 8);
+    for (var ti = 0; ti < 72; ti++) {
+      // Fibonacci sphere distribution avoiding the central eye & mouth zone on front (+Z)
+      var phi = Math.acos(1 - 2 * (ti + 0.5) / 72);
+      var theta = Math.PI * (1 + Math.sqrt(5)) * ti;
+      var dx = Math.sin(phi) * Math.cos(theta);
+      var dy = Math.cos(phi);
+      var dz = Math.sin(phi) * Math.sin(theta);
+      // Leave clear opening on the front face for the cyclops eye and mouth
+      if (dz > 0.52 && dy > -0.45 && dy < 0.65 && Math.abs(dx) < 0.62) continue;
+
+      var tuft = new THREE.Mesh(tuftGeo, tuftMats[ti % tuftMats.length]);
+      tuft.scale.set(1.1, 0.78, 1.25);
+      tuft.position.set(dx * 1.48, 2.05 + dy * 1.42, dz * 1.36);
+      tuft.lookAt(dx * 3.0, 2.05 + dy * 3.0, dz * 3.0);
+      bodyGroup.add(tuft);
+    }
+
+    // 2 Pink-Magenta Curved Horns on top (`image_0d3e40c2.png`)
+    var hornMat = new THREE.MeshStandardMaterial({ color: 0xdb2777, roughness: 0.32, metalness: 0.08 });
+    [-0.78, 0.78].forEach(function(hx) {
+      var side = hx > 0 ? 1 : -1;
+      var horn = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.72, 14), hornMat);
+      horn.position.set(hx, 3.46, 0.22);
+      horn.rotation.z = -side * 0.28;
+      horn.rotation.x = 0.15;
+      bodyGroup.add(horn);
+    });
+
+    // 1 Giant Central Cyclops Eye with Purple Upper Eyelid Hood
+    var cyclopsEyeGroup = new THREE.Group();
+    cyclopsEyeGroup.position.set(0, 2.68, 1.32);
+    bodyGroup.add(cyclopsEyeGroup);
+
+    var whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.12 });
+    var pupilMat = new THREE.MeshBasicMaterial({ color: 0x09090b });
+    var eyelidMat = new THREE.MeshStandardMaterial({ color: 0x7c3aed, roughness: 0.32 });
+
+    var eyeball = new THREE.Mesh(new THREE.SphereGeometry(0.56, 22, 20), whiteMat);
+    eyeball.scale.set(1.05, 0.96, 0.75);
+    cyclopsEyeGroup.add(eyeball);
+
+    var eyelid = new THREE.Mesh(
+      new THREE.SphereGeometry(0.60, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.48),
+      eyelidMat
+    );
+    eyelid.scale.set(1.06, 0.96, 0.78);
+    eyelid.rotation.x = -0.35;
+    cyclopsEyeGroup.add(eyelid);
+
+    var pupil = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 14), pupilMat);
+    pupil.scale.set(1.0, 1.0, 0.45);
+    pupil.position.set(-0.04, 0.02, 0.36);
+    cyclopsEyeGroup.add(pupil);
+
+    var catchlight = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 10), whiteMat);
+    catchlight.position.set(-0.14, 0.12, 0.46);
+    cyclopsEyeGroup.add(catchlight);
+
+    // Wide Open Mouth with 4 Upper White Teeth, 2 Lower White Teeth & 3D Sticking-Out Tongue (`peekingTongue`)
+    var mouthGroup = new THREE.Group();
+    mouthGroup.position.set(0, 1.72, 1.30);
+    bodyGroup.add(mouthGroup);
+
+    var mouthCavity = new THREE.Mesh(
+      new THREE.SphereGeometry(0.72, 20, 16),
+      new THREE.MeshStandardMaterial({ color: 0x58131d, roughness: 0.65 })
+    );
+    mouthCavity.scale.set(1.22, 0.68, 0.36);
+    mouthGroup.add(mouthCavity);
+
+    // 4 Upper blocky white teeth
+    [-0.36, -0.12, 0.12, 0.36].forEach(function(tx) {
+      var uTooth = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.20, 0.14), whiteMat);
+      uTooth.position.set(tx, 0.32, 0.16);
+      mouthGroup.add(uTooth);
+    });
+    // 2 Lower white teeth
+    [-0.26, 0.26].forEach(function(tx) {
+      var lTooth = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.14), whiteMat);
+      lTooth.position.set(tx, -0.34, 0.16);
+      mouthGroup.add(lTooth);
+    });
+
+    var peekingTongue = createPeekingTongueMesh();
+    mouthGroup.add(peekingTongue);
+
+    // Long Thin Indigo-Purple Articulated Arms & Legs (`image_0d3e40c2.png`)
+    var limbMat = new THREE.MeshStandardMaterial({ color: 0x5b21b6, roughness: 0.35, metalness: 0.05 });
+
+    function createIndigoArm(side) {
+      var armPivot = new THREE.Group();
+      armPivot.position.set(side * 1.42, 2.02, 0.05);
+
+      var upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.05, 12), limbMat);
+      upperArm.position.set(side * 0.48, 0.0, 0);
+      upperArm.rotation.z = Math.PI * 0.5;
+      armPivot.add(upperArm);
+
+      var elbow = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 12), limbMat);
+      elbow.position.set(side * 0.98, 0.0, 0);
+      armPivot.add(elbow);
+
+      var foreArm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.13, 0.95, 12), limbMat);
+      foreArm.position.set(side * 1.02, 0.46, 0);
+      armPivot.add(foreArm);
+
+      var fist = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 12), limbMat);
+      fist.scale.set(1.15, 0.95, 0.85);
+      fist.position.set(side * 1.02, 0.96, 0.05);
+      armPivot.add(fist);
+
+      return armPivot;
+    }
+
+    var leftArm = createIndigoArm(-1);
+    var rightArm = createIndigoArm(1);
+    bodyGroup.add(leftArm, rightArm);
+
+    function createIndigoLeg(side) {
+      var legPivot = new THREE.Group();
+      legPivot.position.set(side * 0.55, 0.78, 0.08);
+
+      var thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.78, 12), limbMat);
+      thigh.position.set(0, -0.36, 0.12);
+      thigh.rotation.x = -0.25;
+      legPivot.add(thigh);
+
+      var boot = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 12), limbMat);
+      boot.scale.set(0.95, 0.65, 1.55);
+      boot.position.set(0, -0.72, 0.34);
+      legPivot.add(boot);
+
+      return legPivot;
+    }
+
+    var leftLeg = createIndigoLeg(-1);
+    var rightLeg = createIndigoLeg(1);
+    bodyGroup.add(leftLeg, rightLeg);
+
+    // Floating Comic Speech Bubble ("HEEELP!")
+    var bubble = createComicBubbleSprite('HEEELP! 😱', '#fef08a', '#ec4899', '#831843', 8.2, 3.1);
+    bubble.sprite.position.set(0, 5.3, 0);
+    root.add(bubble.sprite);
+
+    root.scale.setScalar(1.15);
+
+    return {
+      root: root,
+      bodyGroup: bodyGroup,
+      leftEye: cyclopsEyeGroup,
+      rightEye: cyclopsEyeGroup,
+      mouth: mouthGroup,
+      peekingTongue: peekingTongue,
+      leftArm: leftArm,
+      rightArm: rightArm,
+      leftLeg: leftLeg,
+      rightLeg: rightLeg,
+      leftAntenna: null,
+      rightAntenna: null,
+      bubble: bubble
+    };
+  }
+
+  // Helper: Dedicated Hiding Tree + Bush beside the track for each Track Monster
+  function buildMonsterHidingTree() {
+    var g = new THREE.Group();
+    var trunkMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.75 });
+    var leafMat1 = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.55 });
+    var leafMat2 = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.50 });
+    var bushMat = new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.55 });
+
+    var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.95, 5.6, 14), trunkMat);
+    trunk.position.y = 2.8;
+    trunk.castShadow = true;
+    g.add(trunk);
+
+    var crownPositions = [
+      [0, 6.2, 0, 2.5, leafMat1],
+      [-1.4, 5.4, 0.8, 1.9, leafMat2],
+      [1.4, 5.5, -0.6, 1.9, leafMat2],
+      [0.2, 7.4, 0.3, 1.8, leafMat2]
+    ];
+    crownPositions.forEach(function(cp) {
+      var cMesh = new THREE.Mesh(new THREE.SphereGeometry(cp[3], 16, 14), cp[4]);
+      cMesh.position.set(cp[0], cp[1], cp[2]);
+      cMesh.castShadow = true;
+      g.add(cMesh);
+    });
+
+    // Low side bush next to the trunk
+    var bush = new THREE.Mesh(new THREE.SphereGeometry(1.35, 14, 12), bushMat);
+    bush.scale.set(1.25, 0.82, 1.1);
+    bush.position.set(-1.35, 0.95, 0.45);
+    g.add(bush);
+
+    return g;
+  }
+
+  // 2. KRÁLÍK U CESTY: Cute White Rabbit (`image_67733db9.png` center)
+  function buildStorybookWhiteRabbit() {
+    var root = new THREE.Group();
+    var bodyGroup = new THREE.Group();
+    root.add(bodyGroup);
+
+    var whiteFurMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.32, metalness: 0.02 });
+    var creamBellyMat = new THREE.MeshStandardMaterial({ color: 0xfefce8, roughness: 0.36 });
+    var pinkInnerMat = new THREE.MeshStandardMaterial({ color: 0xfda4af, roughness: 0.35 });
+    var nosePinkMat = new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.25 });
+    var darkEyeMat = new THREE.MeshBasicMaterial({ color: 0x1e1b4b });
+    var pureWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+    // Plump pear-shaped white body
+    var torso = new THREE.Mesh(new THREE.SphereGeometry(1.08, 24, 20), whiteFurMat);
+    torso.scale.set(1.02, 1.18, 0.95);
+    torso.position.set(0, 1.32, 0);
+    torso.castShadow = true;
+    bodyGroup.add(torso);
+
+    var belly = new THREE.Mesh(new THREE.SphereGeometry(0.84, 20, 16), creamBellyMat);
+    belly.scale.set(0.88, 1.04, 0.52);
+    belly.position.set(0, 1.26, 0.72);
+    bodyGroup.add(belly);
+
+    // Fluffy cotton-ball tail in back
+    var cottonTail = new THREE.Mesh(new THREE.SphereGeometry(0.44, 16, 14), whiteFurMat);
+    cottonTail.position.set(0, 0.82, -1.02);
+    bodyGroup.add(cottonTail);
+
+    // Head with sculpted chubby cheeks
+    var headGroup = new THREE.Group();
+    headGroup.position.set(0, 2.68, 0.12);
+    bodyGroup.add(headGroup);
+
+    var headSphere = new THREE.Mesh(new THREE.SphereGeometry(0.96, 24, 20), whiteFurMat);
+    headSphere.scale.set(1.08, 0.98, 0.96);
+    headSphere.castShadow = true;
+    headGroup.add(headSphere);
+
+    [-0.58, 0.58].forEach(function(cx) {
+      var cheek = new THREE.Mesh(new THREE.SphereGeometry(0.48, 16, 14), whiteFurMat);
+      cheek.scale.set(1.1, 0.82, 0.88);
+      cheek.position.set(cx, -0.18, 0.32);
+      headGroup.add(cheek);
+
+      var blush = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 10), pinkInnerMat);
+      blush.scale.set(1.2, 0.65, 0.35);
+      blush.position.set(cx * 1.05, -0.12, 0.76);
+      headGroup.add(blush);
+    });
+
+    // Long Upright White Ears with Soft Pink Inner Channels (`image_67733db9.png`)
+    function createRabbitEar(side) {
+      var earPivot = new THREE.Group();
+      earPivot.position.set(side * 0.38, 0.78, -0.05);
+
+      var outerEar = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 14), whiteFurMat);
+      outerEar.scale.set(0.85, 2.75, 0.45);
+      outerEar.position.set(side * 0.08, 0.82, 0);
+      outerEar.rotation.z = -side * 0.10;
+      earPivot.add(outerEar);
+
+      var innerEar = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 12), pinkInnerMat);
+      innerEar.scale.set(0.75, 2.35, 0.32);
+      innerEar.position.set(side * 0.08, 0.80, 0.09);
+      innerEar.rotation.z = -side * 0.10;
+      earPivot.add(innerEar);
+
+      return earPivot;
+    }
+
+    var leftEar = createRabbitEar(-1);
+    var rightEar = createRabbitEar(1);
+    headGroup.add(leftEar, rightEar);
+
+    // Big Expressive Dark Eyes with Dual Catchlights
+    [-0.34, 0.34].forEach(function(ex) {
+      var eye = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 14), darkEyeMat);
+      eye.scale.set(0.92, 1.15, 0.55);
+      eye.position.set(ex, 0.14, 0.84);
+      headGroup.add(eye);
+
+      var c1 = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 10), pureWhiteMat);
+      c1.position.set(ex - 0.05, 0.22, 0.95);
+      var c2 = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 8), pureWhiteMat);
+      c2.position.set(ex + 0.06, 0.06, 0.95);
+      headGroup.add(c1, c2);
+    });
+
+    // Cute Pink Nose & Open Cheerful Smile with Buck Teeth
+    var nose = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), nosePinkMat);
+    nose.scale.set(1.25, 0.85, 0.85);
+    nose.position.set(0, -0.04, 0.96);
+    headGroup.add(nose);
+
+    var smileMouth = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 12), nosePinkMat);
+    smileMouth.scale.set(1.15, 0.65, 0.45);
+    smileMouth.position.set(0, -0.32, 0.86);
+    headGroup.add(smileMouth);
+
+    [-0.06, 0.06].forEach(function(tx) {
+      var tooth = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.12, 0.06), pureWhiteMat);
+      tooth.position.set(tx, -0.25, 0.94);
+      headGroup.add(tooth);
+    });
+
+    // Articulated Front Paws (`rightArm` waves hello!)
+    function createRabbitArm(side) {
+      var armPivot = new THREE.Group();
+      armPivot.position.set(side * 0.86, 1.78, 0.25);
+
+      var armMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.16, 0.82, 12), whiteFurMat);
+      armMesh.position.set(side * 0.18, -0.32, 0.18);
+      armMesh.rotation.z = side * 0.35;
+      armMesh.rotation.x = 0.35;
+      armPivot.add(armMesh);
+
+      var paw = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 12), whiteFurMat);
+      paw.position.set(side * 0.30, -0.68, 0.32);
+      armPivot.add(paw);
+
+      return armPivot;
+    }
+
+    var leftArm = createRabbitArm(-1);
+    var rightArm = createRabbitArm(1);
+    bodyGroup.add(leftArm, rightArm);
+
+    // Big White Hind Feet
+    var leftFoot = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 12), whiteFurMat);
+    leftFoot.scale.set(0.85, 0.48, 1.55);
+    leftFoot.position.set(-0.56, 0.24, 0.38);
+    var rightFoot = leftFoot.clone();
+    rightFoot.position.set(0.56, 0.24, 0.38);
+    bodyGroup.add(leftFoot, rightFoot);
+
+    // Scenic Flower Meadow Patch under the Rabbit
+    var meadowPad = new THREE.Group();
+    var grassDisc = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.6, 2.9, 0.24, 20),
+      new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.75 })
+    );
+    grassDisc.position.y = 0.12;
+    meadowPad.add(grassDisc);
+    root.add(meadowPad);
+
+    var bubble = createComicBubbleSprite('Hello, train! 🐰', '#ffffff', '#f43f5e', '#881337', 7.8, 2.9);
+    bubble.sprite.position.set(0, 5.4, 0);
+    root.add(bubble.sprite);
+
+    root.scale.setScalar(1.12);
+
+    return {
+      root: root,
+      bodyGroup: bodyGroup,
+      headGroup: headGroup,
+      leftEar: leftEar,
+      rightEar: rightEar,
+      leftArm: leftArm,
+      rightArm: rightArm,
+      leftFoot: leftFoot,
+      rightFoot: rightFoot,
+      bubble: bubble
+    };
+  }
+
+  // 3. VEVERKA U STROMU: Cheerful Orange Squirrel + Colorful Storybook Pom-Pom Tree (`image_67733db9.png` left)
+  function buildStorybookSquirrelAndTree() {
+    var envGroup = new THREE.Group();
+
+    // A) Colorful Rainbow/Pom-Pom Storybook Tree (`image_67733db9.png`) with a sturdy lower landing branch!
+    var treeGroup = new THREE.Group();
+    envGroup.add(treeGroup);
+
+    var trunkMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.65 });
+    var mainTrunk = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 1.35, 8.2, 16), trunkMat);
+    mainTrunk.position.set(0, 4.1, 0);
+    mainTrunk.castShadow = true;
+    treeGroup.add(mainTrunk);
+
+    // Colorful pastel/rainbow bark ribs along the lower trunk (inspired by `image_67733db9.png`!)
+    var ribColors = [0xf43f5e, 0xf59e0b, 0xfacc15, 0x22c55e, 0x06b6d4, 0x8b5cf6, 0xec4899];
+    for (var ri = 0; ri < ribColors.length; ri++) {
+      var ang = (ri / ribColors.length) * Math.PI * 2.0;
+      var ribMat = new THREE.MeshStandardMaterial({ color: ribColors[ri], roughness: 0.45 });
+      var rib = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, 6.2, 10), ribMat);
+      rib.position.set(Math.cos(ang) * 0.92, 3.1, Math.sin(ang) * 0.92);
+      treeGroup.add(rib);
+    }
+
+    // Sturdy Lower Wooden Branch extending forward-right to exact local landing perch `(1.90, 4.30, 1.50)`
+    var branchBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.48, 3.1, 12), trunkMat);
+    branchBeam.position.set(1.15, 4.05, 0.90);
+    branchBeam.rotation.z = -1.12;
+    branchBeam.rotation.y = -0.65;
+    branchBeam.castShadow = true;
+    treeGroup.add(branchBeam);
+
+    // Flat wooden perch knot at the tip of the branch where the squirrel lands `(1.90, 4.30, 1.50)`
+    var perchPad = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.58, 0.26, 14), trunkMat);
+    perchPad.position.set(1.90, 4.18, 1.50);
+    treeGroup.add(perchPad);
+
+    // Multi-colored spherical pom-pom foliage canopy (`image_67733db9.png`)
+    var pomColors = [0xec4899, 0xf43f5e, 0xf97316, 0xfacc15, 0x4ade80, 0x22c55e, 0x38bdf8, 0x8b5cf6, 0xa855f7];
+    var pomPositions = [
+      [0, 9.6, 0, 2.2], [-2.2, 8.2, 0.8, 1.65], [2.2, 8.3, 0.7, 1.65],
+      [0, 8.4, 2.1, 1.6], [0, 8.4, -2.1, 1.6], [-1.6, 9.5, -1.4, 1.55],
+      [1.6, 9.5, -1.4, 1.55], [-1.5, 9.6, 1.5, 1.5], [1.5, 9.6, 1.5, 1.5],
+      [-2.9, 7.1, -0.4, 1.35], [2.9, 7.2, -0.4, 1.35], [0, 11.1, 0.2, 1.55]
+    ];
+    pomPositions.forEach(function(pp, idx) {
+      var pMat = new THREE.MeshStandardMaterial({ color: pomColors[idx % pomColors.length], roughness: 0.38 });
+      var sphere = new THREE.Mesh(new THREE.SphereGeometry(pp[3], 18, 16), pMat);
+      sphere.position.set(pp[0], pp[1], pp[2]);
+      sphere.castShadow = true;
+      treeGroup.add(sphere);
+    });
+
+    // Foreground Mossy Wooden Log at `[0.0, 0.28, 3.40]` where the squirrel starts on the ground
+    var groundLog = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.48, 2.8, 14), trunkMat);
+    groundLog.rotation.z = Math.PI * 0.5;
+    groundLog.rotation.y = 0.18;
+    groundLog.position.set(0.0, 0.36, 3.40);
+    groundLog.castShadow = true;
+    envGroup.add(groundLog);
+
+    // B) Cheerful Orange Squirrel (`squirrelGroup`)
+    var squirrelGroup = new THREE.Group();
+    var startGroundPos = new THREE.Vector3(0.0, 0.68, 3.40);
+    var branchLandingPos = new THREE.Vector3(1.90, 4.32, 1.50);
+    squirrelGroup.position.copy(startGroundPos);
+    envGroup.add(squirrelGroup);
+
+    var orangeMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.34 });
+    var brightOrangeMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.32 });
+    var creamMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.38 });
+    var darkEyeMat = new THREE.MeshBasicMaterial({ color: 0x1c1917 });
+    var whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+    var sqBody = new THREE.Group();
+    squirrelGroup.add(sqBody);
+
+    var torso = new THREE.Mesh(new THREE.SphereGeometry(0.82, 20, 18), orangeMat);
+    torso.scale.set(0.96, 1.18, 0.90);
+    torso.position.set(0, 0.98, 0);
+    torso.castShadow = true;
+    sqBody.add(torso);
+
+    var belly = new THREE.Mesh(new THREE.SphereGeometry(0.66, 16, 14), creamMat);
+    belly.scale.set(0.84, 1.02, 0.48);
+    belly.position.set(0, 0.94, 0.54);
+    sqBody.add(belly);
+
+    var head = new THREE.Mesh(new THREE.SphereGeometry(0.76, 22, 18), brightOrangeMat);
+    head.scale.set(1.06, 0.96, 0.96);
+    head.position.set(0, 2.02, 0.10);
+    head.castShadow = true;
+    sqBody.add(head);
+
+    // Cream cheeks
+    [-0.44, 0.44].forEach(function(cx) {
+      var cheek = new THREE.Mesh(new THREE.SphereGeometry(0.36, 14, 12), creamMat);
+      cheek.scale.set(1.1, 0.78, 0.85);
+      cheek.position.set(cx, 1.84, 0.36);
+      sqBody.add(cheek);
+    });
+
+    // Pointed Squirrel Ears with Tufts
+    [-0.44, 0.44].forEach(function(ex) {
+      var side = ex > 0 ? 1 : -1;
+      var ear = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.62, 12), orangeMat);
+      ear.position.set(ex, 2.74, 0.04);
+      ear.rotation.z = -side * 0.22;
+      sqBody.add(ear);
+    });
+
+    // Expressive Eyes, Nose & Toothy Smile
+    [-0.26, 0.26].forEach(function(ex) {
+      var eye = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 12), darkEyeMat);
+      eye.scale.set(0.92, 1.15, 0.55);
+      eye.position.set(ex, 2.12, 0.76);
+      sqBody.add(eye);
+      var catchL = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), whiteMat);
+      catchL.position.set(ex - 0.04, 2.18, 0.85);
+      sqBody.add(catchL);
+    });
+
+    var nose = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), darkEyeMat);
+    nose.position.set(0, 1.94, 0.86);
+    sqBody.add(nose);
+
+    [-0.05, 0.05].forEach(function(tx) {
+      var tooth = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.11, 0.05), whiteMat);
+      tooth.position.set(tx, 1.74, 0.80);
+      sqBody.add(tooth);
+    });
+
+    // Articulated Front Paws
+    var leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.58, 10), brightOrangeMat);
+    leftArm.position.set(-0.56, 1.24, 0.34);
+    leftArm.rotation.z = 0.45;
+    leftArm.rotation.x = 0.45;
+    var rightArm = leftArm.clone();
+    rightArm.position.set(0.56, 1.24, 0.34);
+    rightArm.rotation.z = -0.45;
+    sqBody.add(leftArm, rightArm);
+
+    // Giant Fluffy S-Curved Bushy Tail (`tailGroup`)
+    var tailGroup = new THREE.Group();
+    tailGroup.position.set(0, 0.65, -0.58);
+    sqBody.add(tailGroup);
+
+    var tailSegments = [
+      [0, 0.15, -0.35, 0.48, orangeMat],
+      [0, 0.55, -0.72, 0.62, brightOrangeMat],
+      [0, 1.08, -0.95, 0.74, orangeMat],
+      [0, 1.68, -0.98, 0.82, brightOrangeMat],
+      [0, 2.25, -0.78, 0.76, orangeMat],
+      [0, 2.68, -0.45, 0.58, creamMat]
+    ];
+    tailSegments.forEach(function(ts) {
+      var tSphere = new THREE.Mesh(new THREE.SphereGeometry(ts[3], 16, 14), ts[4]);
+      tSphere.position.set(ts[0], ts[1], ts[2]);
+      tSphere.castShadow = true;
+      tailGroup.add(tSphere);
+    });
+
+    var bubble = createComicBubbleSprite('Wheee! Hi! 🐿️', '#fffbeb', '#f97316', '#9a3412', 7.6, 2.8);
+    bubble.sprite.position.set(0, 4.2, 0);
+    squirrelGroup.add(bubble.sprite);
+
+    return {
+      envGroup: envGroup,
+      squirrelGroup: squirrelGroup,
+      sqBody: sqBody,
+      tailGroup: tailGroup,
+      leftArm: leftArm,
+      rightArm: rightArm,
+      startGroundPos: startGroundPos,
+      branchLandingPos: branchLandingPos,
+      bubble: bubble
+    };
+  }
+
+  // 4. SOVA U STROMU: Friendly Owl Perched on a Woodland Tree Branch (`image_67733db9.png` right)
+  function buildStorybookOwlAndTree() {
+    var envGroup = new THREE.Group();
+
+    var trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c2d0c, roughness: 0.75 });
+    var leafMat1 = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.55 });
+    var leafMat2 = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.50 });
+
+    // Sturdy Woodland Tree
+    var mainTrunk = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 1.45, 8.6, 16), trunkMat);
+    mainTrunk.position.set(0, 4.3, 0);
+    mainTrunk.castShadow = true;
+    envGroup.add(mainTrunk);
+
+    var foliageSpheres = [
+      [0, 9.4, 0, 2.6, leafMat1],
+      [-1.8, 8.2, 0.9, 2.1, leafMat2],
+      [1.9, 8.4, -0.7, 2.1, leafMat2],
+      [0.3, 10.6, 0.4, 1.9, leafMat2]
+    ];
+    foliageSpheres.forEach(function(fs) {
+      var m = new THREE.Mesh(new THREE.SphereGeometry(fs[3], 16, 14), fs[4]);
+      m.position.set(fs[0], fs[1], fs[2]);
+      m.castShadow = true;
+      envGroup.add(m);
+    });
+
+    // Sturdy Horizontal Perch Branch extending toward the track at `y = 4.45m`
+    var perchBranch = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.46, 3.6, 14), trunkMat);
+    perchBranch.rotation.z = Math.PI * 0.5;
+    perchBranch.rotation.y = -0.35;
+    perchBranch.position.set(1.45, 4.45, 0.65);
+    perchBranch.castShadow = true;
+    envGroup.add(perchBranch);
+
+    // Friendly Owl Group perched squarely on the branch (`[2.25, 4.68, 0.95]`)
+    var owlGroup = new THREE.Group();
+    owlGroup.position.set(2.25, 4.68, 0.95);
+    envGroup.add(owlGroup);
+
+    var slatePlumageMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.42 });
+    var darkPlumageMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.48 });
+    var creamChestMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.40 });
+    var discWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.32 });
+    var amberEyeMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.18 });
+    var beakMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.28 });
+    var pupilMat = new THREE.MeshBasicMaterial({ color: 0x09090b });
+    var pureWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+    // Plump Owl Torso
+    var owlTorso = new THREE.Mesh(new THREE.SphereGeometry(1.05, 22, 20), slatePlumageMat);
+    owlTorso.scale.set(1.02, 1.24, 0.94);
+    owlTorso.position.set(0, 1.22, 0);
+    owlTorso.castShadow = true;
+    owlGroup.add(owlTorso);
+
+    // Cream-Beige Feathered Chest
+    var chest = new THREE.Mesh(new THREE.SphereGeometry(0.86, 20, 16), creamChestMat);
+    chest.scale.set(0.88, 1.06, 0.54);
+    chest.position.set(0, 1.16, 0.64);
+    owlGroup.add(chest);
+
+    // Subtle dark chevron feather markings on the chest
+    [-0.28, 0.0, 0.28].forEach(function(mx, idx) {
+      var mark = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.05), darkPlumageMat);
+      mark.position.set(mx, 1.32 - (idx % 2) * 0.22, 1.08);
+      owlGroup.add(mark);
+    });
+
+    // Independently Articulated Left & Right Multi-Layered Wings (`leftWingPivot`, `rightWingPivot`)
+    function createOwlWing(side) {
+      var wingPivot = new THREE.Group();
+      wingPivot.position.set(side * 0.92, 1.72, 0.0);
+
+      var mainWing = new THREE.Mesh(new THREE.SphereGeometry(0.75, 16, 14), slatePlumageMat);
+      mainWing.scale.set(0.38, 1.38, 0.72);
+      mainWing.position.set(side * 0.24, -0.52, 0.0);
+      mainWing.castShadow = true;
+      wingPivot.add(mainWing);
+
+      var tipFeathers = new THREE.Mesh(new THREE.SphereGeometry(0.52, 14, 12), darkPlumageMat);
+      tipFeathers.scale.set(0.32, 1.15, 0.58);
+      tipFeathers.position.set(side * 0.30, -0.92, -0.05);
+      wingPivot.add(tipFeathers);
+
+      return wingPivot;
+    }
+
+    var leftWing = createOwlWing(-1);
+    var rightWing = createOwlWing(1);
+    owlGroup.add(leftWing, rightWing);
+
+    // Articulated Owl Head (`headGroup`) — rotates toward the approaching train!
+    var headGroup = new THREE.Group();
+    headGroup.position.set(0, 2.42, 0.08);
+    owlGroup.add(headGroup);
+
+    var headBase = new THREE.Mesh(new THREE.SphereGeometry(0.94, 22, 18), slatePlumageMat);
+    headBase.scale.set(1.14, 0.92, 0.94);
+    headBase.castShadow = true;
+    headGroup.add(headBase);
+
+    // Binocular Facial Discs & Huge Amber-Gold Owl Eyes (`image_67733db9.png` right)
+    [-0.42, 0.42].forEach(function(ex) {
+      var outerRim = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.16, 20), darkPlumageMat);
+      outerRim.rotation.x = Math.PI * 0.5;
+      outerRim.position.set(ex, 0.06, 0.68);
+      headGroup.add(outerRim);
+
+      var whiteDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.18, 20), discWhiteMat);
+      whiteDisc.rotation.x = Math.PI * 0.5;
+      whiteDisc.position.set(ex, 0.06, 0.70);
+      headGroup.add(whiteDisc);
+
+      var iris = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 14), amberEyeMat);
+      iris.scale.set(1.0, 1.0, 0.52);
+      iris.position.set(ex, 0.06, 0.78);
+      headGroup.add(iris);
+
+      var pupil = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 12), pupilMat);
+      pupil.scale.set(1.0, 1.0, 0.55);
+      pupil.position.set(ex, 0.06, 0.86);
+      headGroup.add(pupil);
+
+      var catchL = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), pureWhiteMat);
+      catchL.position.set(ex - 0.07, 0.14, 0.96);
+      headGroup.add(catchL);
+    });
+
+    // Dramatic V-Shaped Feathered Brow Ridges / Ear Tufts (`image_67733db9.png`)
+    [-1, 1].forEach(function(side) {
+      var brow = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.18, 0.24), discWhiteMat);
+      brow.position.set(side * 0.42, 0.46, 0.76);
+      brow.rotation.z = side * 0.34;
+      headGroup.add(brow);
+    });
+
+    // Curved Golden-Orange Owl Beak
+    var beak = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.44, 12), beakMat);
+    beak.rotation.x = Math.PI * 0.68;
+    beak.position.set(0, -0.10, 0.92);
+    headGroup.add(beak);
+
+    // Golden-Orange Talons gripping the branch
+    [-0.36, 0.36].forEach(function(tx) {
+      [-0.10, 0.0, 0.10].forEach(function(toeX) {
+        var talon = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.28, 8), beakMat);
+        talon.position.set(tx + toeX, 0.08, 0.22);
+        talon.rotation.x = 0.55;
+        owlGroup.add(talon);
+      });
+    });
+
+    var bubble = createComicBubbleSprite('Hoo-hoo! 🦉', '#fef3c7', '#d97706', '#78350f', 7.4, 2.8);
+    bubble.sprite.position.set(0, 4.4, 0);
+    owlGroup.add(bubble.sprite);
+
+    return {
+      envGroup: envGroup,
+      owlGroup: owlGroup,
+      headGroup: headGroup,
+      leftWing: leftWing,
+      rightWing: rightWing,
+      bubble: bubble
+    };
+  }
+
+  // --------------------------------------------------------------------------
+  // D) PLACE ALL 4 CHARACTERS ALONG THE RAILWAY TRACKS
+  // --------------------------------------------------------------------------
+  function findSurfaceEdge(edgeId) {
+    for (var i = 0; i < window.edges.length; i++) {
+      if (window.edges[i] && window.edges[i].id === edgeId) return window.edges[i];
+    }
+    return null;
+  }
+
+  function getTrackFrameAt(edge, u) {
+    var pt = edge.curve.getPointAt(u).clone();
+    var tan = edge.curve.getTangentAt(u).clone().normalize();
+    // Match `addBidirectionalTrack` perpendicular convention (`-tan.z, 0, tan.x`)
+    var perp = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+    return { pt: pt, tan: tan, perp: perp };
+  }
+
+  var edgeWestNW = findSurfaceEdge('J_WEST->J_NW');
+  var edgeNorthNE = findSurfaceEdge('J_NORTH->J_NE');
+  if (!edgeWestNW || !edgeNorthNE) return;
+
+  // 1. TWO TRACK MONSTERS ("Strašidla sedící na kolejích"):
+  //    - Monster #1 (Purple 2-eyed antenna monster): Behind Mom & Dad's House on `J_WEST->J_NW` at `u = 0.72`
+  //    - Monster #2 (Fluffy multi-colored 1-eyed monster): Behind Grandma's House on `J_NORTH->J_NE` at `u = 0.72`
+  var monsterInstances = [];
+
+  function spawnTrackMonsterOnEdge(edge, uTrack, modelObj, pitchMult, labelName) {
+    var frame = getTrackFrameAt(edge, uTrack);
+    var railSurfaceY = frame.pt.y + 0.18;
+    var hidingLateral = -11.2; // Safe hiding spot behind tree well outside both tracks
+    var hideWorldPos = frame.pt.clone().add(frame.perp.clone().multiplyScalar(hidingLateral));
+    var hideGroundY = window.getTerrainHeight ? Math.max(0.2, window.getTerrainHeight(hideWorldPos.x, hideWorldPos.z)) : frame.pt.y;
+
+    // Place dedicated hiding tree at `lateral = -9.6m` so the monster at `-11.2m` is right behind it
+    var treePos = frame.pt.clone().add(frame.perp.clone().multiplyScalar(-9.6));
+    var treeGroundY = window.getTerrainHeight ? Math.max(0.2, window.getTerrainHeight(treePos.x, treePos.z)) : frame.pt.y;
+    var hidingTree = buildMonsterHidingTree();
+    hidingTree.position.set(treePos.x, treeGroundY, treePos.z);
+    scene.add(hidingTree);
+
+    modelObj.root.position.set(frame.pt.x, railSurfaceY, frame.pt.z);
+    // Stand with back turned to oncoming train (`+tan` looks away from oncoming train)
+    modelObj.root.lookAt(frame.pt.clone().add(frame.tan));
+    scene.add(modelObj.root);
+
+    monsterInstances.push({
+      name: labelName,
+      model: modelObj,
+      trackCenterPos: new THREE.Vector3(frame.pt.x, railSurfaceY, frame.pt.z),
+      parallelTrackPos: new THREE.Vector3(
+        frame.pt.x + frame.perp.x * 4.4,
+        railSurfaceY,
+        frame.pt.z + frame.perp.z * 4.4
+      ),
+      tan: frame.tan.clone(),
+      perp: frame.perp.clone(),
+      railY: railSurfaceY,
+      hideGroundY: hideGroundY,
+      hidingLateral: hidingLateral,
+      currentLateral: 0.0,
+      activeSeatLateral: 0.0,
+      state: 'SITTING', // 'SITTING' (standing with back turned) | 'STARTLED' | 'RUNNING_OFF' | 'HIDING_PEEKING' | 'RETURNING'
+      stateTimer: 0.0,
+      awayTimer: 0.0,
+      tongueSoundPlayed: false,
+      startleAwayTarget: null,
+      pitchMult: pitchMult
+    });
+  }
+
+  spawnTrackMonsterOnEdge(edgeWestNW, 0.72, buildPurpleAntennaMonster(), 1.0, '👾 Purple Track Monster (Mom\'s House)');
+  spawnTrackMonsterOnEdge(edgeNorthNE, 0.72, buildFluffyCyclopsMonster(), 0.88, '👹 Fluffy Track Monster (Grandma\'s House)');
+
+  // 2. KRÁLÍK U CESTY (White Rabbit beside the track on `J_NORTH->J_NE` at `u = 0.21`, lateral `-7.6m` -> < 20m at pass-by!)
+  var rabbitFrame = getTrackFrameAt(edgeNorthNE, 0.21);
+  var rabbitWorldPos = rabbitFrame.pt.clone().add(rabbitFrame.perp.clone().multiplyScalar(-7.6));
+  rabbitWorldPos.y = window.getTerrainHeight ? Math.max(0.2, window.getTerrainHeight(rabbitWorldPos.x, rabbitWorldPos.z)) : rabbitFrame.pt.y;
+  var rabbitObj = buildStorybookWhiteRabbit();
+  rabbitObj.root.position.copy(rabbitWorldPos);
+  rabbitObj.root.lookAt(rabbitFrame.pt.x, rabbitWorldPos.y, rabbitFrame.pt.z);
+  scene.add(rabbitObj.root);
+
+  var rabbitState = {
+    obj: rabbitObj,
+    trackAnchorPos: rabbitFrame.pt.clone(),
+    worldPos: rabbitWorldPos.clone(),
+    tan: rabbitFrame.tan.clone(),
+    perp: rabbitFrame.perp.clone(),
+    state: 'IDLE', // 'IDLE' | 'HOPPING_AND_WAVING' | 'COOLDOWN'
+    timer: 0.0,
+    honkedThisPass: false
+  };
+
+  // 3. VEVERKA U STROMU (Orange Squirrel + Colorful Storybook Tree on `J_NORTH->J_NE` at `u = 0.37`, lateral `-9.2m` -> < 20m at pass-by!)
+  var sqFrame = getTrackFrameAt(edgeNorthNE, 0.37);
+  var sqTreeWorldPos = sqFrame.pt.clone().add(sqFrame.perp.clone().multiplyScalar(-9.2));
+  sqTreeWorldPos.y = window.getTerrainHeight ? Math.max(0.2, window.getTerrainHeight(sqTreeWorldPos.x, sqTreeWorldPos.z)) : sqFrame.pt.y;
+  var squirrelObj = buildStorybookSquirrelAndTree();
+  squirrelObj.envGroup.position.copy(sqTreeWorldPos);
+  squirrelObj.envGroup.lookAt(sqFrame.pt.x, sqTreeWorldPos.y, sqFrame.pt.z);
+  scene.add(squirrelObj.envGroup);
+
+  var squirrelState = {
+    obj: squirrelObj,
+    trackAnchorPos: sqFrame.pt.clone(),
+    worldPos: sqTreeWorldPos.clone(),
+    tan: sqFrame.tan.clone(),
+    perp: sqFrame.perp.clone(),
+    state: 'GROUND_IDLE', // 'GROUND_IDLE' | 'SPIN_AND_LEAP' | 'PERCHED_ON_BRANCH' | 'HOPPING_DOWN'
+    timer: 0.0,
+    honkedThisPass: false
+  };
+
+  // 4. SOVA U STROMU (Friendly Owl on Tree Branch on `J_WEST->J_NW` at `u = 0.25`, lateral `-9.6m` -> < 20m at pass-by!)
+  var owlFrame = getTrackFrameAt(edgeWestNW, 0.25);
+  var owlTreeWorldPos = owlFrame.pt.clone().add(owlFrame.perp.clone().multiplyScalar(-9.6));
+  owlTreeWorldPos.y = window.getTerrainHeight ? Math.max(0.2, window.getTerrainHeight(owlTreeWorldPos.x, owlTreeWorldPos.z)) : owlFrame.pt.y;
+  var owlObj = buildStorybookOwlAndTree();
+  owlObj.envGroup.position.copy(owlTreeWorldPos);
+  owlObj.envGroup.lookAt(owlFrame.pt.x, owlTreeWorldPos.y, owlFrame.pt.z);
+  scene.add(owlObj.envGroup);
+
+  var owlState = {
+    obj: owlObj,
+    trackAnchorPos: owlFrame.pt.clone(),
+    worldPos: owlTreeWorldPos.clone(),
+    tan: owlFrame.tan.clone(),
+    perp: owlFrame.perp.clone(),
+    state: 'PERCHED_IDLE', // 'PERCHED_IDLE' | 'GREETING' | 'COOLDOWN'
+    timer: 0.0,
+    honkedThisPass: false
+  };
+
+  // Expose registry for inspection & testing
+  window.storybookInteractiveCharacters = {
+    monsters: monsterInstances,
+    rabbit: rabbitState,
+    squirrel: squirrelState,
+    owl: owlState
+  };
+
+  // --------------------------------------------------------------------------
+  // E) HELPER: FIND CLOSEST APPROACHING TRAIN & SPEED FOR ANY TRACK POINT
+  // --------------------------------------------------------------------------
+  function getClosestTrainApproachInfo(trackPt, parallelTrackPt) {
+    var bestDist = 999999;
+    var bestSpeedMps = 8.4;
+    var bestTrainPos = null;
+    var isOnParallelTrack = false;
+    var isPlayerClosest = false;
+
+    if (window.playerLoco && window.pState && !window.pState.inSubway) {
+      var pPos = window.playerLoco.position;
+      var dPlayer = pPos.distanceTo(trackPt);
+      var pSpeedMps = Math.max(8.4, Math.abs(window.pState.currentVel || 0.14) * 60.0);
+      if (dPlayer < bestDist) {
+        bestDist = dPlayer;
+        bestSpeedMps = pSpeedMps;
+        bestTrainPos = pPos;
+        isOnParallelTrack = false;
+        isPlayerClosest = true;
+      }
+      // Also check rear wagon distance so monster stays safely hidden until the ENTIRE train has passed!
+      if (window.playerCoaches && window.playerCoaches.length > 0) {
+        var lastCoach = window.playerCoaches[window.playerCoaches.length - 1];
+        if (lastCoach && lastCoach.position) {
+          var dCoach = lastCoach.position.distanceTo(trackPt);
+          if (dCoach < bestDist) {
+            bestDist = dCoach;
+            bestSpeedMps = pSpeedMps;
+            bestTrainPos = lastCoach.position;
+            isPlayerClosest = true;
+          }
+        }
+      }
+    }
+
+    if (window.aiTrains && parallelTrackPt) {
+      for (var i = 0; i < window.aiTrains.length; i++) {
+        var ai = window.aiTrains[i];
+        if (ai && ai.loco && ai.loco.position) {
+          var dAi = ai.loco.position.distanceTo(parallelTrackPt);
+          var aiSpeedMps = Math.max(10.0, Math.abs(ai.currentSpeed || ai.baseSpeed || 0.25) * 60.0);
+          if (dAi < bestDist) {
+            bestDist = dAi;
+            bestSpeedMps = aiSpeedMps;
+            bestTrainPos = ai.loco.position;
+            isOnParallelTrack = true;
+            isPlayerClosest = false;
+          }
+        }
+      }
+    }
+
+    return {
+      dist: bestDist,
+      speedMps: bestSpeedMps,
+      trainPos: bestTrainPos,
+      isOnParallelTrack: isOnParallelTrack,
+      isPlayerClosest: isPlayerClosest
+    };
+  }
+
+  // Helper: Check if the player train is currently moving TOWARD a given world point
+  function isPlayerApproachingPoint(targetWorldPt) {
+    if (!window.playerLoco || !window.pState || !window.pState.edge || !window.pState.edge.curve) return false;
+    var pPos = window.playerLoco.position;
+    var ct = Math.max(0, Math.min(1, window.pState.t || 0));
+    var tan = window.pState.edge.curve.getTangentAt(ct).normalize();
+    if ((window.pState.currentVel || 0) < -0.01) tan.negate();
+    var toTarget = targetWorldPt.clone().sub(pPos);
+    toTarget.y = 0;
+    if (toTarget.lengthSq() < 0.001) return true;
+    toTarget.normalize();
+    return toTarget.dot(tan) > 0.10;
+  }
+
+  // --------------------------------------------------------------------------
+  // F) PER-FRAME ANIMATION, CAMERA CHOREOGRAPHY & STATE MACHINE UPDATE
+  // --------------------------------------------------------------------------
+  var lastUpdateMs = performance.now();
+
+  function updateAllInteractiveStorybookCharacters() {
+    var nowMs = performance.now();
+    var dt = Math.min(0.08, Math.max(0.004, (nowMs - lastUpdateMs) / 1000.0));
+    lastUpdateMs = nowMs;
+    var timeSec = nowMs * 0.001;
+
+    var charCamActive = false;
+    var charCamPos = null;
+    var charCamLook = null;
+    var requestSlowdown = false;
+    var requestMonsterHoldCrawl = false;
+
+    var playerActiveOnSurface = Boolean(window.playerLoco && window.pState && !window.pState.inSubway);
+    var pPos = playerActiveOnSurface ? window.playerLoco.position : null;
+    var pTan = null;
+    if (playerActiveOnSurface && window.pState.edge && window.pState.edge.curve) {
+      var curT = Math.max(0, Math.min(1, window.pState.t || 0));
+      pTan = window.pState.edge.curve.getTangentAt(curT).normalize();
+      if ((window.pState.currentVel || 0) < -0.01) pTan.negate();
+    }
+
+    // Also trigger sheep & cow sounds automatically when the player train comes within < 20m of them
+    if (playerActiveOnSurface && pPos) {
+      if (window.trackSheepFlocks && typeof window.playSheepBaa === 'function') {
+        for (var sfi = 0; sfi < window.trackSheepFlocks.length; sfi++) {
+          var fl = window.trackSheepFlocks[sfi];
+          if (fl && fl.basePos) {
+            var dSheep = pPos.distanceTo(fl.basePos);
+            if (dSheep < 19.5 && !fl._baaPlayedWithin20m) {
+              fl._baaPlayedWithin20m = true;
+              window.playSheepBaa();
+            } else if (dSheep > 32.0) {
+              fl._baaPlayedWithin20m = false;
+            }
+          }
+        }
+      }
+      if (window.daisyTheCow && window.daisyTheCow.position && typeof window.playCowMoo === 'function') {
+        var dCow = pPos.distanceTo(window.daisyTheCow.position);
+        if (dCow < 19.5 && !window.daisyTheCow._mooPlayedWithin20m) {
+          window.daisyTheCow._mooPlayedWithin20m = true;
+          window.playCowMoo();
+        } else if (dCow > 30.0) {
+          window.daisyTheCow._mooPlayedWithin20m = false;
+        }
+      }
+    }
+
+    // ========================================================================
+    // 1. UPDATE BOTH TRACK MONSTERS ("Strašidla sedící na kolejích")
+    //    - Stands with back turned to train before honk ("štrašidlo stojí před zatroubením k vláčku zády")
+    //    - 3s before startle (`dist <= 45m` down to `19.5m`):
+    //      Smooth camera zoom from 5m above the train (`z pozice 5m nad vláčkem`),
+    //      showing both the front of the train (`začátek vláčku`) AND the monster,
+    //      while slowing the train to minimum speed!
+    //    - At `dist <= 19.5m` (< 20m!):
+    //      Train blows its horn (`zatrub`), monster startles, turns around 180° (`otočí se`),
+    //      bulges its eyes (`vytřeští oči`), jumps ~5m high (`vyskočí asi 5m do výšky`),
+    //      screams "HEEELP!" (audible within < 20m), runs off tracks (`uteče`),
+    //      hides behind the tree (`schová se za strom`), and after 2s peeks out
+    //      and sticks out its tongue (`a za 2s vykoukne a vyplázne jazyk`)!
+    // ========================================================================
+    for (var mi = 0; mi < monsterInstances.length; mi++) {
+      var m = monsterInstances[mi];
+      var mod = m.model;
+      var info = getClosestTrainApproachInfo(m.trackCenterPos, m.parallelTrackPos);
+      var playerDistToMonsterTrack = (playerActiveOnSurface && pPos) ? pPos.distanceTo(m.trackCenterPos) : 999999;
+      var playerApproachingMonster = playerActiveOnSurface && isPlayerApproachingPoint(m.trackCenterPos);
+
+      // Startle distance is strictly < 20m (`19.5m`) so the monster's scream is within the 20m audio range!
+      // And 3 seconds before startle at minimum speed (`8.4 m/s`) is `19.5 + 3.0 * 8.4 = ~45.0m`!
+      var startleDist = 19.5;
+      var preZoomDist = 45.5;
+      var resetDist = 56.0;
+
+      if (m.state === 'SITTING') {
+        m.stateTimer += dt;
+        var targetSeat = info.isOnParallelTrack ? 4.4 : 0.0;
+        m.activeSeatLateral += (targetSeat - m.activeSeatLateral) * Math.min(1.0, dt * 4.0);
+        m.currentLateral = m.activeSeatLateral;
+
+        var sitWorldPos = m.trackCenterPos.clone().add(m.perp.clone().multiplyScalar(m.currentLateral));
+        mod.root.position.set(sitWorldPos.x, m.railY, sitWorldPos.z);
+
+        // Stand with BACK TURNED toward the approaching train ("štrašidlo stojí před zatroubením k vláčku zády")
+        if (info.trainPos && info.dist < 160.0) {
+          var awayDx = sitWorldPos.x - info.trainPos.x;
+          var awayDz = sitWorldPos.z - info.trainPos.z;
+          if (awayDx * awayDx + awayDz * awayDz > 0.001) {
+            mod.root.lookAt(sitWorldPos.x + awayDx, m.railY, sitWorldPos.z + awayDz);
+          }
+        }
+
+        // Upright standing idle pose with back turned to the train
+        mod.bodyGroup.position.y = Math.sin(timeSec * 2.6 + mi) * 0.05;
+        mod.bodyGroup.rotation.z = Math.sin(timeSec * 1.8 + mi) * 0.04;
+        mod.leftEye.scale.setScalar(1.0);
+        mod.rightEye.scale.setScalar(1.0);
+        mod.mouth.scale.set(0.85, 0.35 + Math.sin(timeSec * 2.2) * 0.06, 0.85);
+        if (mod.peekingTongue) mod.peekingTongue.visible = false;
+        mod.leftArm.rotation.z = 0.42;
+        mod.rightArm.rotation.z = -0.42;
+        mod.leftLeg.rotation.x = 0.0;
+        mod.rightLeg.rotation.x = 0.0;
+        mod.leftLeg.position.z = 0.05;
+        mod.rightLeg.position.z = 0.05;
+        mod.bubble.sprite.visible = false;
+
+        // Check if train has reached the startle point (`dist <= 19.5m`, i.e. 3s after camera zoom began and < 20m!)
+        if (info.dist <= startleDist) {
+          m.state = 'STARTLED';
+          m.stateTimer = 0.0;
+          m.awayTimer = 0.0;
+          m.tongueSoundPlayed = false;
+
+          // Record initial away-facing point so monster smoothly spins 180° to face the train!
+          if (info.trainPos) {
+            m.startleAwayTarget = new THREE.Vector3(
+              sitWorldPos.x + (sitWorldPos.x - info.trainPos.x),
+              m.railY,
+              sitWorldPos.z + (sitWorldPos.z - info.trainPos.z)
+            );
+          } else {
+            m.startleAwayTarget = sitWorldPos.clone().add(m.tan);
+          }
+
+          // Train automatically blows its horn right as it startles the monster!
+          if (playerDistToMonsterTrack <= 22.0 && typeof window.playTrainHorn === 'function') {
+            window.playTrainHorn();
+          }
+
+          mod.leftEye.scale.setScalar(1.52);
+          mod.rightEye.scale.setScalar(1.52);
+          mod.mouth.scale.set(1.22, 1.38, 1.12);
+          if (mod.peekingTongue) mod.peekingTongue.visible = false;
+          mod.leftArm.rotation.z = -1.35;
+          mod.rightArm.rotation.z = 1.35;
+          updateComicBubbleText(mod.bubble, 'HEEELP! 😱', '#fef08a', '#9333ea', '#581c87');
+          mod.bubble.sprite.visible = true;
+          playMonsterHelpSound(m.pitchMult, mod.root.position);
+        }
+      } else if (m.state === 'STARTLED') {
+        m.stateTimer += dt;
+        var startleDur = 0.78;
+        var pStartle = Math.min(1.0, m.stateTimer / startleDur);
+
+        var sitPosNow = m.trackCenterPos.clone().add(m.perp.clone().multiplyScalar(m.currentLateral));
+
+        // Jump ~5m high into the air (`vyskočí asi 5m do výšky`)!
+        var jumpHeight5m = Math.sin(pStartle * Math.PI) * 5.0;
+        mod.root.position.set(sitPosNow.x, m.railY + jumpHeight5m, sitPosNow.z);
+        mod.bodyGroup.position.y = 0.0;
+        mod.bodyGroup.rotation.z = Math.sin(m.stateTimer * 36.0) * 0.12;
+
+        // Bulge eyes wide open (`vytřeští oči`), open mouth wide, wave hands up!
+        mod.leftEye.scale.setScalar(1.52);
+        mod.rightEye.scale.setScalar(1.52);
+        mod.mouth.scale.set(1.22, 1.38, 1.12);
+        if (mod.peekingTongue) mod.peekingTongue.visible = false;
+        mod.leftArm.rotation.z = -1.35 + Math.sin(m.stateTimer * 28.0) * 0.25;
+        mod.rightArm.rotation.z = 1.35 - Math.sin(m.stateTimer * 28.0) * 0.25;
+        mod.leftLeg.rotation.x = 0.28;
+        mod.rightLeg.rotation.x = -0.28;
+        mod.leftLeg.position.z = 0.05;
+        mod.rightLeg.position.z = 0.05;
+        mod.bubble.sprite.visible = true;
+
+        // Turn 180° around from back-turned to facing the train (`otočí se`) over the first 0.24s!
+        if (info.trainPos) {
+          var uTurn = Math.min(1.0, m.stateTimer / 0.24);
+          var awayPt = m.startleAwayTarget || sitPosNow.clone().add(m.tan);
+          var towardPt = new THREE.Vector3(info.trainPos.x, mod.root.position.y, info.trainPos.z);
+          var sidePivot = sitPosNow.clone().sub(m.perp.clone().multiplyScalar(6.0));
+          var lookPt;
+          if (uTurn < 0.5) {
+            lookPt = awayPt.clone().lerp(sidePivot, uTurn * 2.0);
+          } else {
+            lookPt = sidePivot.clone().lerp(towardPt, (uTurn - 0.5) * 2.0);
+          }
+          lookPt.y = mod.root.position.y;
+          mod.root.lookAt(lookPt);
+        }
+
+        if (m.stateTimer >= startleDur) {
+          m.state = 'RUNNING_OFF';
+          m.stateTimer = 0.0;
+        }
+      } else if (m.state === 'RUNNING_OFF') {
+        m.stateTimer += dt;
+        var runDur = 0.76;
+        var uRun = Math.min(1.0, m.stateTimer / runDur);
+        var easeRun = 1.0 - Math.pow(1.0 - uRun, 2.2);
+
+        m.currentLateral = m.activeSeatLateral + (m.hidingLateral - m.activeSeatLateral) * easeRun;
+        var curPos = m.trackCenterPos.clone().add(m.perp.clone().multiplyScalar(m.currentLateral));
+        var curY = m.railY + (m.hideGroundY - m.railY) * easeRun;
+        mod.root.position.set(curPos.x, curY, curPos.z);
+
+        // Look in the direction of escape (`-perp`) while sprinting behind the tree
+        var escapeTarget = curPos.clone().sub(m.perp);
+        mod.root.lookAt(escapeTarget.x, curY, escapeTarget.z);
+
+        mod.bodyGroup.position.y = Math.abs(Math.sin(m.stateTimer * 28.0)) * 0.48;
+        mod.bodyGroup.rotation.z = Math.sin(m.stateTimer * 28.0) * 0.22;
+        mod.leftEye.scale.setScalar(1.36);
+        mod.rightEye.scale.setScalar(1.36);
+        mod.mouth.scale.set(1.15, 1.25, 1.05);
+        if (mod.peekingTongue) mod.peekingTongue.visible = false;
+        mod.leftArm.rotation.z = -1.30 + Math.sin(m.stateTimer * 30.0) * 0.35;
+        mod.rightArm.rotation.z = 1.30 + Math.cos(m.stateTimer * 30.0) * 0.35;
+        mod.leftLeg.rotation.x = Math.sin(m.stateTimer * 28.0) * 0.85;
+        mod.rightLeg.rotation.x = -Math.sin(m.stateTimer * 28.0) * 0.85;
+        mod.bubble.sprite.visible = true;
+
+        if (uRun >= 1.0) {
+          m.state = 'HIDING_PEEKING';
+          m.stateTimer = 0.0;
+          m.awayTimer = 0.0;
+          m.tongueSoundPlayed = false;
+          mod.bubble.sprite.visible = false;
+        }
+      } else if (m.state === 'HIDING_PEEKING') {
+        m.stateTimer += dt;
+        m.currentLateral = m.hidingLateral;
+
+        // "schová se za strom a za 2s vykoukne a vyplázne jazyk":
+        // Phase 1 (0.0s -> 2.0s): Stay hidden behind the tree trunk
+        // Phase 2 (2.0s+): Peek out from behind the tree and stick out tongue!
+        var isPeekingNow = (m.stateTimer >= 2.0);
+        var uPeek = isPeekingNow ? Math.min(1.0, (m.stateTimer - 2.0) / 0.38) : 0.0;
+        var peekShiftAlongTrack = uPeek * 1.85;
+
+        var hidePos = m.trackCenterPos.clone()
+          .add(m.perp.clone().multiplyScalar(m.hidingLateral))
+          .add(m.tan.clone().multiplyScalar(peekShiftAlongTrack));
+        mod.root.position.set(hidePos.x, m.hideGroundY, hidePos.z);
+
+        if (info.trainPos) {
+          mod.root.lookAt(info.trainPos.x, m.hideGroundY, info.trainPos.z);
+        } else {
+          mod.root.lookAt(m.trackCenterPos.x, m.hideGroundY, m.trackCenterPos.z);
+        }
+
+        mod.bodyGroup.position.y = Math.sin(timeSec * 3.0) * 0.05;
+        mod.bodyGroup.rotation.z = -0.36 * uPeek;
+        mod.leftEye.scale.setScalar(isPeekingNow ? 1.24 : 1.05);
+        mod.rightEye.scale.setScalar(isPeekingNow ? 1.24 : 1.05);
+        mod.mouth.scale.set(isPeekingNow ? 1.05 : 0.75, isPeekingNow ? 0.95 : 0.40, 0.90);
+        mod.leftArm.rotation.z = 0.25;
+        mod.rightArm.rotation.z = -0.25;
+        mod.leftLeg.rotation.x = 0.0;
+        mod.rightLeg.rotation.x = 0.0;
+
+        if (isPeekingNow) {
+          if (mod.peekingTongue) {
+            mod.peekingTongue.visible = true;
+            mod.peekingTongue.rotation.z = Math.sin(timeSec * 14.0) * 0.22;
+            mod.peekingTongue.scale.set(1.0, 1.0, 0.95 + Math.sin(timeSec * 10.0) * 0.18);
+          }
+          updateComicBubbleText(mod.bubble, 'Bleh! 😛', '#fce7f3', '#ec4899', '#831843');
+          mod.bubble.sprite.visible = (m.stateTimer < 4.8);
+          if (!m.tongueSoundPlayed) {
+            m.tongueSoundPlayed = true;
+            playMonsterTongueSound(m.pitchMult, mod.root.position);
+          }
+        } else {
+          if (mod.peekingTongue) mod.peekingTongue.visible = false;
+          mod.bubble.sprite.visible = false;
+        }
+
+        // Stay safely hidden until the train has departed beyond `resetDist`
+        if (info.dist > resetDist && m.stateTimer > 3.4) {
+          m.awayTimer += dt;
+          if (m.awayTimer >= 0.9) {
+            m.state = 'RETURNING';
+            m.stateTimer = 0.0;
+            if (mod.peekingTongue) mod.peekingTongue.visible = false;
+            mod.bubble.sprite.visible = false;
+          }
+        } else {
+          m.awayTimer = 0.0;
+        }
+      } else if (m.state === 'RETURNING') {
+        if (info.dist <= startleDist) {
+          m.state = 'STARTLED';
+          m.stateTimer = 0.0;
+          updateComicBubbleText(mod.bubble, 'HEEELP! 😱', '#fef08a', '#9333ea', '#581c87');
+          mod.bubble.sprite.visible = true;
+          playMonsterHelpSound(m.pitchMult, mod.root.position);
+          continue;
+        }
+
+        m.stateTimer += dt;
+        var retDur = 1.4;
+        var uRet = Math.min(1.0, m.stateTimer / retDur);
+        var easeRet = uRet * uRet * (3.0 - 2.0 * uRet);
+
+        m.currentLateral = m.hidingLateral + (0.0 - m.hidingLateral) * easeRet;
+        var retPos = m.trackCenterPos.clone().add(m.perp.clone().multiplyScalar(m.currentLateral));
+        var retY = m.hideGroundY + (m.railY - m.hideGroundY) * easeRet;
+        mod.root.position.set(retPos.x, retY, retPos.z);
+        mod.root.lookAt(m.trackCenterPos.x, retY, m.trackCenterPos.z);
+
+        if (mod.peekingTongue) mod.peekingTongue.visible = false;
+        mod.bodyGroup.position.y = Math.abs(Math.sin(m.stateTimer * 14.0)) * 0.24;
+        mod.bodyGroup.rotation.z = Math.sin(m.stateTimer * 14.0) * 0.10;
+        mod.leftLeg.rotation.x = Math.sin(m.stateTimer * 14.0) * 0.55;
+        mod.rightLeg.rotation.x = -Math.sin(m.stateTimer * 14.0) * 0.55;
+
+        if (uRet >= 1.0) {
+          m.state = 'SITTING';
+          m.stateTimer = 0.0;
+          m.activeSeatLateral = 0.0;
+        }
+      }
+
+      // CAMERA CHOREOGRAPHY FOR THIS MONSTER:
+      // Active starting 3 seconds before startle (`playerDistToMonsterTrack <= preZoomDist` while approaching in `SITTING`),
+      // and stays active through `STARTLED`, `RUNNING_OFF`, and `HIDING_PEEKING` (up to `3.8s` so the 2s wait + tongue peek are shown!).
+      var isPreStartleApproach = (m.state === 'SITTING' && playerDistToMonsterTrack <= preZoomDist && playerApproachingMonster);
+      var isStartleOrPeekSequence = (
+        playerDistToMonsterTrack <= 48.0 &&
+        (m.state === 'STARTLED' || m.state === 'RUNNING_OFF' || (m.state === 'HIDING_PEEKING' && m.stateTimer < 3.8))
+      );
+
+      if (playerActiveOnSurface && pPos && pTan && (isPreStartleApproach || isStartleOrPeekSequence)) {
+        requestSlowdown = true;
+        if (isStartleOrPeekSequence && playerDistToMonsterTrack <= 22.0 && m.stateTimer < 3.4) {
+          requestMonsterHoldCrawl = true;
+        }
+
+        // Position camera 5m above the train (`z pozice 5m nad vláčkem`), slightly behind the locomotive's
+        // front nose so the front of the train (`začátek vláčku`) is visible in the lower foreground
+        // AND the monster (standing on the track / jumping 5m / peeking from behind the tree) is framed ahead!
+        var dirToMonster = m.trackCenterPos.clone().sub(pPos);
+        dirToMonster.y = 0;
+        if (dirToMonster.lengthSq() > 0.001) dirToMonster.normalize();
+        else dirToMonster.copy(pTan);
+
+        var forwardViewDir = pTan.clone().lerp(dirToMonster, 0.65).normalize();
+        var trainFrontNose = pPos.clone().add(pTan.clone().multiplyScalar(3.4));
+
+        charCamPos = pPos.clone()
+          .sub(forwardViewDir.clone().multiplyScalar(6.6))
+          .sub(m.perp.clone().multiplyScalar(1.8))
+          .add(new THREE.Vector3(0, 5.0, 0));
+
+        var monsterVisualTarget = mod.root.position.clone().add(new THREE.Vector3(0, 2.1, 0));
+        var noseVisualTarget = trainFrontNose.clone().add(new THREE.Vector3(0, 1.6, 0));
+        charCamLook = noseVisualTarget.lerp(monsterVisualTarget, 0.64);
+        charCamActive = true;
+      }
+    }
+
+    // ========================================================================
+    // 2. UPDATE WHITE RABBIT BY THE TRACK ("Králík u cesty")
+    //    - Smooth camera zoom framing both the train and the rabbit
+    //    - Train slows to minimum speed & blows its horn
+    //    - Automatically hops 3 times, waves front paw, and plays sound when < 20m!
+    // ========================================================================
+    var rObj = rabbitState.obj;
+    var pDistRabbitTrack = (playerActiveOnSurface && pPos) ? pPos.distanceTo(rabbitState.trackAnchorPos) : 999999;
+    var pDistRabbitWorld = (playerActiveOnSurface && pPos) ? pPos.distanceTo(rabbitState.worldPos) : 999999;
+
+    if (rabbitState.state === 'IDLE') {
+      rabbitState.timer += dt;
+      rObj.bodyGroup.position.y = Math.sin(timeSec * 2.5) * 0.04;
+      rObj.bodyGroup.rotation.x = 0.0;
+      rObj.leftEar.rotation.x = Math.sin(timeSec * 2.2) * 0.06;
+      rObj.rightEar.rotation.x = Math.cos(timeSec * 2.4) * 0.06;
+      rObj.rightArm.rotation.z = 0.0;
+      rObj.rightArm.rotation.x = 0.0;
+      rObj.bubble.sprite.visible = false;
+
+      // Trigger automatically whenever the train comes within < 20m (`19.6m`)!
+      if (pDistRabbitWorld <= 19.6) {
+        rabbitState.state = 'HOPPING_AND_WAVING';
+        rabbitState.timer = 0.0;
+        rObj.bubble.sprite.visible = true;
+        if (!rabbitState.honkedThisPass && typeof window.playTrainHorn === 'function') {
+          rabbitState.honkedThisPass = true;
+          window.playTrainHorn();
+        }
+        playRabbitHopAndWaveSound(rabbitState.worldPos);
+      }
+    } else if (rabbitState.state === 'HOPPING_AND_WAVING') {
+      rabbitState.timer += dt;
+      var rt = rabbitState.timer;
+
+      if (pPos) {
+        rObj.root.lookAt(pPos.x, rabbitState.worldPos.y, pPos.z);
+      }
+
+      // Phase 1 (0.0s -> 1.56s): 3 energetic vertical hops (`třikrát výrazně poskočí`)
+      if (rt < 1.56) {
+        var hopPhase = (rt / 1.56) * Math.PI * 3.0;
+        var hopSin = Math.abs(Math.sin(hopPhase));
+        rObj.bodyGroup.position.y = hopSin * 2.55;
+        rObj.bodyGroup.rotation.x = Math.cos(hopPhase) * 0.16;
+        rObj.leftEar.rotation.x = -hopSin * 0.35;
+        rObj.rightEar.rotation.x = -hopSin * 0.35;
+        rObj.leftFoot.rotation.x = hopSin * 0.55;
+        rObj.rightFoot.rotation.x = hopSin * 0.55;
+        rObj.rightArm.rotation.z = -0.35;
+      }
+      // Phase 2 (1.56s -> 3.60s): Wave right front paw in greeting (`zamává přední tlapkou na pozdrav`)
+      else if (rt < 3.60) {
+        rObj.bodyGroup.position.y = 0.0;
+        rObj.bodyGroup.rotation.x = 0.0;
+        rObj.leftEar.rotation.x = 0.05;
+        rObj.rightEar.rotation.x = 0.05;
+        rObj.leftFoot.rotation.x = 0.0;
+        rObj.rightFoot.rotation.x = 0.0;
+        rObj.rightArm.rotation.x = -0.85;
+        rObj.rightArm.rotation.z = -2.15 + Math.sin((rt - 1.56) * 18.0) * 0.42;
+      } else {
+        rabbitState.state = 'COOLDOWN';
+        rabbitState.timer = 0.0;
+        rObj.rightArm.rotation.x = 0.0;
+        rObj.rightArm.rotation.z = 0.0;
+        rObj.bubble.sprite.visible = false;
+      }
+    } else if (rabbitState.state === 'COOLDOWN') {
+      rObj.bodyGroup.position.y = Math.sin(timeSec * 2.5) * 0.04;
+      rObj.rightArm.rotation.x = 0.0;
+      rObj.rightArm.rotation.z = 0.0;
+      if (pDistRabbitWorld > 28.0) {
+        rabbitState.state = 'IDLE';
+        rabbitState.timer = 0.0;
+        rabbitState.honkedThisPass = false;
+      }
+    }
+
+    if (!charCamActive && playerActiveOnSurface && pPos && pTan && (pDistRabbitTrack <= 22.0 || rabbitState.state === 'HOPPING_AND_WAVING')) {
+      requestSlowdown = true;
+      charCamPos = pPos.clone()
+        .sub(pTan.clone().multiplyScalar(18.5))
+        .add(rabbitState.perp.clone().multiplyScalar(13.5))
+        .add(new THREE.Vector3(0, 9.5, 0));
+      var rTarget = rabbitState.worldPos.clone().add(new THREE.Vector3(0, 2.4, 0));
+      var pTargetR = pPos.clone().add(pTan.clone().multiplyScalar(2.5)).add(new THREE.Vector3(0, 2.0, 0));
+      charCamLook = pTargetR.lerp(rTarget, 0.56);
+      charCamActive = true;
+    }
+
+    // ========================================================================
+    // 3. UPDATE ORANGE SQUIRREL BY THE TREE ("Veverka u stromu")
+    //    - Smooth camera zoom framing both the train and the squirrel + tree
+    //    - Train slows to minimum speed & blows its horn
+    //    - Automatically spins twice (`2x 360°`), leaps onto the branch, and plays sound when < 20m!
+    // ========================================================================
+    var sqObj = squirrelState.obj;
+    var pDistSqTrack = (playerActiveOnSurface && pPos) ? pPos.distanceTo(squirrelState.trackAnchorPos) : 999999;
+    var pDistSqWorld = (playerActiveOnSurface && pPos) ? pPos.distanceTo(squirrelState.worldPos) : 999999;
+
+    if (squirrelState.state === 'GROUND_IDLE') {
+      squirrelState.timer += dt;
+      sqObj.squirrelGroup.position.copy(sqObj.startGroundPos);
+      sqObj.sqBody.rotation.set(0, 0, 0);
+      sqObj.tailGroup.rotation.x = Math.sin(timeSec * 3.2) * 0.12;
+      sqObj.bubble.sprite.visible = false;
+
+      // Trigger automatically whenever the train comes within < 20m (`19.6m`)!
+      if (pDistSqWorld <= 19.6) {
+        squirrelState.state = 'SPIN_AND_LEAP';
+        squirrelState.timer = 0.0;
+        sqObj.bubble.sprite.visible = true;
+        if (!squirrelState.honkedThisPass && typeof window.playTrainHorn === 'function') {
+          squirrelState.honkedThisPass = true;
+          window.playTrainHorn();
+        }
+        playSquirrelSpinAndJumpSound(squirrelState.worldPos);
+      }
+    } else if (squirrelState.state === 'SPIN_AND_LEAP') {
+      squirrelState.timer += dt;
+      var st = squirrelState.timer;
+
+      // Phase 1 (0.0s -> 0.82s): Spin twice rapidly around vertical axis (`dvakrát rychle otočí kolem své osy`)
+      if (st < 0.82) {
+        var uSpin = st / 0.82;
+        var easeSpin = uSpin * (2.0 - uSpin);
+        sqObj.squirrelGroup.position.copy(sqObj.startGroundPos);
+        sqObj.squirrelGroup.position.y += Math.sin(uSpin * Math.PI) * 0.55;
+        sqObj.sqBody.rotation.y = easeSpin * Math.PI * 4.0;
+        sqObj.sqBody.rotation.x = 0.0;
+        sqObj.tailGroup.rotation.x = 0.25;
+      }
+      // Phase 2 (0.82s -> 1.62s): Parabolic leap from ground log onto the tree branch (`vyskočí na strom / větev`)
+      else if (st < 1.62) {
+        var uJump = Math.min(1.0, (st - 0.82) / 0.80);
+        var easeJump = uJump * uJump * (3.0 - 2.0 * uJump);
+        sqObj.squirrelGroup.position.lerpVectors(sqObj.startGroundPos, sqObj.branchLandingPos, easeJump);
+        sqObj.squirrelGroup.position.y += Math.sin(uJump * Math.PI) * 2.35;
+        sqObj.sqBody.rotation.y = 0.0;
+        sqObj.sqBody.rotation.x = Math.cos(uJump * Math.PI) * -0.42;
+        sqObj.tailGroup.rotation.x = -0.35;
+      } else {
+        sqObj.squirrelGroup.position.copy(sqObj.branchLandingPos);
+        sqObj.sqBody.rotation.set(0, 0, 0);
+        squirrelState.state = 'PERCHED_ON_BRANCH';
+        squirrelState.timer = 0.0;
+      }
+    } else if (squirrelState.state === 'PERCHED_ON_BRANCH') {
+      squirrelState.timer += dt;
+      sqObj.squirrelGroup.position.copy(sqObj.branchLandingPos);
+      sqObj.squirrelGroup.position.y += Math.sin(timeSec * 4.5) * 0.06;
+      sqObj.sqBody.rotation.y = Math.sin(timeSec * 2.5) * 0.18;
+      sqObj.tailGroup.rotation.x = Math.sin(timeSec * 5.0) * 0.22;
+      sqObj.bubble.sprite.visible = (squirrelState.timer < 2.6);
+
+      // Once the train has driven past (`pDistSqWorld > 28m`), hop cleanly back down to the ground log
+      if (pDistSqWorld > 28.0 && squirrelState.timer > 1.2) {
+        squirrelState.state = 'HOPPING_DOWN';
+        squirrelState.timer = 0.0;
+        sqObj.bubble.sprite.visible = false;
+      }
+    } else if (squirrelState.state === 'HOPPING_DOWN') {
+      squirrelState.timer += dt;
+      var uDown = Math.min(1.0, squirrelState.timer / 0.72);
+      sqObj.squirrelGroup.position.lerpVectors(sqObj.branchLandingPos, sqObj.startGroundPos, uDown);
+      sqObj.squirrelGroup.position.y += Math.sin(uDown * Math.PI) * 1.45;
+      if (uDown >= 1.0) {
+        sqObj.squirrelGroup.position.copy(sqObj.startGroundPos);
+        squirrelState.state = 'GROUND_IDLE';
+        squirrelState.timer = 0.0;
+        squirrelState.honkedThisPass = false;
+      }
+    }
+
+    if (!charCamActive && playerActiveOnSurface && pPos && pTan && (pDistSqTrack <= 22.0 || squirrelState.state === 'SPIN_AND_LEAP' || (squirrelState.state === 'PERCHED_ON_BRANCH' && squirrelState.timer < 1.6))) {
+      requestSlowdown = true;
+      charCamPos = pPos.clone()
+        .sub(pTan.clone().multiplyScalar(19.5))
+        .add(squirrelState.perp.clone().multiplyScalar(14.5))
+        .add(new THREE.Vector3(0, 10.5, 0));
+      var sqTarget = squirrelState.worldPos.clone().add(new THREE.Vector3(0, 3.6, 0));
+      var pTargetSq = pPos.clone().add(pTan.clone().multiplyScalar(2.5)).add(new THREE.Vector3(0, 2.2, 0));
+      charCamLook = pTargetSq.lerp(sqTarget, 0.56);
+      charCamActive = true;
+    }
+
+    // ========================================================================
+    // 4. UPDATE FRIENDLY OWL ON TREE BRANCH ("Sova u stromu")
+    //    - Smooth camera zoom framing both the train and the owl on its branch
+    //    - Train slows to minimum speed & blows its horn
+    //    - Automatically turns head toward train, flaps wings, and hoots when < 20m!
+    // ========================================================================
+    var oObj = owlState.obj;
+    var pDistOwlTrack = (playerActiveOnSurface && pPos) ? pPos.distanceTo(owlState.trackAnchorPos) : 999999;
+    var pDistOwlWorld = (playerActiveOnSurface && pPos) ? pPos.distanceTo(owlState.worldPos) : 999999;
+
+    var targetHeadYaw = Math.sin(timeSec * 1.2) * 0.15;
+    var targetHeadPitch = 0.0;
+    if (pPos && pDistOwlWorld < 48.0) {
+      var localTrain = oObj.owlGroup.worldToLocal(pPos.clone());
+      targetHeadYaw = Math.max(-1.25, Math.min(1.25, Math.atan2(localTrain.x, Math.max(0.5, localTrain.z))));
+      targetHeadPitch = 0.16;
+    }
+    oObj.headGroup.rotation.y += (targetHeadYaw - oObj.headGroup.rotation.y) * Math.min(1.0, dt * 6.5);
+    oObj.headGroup.rotation.x += (targetHeadPitch - oObj.headGroup.rotation.x) * Math.min(1.0, dt * 6.5);
+
+    if (owlState.state === 'PERCHED_IDLE') {
+      owlState.timer += dt;
+      oObj.leftWing.rotation.z = 0.0;
+      oObj.rightWing.rotation.z = 0.0;
+      oObj.owlGroup.position.y = 4.68 + Math.sin(timeSec * 2.0) * 0.03;
+      oObj.bubble.sprite.visible = false;
+
+      // Trigger automatically whenever the train comes within < 20m (`19.6m`)!
+      if (pDistOwlWorld <= 19.6) {
+        owlState.state = 'GREETING';
+        owlState.timer = 0.0;
+        oObj.bubble.sprite.visible = true;
+        if (!owlState.honkedThisPass && typeof window.playTrainHorn === 'function') {
+          owlState.honkedThisPass = true;
+          window.playTrainHorn();
+        }
+        playOwlHootSound(owlState.worldPos);
+      }
+    } else if (owlState.state === 'GREETING') {
+      owlState.timer += dt;
+      var ot = owlState.timer;
+
+      // Flap both wings 5 times energetically in greeting (`několikrát zamává křídly na pozdrav`)
+      if (ot < 3.20) {
+        var flapWave = Math.abs(Math.sin((ot / 3.20) * Math.PI * 5.0));
+        oObj.leftWing.rotation.z = flapWave * 1.38;
+        oObj.rightWing.rotation.z = -flapWave * 1.38;
+        oObj.owlGroup.position.y = 4.68 + flapWave * 0.26;
+      } else {
+        oObj.leftWing.rotation.z = 0.0;
+        oObj.rightWing.rotation.z = 0.0;
+        oObj.owlGroup.position.y = 4.68;
+        oObj.bubble.sprite.visible = false;
+        owlState.state = 'COOLDOWN';
+        owlState.timer = 0.0;
+      }
+    } else if (owlState.state === 'COOLDOWN') {
+      oObj.leftWing.rotation.z = 0.0;
+      oObj.rightWing.rotation.z = 0.0;
+      if (pDistOwlWorld > 28.0) {
+        owlState.state = 'PERCHED_IDLE';
+        owlState.timer = 0.0;
+        owlState.honkedThisPass = false;
+      }
+    }
+
+    if (!charCamActive && playerActiveOnSurface && pPos && pTan && (pDistOwlTrack <= 22.0 || owlState.state === 'GREETING')) {
+      requestSlowdown = true;
+      charCamPos = pPos.clone()
+        .sub(pTan.clone().multiplyScalar(19.5))
+        .add(owlState.perp.clone().multiplyScalar(14.5))
+        .add(new THREE.Vector3(0, 11.0, 0));
+      var owlTarget = owlState.worldPos.clone().add(new THREE.Vector3(0, 5.8, 0));
+      var pTargetOwl = pPos.clone().add(pTan.clone().multiplyScalar(2.5)).add(new THREE.Vector3(0, 2.5, 0));
+      charCamLook = pTargetOwl.lerp(owlTarget, 0.58);
+      charCamActive = true;
+    }
+
+    // Export camera & slowdown state for `installModelsFrameEnhancer()`
+    window._storybookCharCamActive = charCamActive;
+    if (charCamActive && charCamPos && charCamLook) {
+      window._storybookCharCamPos = charCamPos;
+      window._storybookCharCamLook = charCamLook;
+    }
+    window._storybookSlowdownRequested = requestSlowdown;
+    window._storybookMonsterHoldCrawl = requestMonsterHoldCrawl;
+  }
+
+  // Hook into `renderer.render` so all 4 characters update smoothly every frame
+  if (typeof renderer !== 'undefined' && renderer && renderer.render) {
+    var prevRender = renderer.render.bind(renderer);
+    renderer.render = function(sceneArg, cameraArg) {
+      try {
+        updateAllInteractiveStorybookCharacters();
+      } catch (e) {}
+      return prevRender(sceneArg, cameraArg);
+    };
+  }
+})();
