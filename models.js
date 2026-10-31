@@ -2271,6 +2271,11 @@ function createLivingRoadVehicle(name, colHex, vehicleKind, loopIdx, startProgre
   var cyanGlassMat = new THREE.MeshBasicMaterial({ color: 0x67e8f9 });
   var darkTrimMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6 });
 
+  var frontFaceZ = 3.0;
+  var frontFaceY = 1.25;
+  var headlightSpreadX = 0.92;
+  var headlightY = 1.05;
+
   if (vehicleKind === 'mini') {
     var carShape = new THREE.Shape();
     carShape.moveTo(-2.6, 0.55);
@@ -2307,6 +2312,11 @@ function createLivingRoadVehicle(name, colHex, vehicleKind, loopIdx, startProgre
     var miniFace = createCartoonFacePlane(2.55, 1.55, 'transparent', 'mini_grille');
     miniFace.position.set(0, 1.25, 2.98);
     g.add(miniFace);
+
+    frontFaceZ = 3.02;
+    frontFaceY = 1.22;
+    headlightSpreadX = 0.96;
+    headlightY = 1.12;
 
     [[-1.55, 1.55], [1.55, 1.55], [-1.55, -1.55], [1.55, -1.55]].forEach(function(wp) {
       var wh = createCarWheelGroup(0.82, 0.52);
@@ -2382,6 +2392,11 @@ function createLivingRoadVehicle(name, colHex, vehicleKind, loopIdx, startProgre
     busFace.position.set(0, 1.48, 4.66);
     g.add(cabinBox, roofCap, noseHood, stripe1, stripe2, busFace);
 
+    frontFaceZ = 4.70;
+    frontFaceY = 1.45;
+    headlightSpreadX = 1.18;
+    headlightY = 1.22;
+
     [[-1.78, 2.6], [1.78, 2.6], [-1.78, -2.4], [1.78, -2.4]].forEach(function(wp) {
       var wh = createCarWheelGroup(0.96, 0.62);
       wh.position.set(wp[0], 0.96, wp[1]);
@@ -2430,6 +2445,11 @@ function createLivingRoadVehicle(name, colHex, vehicleKind, loopIdx, startProgre
     var exFace = createCartoonFacePlane(3.1, 1.35, 'transparent', 'car_smile');
     exFace.position.set(0, 1.95, 2.22);
     g.add(upperDeck, counterweight, cabFrame, cabGlass, roofBeacon, exFace);
+
+    frontFaceZ = 2.26;
+    frontFaceY = 1.90;
+    headlightSpreadX = 1.15;
+    headlightY = 1.75;
 
     var boomGroup = new THREE.Group();
     boomGroup.position.set(0.75, 2.35, 1.45);
@@ -2493,6 +2513,11 @@ function createLivingRoadVehicle(name, colHex, vehicleKind, loopIdx, startProgre
     trFace.position.set(0, 2.05, 3.28);
     g.add(engineHood, hoodTop, tractorCab, cabWinGlass, cabRoof, rearFenderL, rearFenderR, exhaustPipe, exhaustTip, trFace);
 
+    frontFaceZ = 3.32;
+    frontFaceY = 2.00;
+    headlightSpreadX = 0.78;
+    headlightY = 1.85;
+
     [-1.68, 1.68].forEach(function(rx) {
       var rearW = new THREE.Group();
       rearW.position.set(rx, 1.48, -1.25);
@@ -2536,6 +2561,11 @@ function createLivingRoadVehicle(name, colHex, vehicleKind, loopIdx, startProgre
     vanFace.position.set(0, 1.45, 3.68);
     g.add(vanCargo, vanNose, vanBumper, vanWinFront, vanWinSide, vanFace);
 
+    frontFaceZ = 3.72;
+    frontFaceY = 1.42;
+    headlightSpreadX = 1.12;
+    headlightY = 1.18;
+
     [[-1.7, 2.1], [1.7, 2.1], [-1.7, -2.1], [1.7, -2.1]].forEach(function(wp) {
       var wh = createCarWheelGroup(0.92, 0.58);
       wh.position.set(wp[0], 0.92, wp[1]);
@@ -2543,6 +2573,84 @@ function createLivingRoadVehicle(name, colHex, vehicleKind, loopIdx, startProgre
     });
     addContactShadow(g, 4.8, 8.6, 0.06);
   }
+
+  // ==========================================================================
+  // 3D FLASHING HEADLIGHTS & BIG CHEERFUL SMILE FOR RAILWAY CROSSING GREETINGS
+  // ("3. Auta na přejezdu blikají na vláček a usmívají se.")
+  // ==========================================================================
+  var crossingLights = [];
+  [-1, 1].forEach(function(sideSign) {
+    var hlGroup = new THREE.Group();
+    hlGroup.position.set(sideSign * headlightSpreadX, headlightY, frontFaceZ + 0.04);
+
+    var bezel = new THREE.Mesh(
+      new THREE.TorusGeometry(0.28, 0.055, 8, 16),
+      new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.75, roughness: 0.2 })
+    );
+    var bulbMat = new THREE.MeshBasicMaterial({ color: 0xfef9c3 });
+    var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10), bulbMat);
+    bulb.scale.set(1.0, 1.0, 0.45);
+
+    var haloMat = new THREE.MeshBasicMaterial({
+      color: 0xfef08a,
+      transparent: true,
+      opacity: 0.0,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    var halo = new THREE.Mesh(new THREE.CircleGeometry(0.72, 16), haloMat);
+    halo.position.z = 0.06;
+
+    var beamCone = new THREE.Mesh(
+      new THREE.ConeGeometry(1.15, 4.6, 14, 1, true),
+      haloMat
+    );
+    beamCone.rotation.x = -Math.PI / 2;
+    beamCone.position.set(0, -0.08, 2.35);
+
+    hlGroup.add(bezel, bulb, halo, beamCone);
+    g.add(hlGroup);
+    crossingLights.push({
+      group: hlGroup,
+      bulb: bulb,
+      bulbMat: bulbMat,
+      halo: halo,
+      beamCone: beamCone,
+      haloMat: haloMat
+    });
+  });
+
+  // Big Beaming 3D Smile & Happy Rosy Cheeks when smiling at the train at a crossing
+  var crossingSmileGroup = new THREE.Group();
+  crossingSmileGroup.position.set(0, frontFaceY - 0.26, frontFaceZ + 0.06);
+
+  var smileArc = new THREE.Mesh(
+    new THREE.TorusGeometry(0.56, 0.095, 10, 20, Math.PI),
+    new THREE.MeshBasicMaterial({ color: 0xe11d48 })
+  );
+  smileArc.rotation.z = Math.PI;
+  smileArc.position.y = 0.14;
+
+  var whiteTeeth = new THREE.Mesh(
+    new THREE.CircleGeometry(0.50, 18, Math.PI, Math.PI),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+  );
+  whiteTeeth.position.set(0, 0.12, -0.01);
+
+  [-0.68, 0.68].forEach(function(cx) {
+    var rosyCheek = new THREE.Mesh(
+      new THREE.CircleGeometry(0.20, 12),
+      new THREE.MeshBasicMaterial({ color: 0xfb7185, transparent: true, opacity: 0.85 })
+    );
+    rosyCheek.position.set(cx, 0.16, 0.01);
+    crossingSmileGroup.add(rosyCheek);
+  });
+
+  crossingSmileGroup.add(smileArc, whiteTeeth);
+  g.add(crossingSmileGroup);
+
+  g.userData.crossingLights = crossingLights;
+  g.userData.crossingSmileGroup = crossingSmileGroup;
 
   scene.add(g);
   return {
@@ -2650,17 +2758,59 @@ function createDetailedAnimal(type) {
       var puff = new THREE.Mesh(new THREE.SphereGeometry(s[3], 10, 10), woolMat);
       puff.position.set(s[0], s[1], s[2]); g.add(puff);
     });
+    var headGroup = new THREE.Group();
+    headGroup.position.set(0, 1.85, 1.45);
     var head = new THREE.Mesh(new THREE.SphereGeometry(0.62, 10, 10), darkMat);
-    head.scale.set(0.9, 0.95, 1.25); head.position.set(0, 1.85, 1.45);
-    g.add(head);
+    head.scale.set(0.9, 0.95, 1.25);
+    headGroup.add(head);
+    g.add(headGroup);
+
+    // 4 Sheep Legs (with articulated front-right & front-left legs so sheep wave to the train!)
+    function makeSheepLeg(lx, lz) {
+      var piv = new THREE.Group();
+      piv.position.set(lx, 0.95, lz);
+      var legMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.95, 8), darkMat);
+      legMesh.position.y = -0.45;
+      var hoof = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), darkMat);
+      hoof.position.set(0, -0.90, 0.06);
+      piv.add(legMesh, hoof);
+      g.add(piv);
+      return piv;
+    }
+    var sLeftFore  = makeSheepLeg(-0.48,  0.65);
+    var sRightFore = makeSheepLeg( 0.48,  0.65);
+    makeSheepLeg(-0.48, -0.65);
+    makeSheepLeg( 0.48, -0.65);
+    g.userData = { rightForeleg: sRightFore, leftForeleg: sLeftFore, headGroup: headGroup };
   } else if (type === 'cow') {
     var whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
     var blackMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
     var body = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.45, 3.1), whiteMat); body.position.y = 1.55;
     var patch1 = new THREE.Mesh(new THREE.BoxGeometry(1.96, 0.85, 1.1), blackMat); patch1.position.set(0, 1.7, 0.3);
-    var head = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.15, 1.25), whiteMat); head.position.set(0, 2.25, 1.85);
-    var face = createCartoonFacePlane(1.1, 1.0, '#f472b6'); face.position.set(0, 2.25, 2.5);
-    g.add(body, patch1, head, face);
+    var headGroupCow = new THREE.Group();
+    headGroupCow.position.set(0, 2.25, 1.85);
+    var headCow = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.15, 1.25), whiteMat);
+    var face = createCartoonFacePlane(1.1, 1.0, '#f472b6'); face.position.set(0, 0, 0.65);
+    headGroupCow.add(headCow, face);
+    g.add(body, patch1, headGroupCow);
+
+    // 4 Cow Legs (with articulated front-right & front-left legs so Daisy the Cow waves to the train!)
+    function makeCowLeg(lx, lz) {
+      var piv = new THREE.Group();
+      piv.position.set(lx, 1.05, lz);
+      var legMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.19, 1.05, 10), whiteMat);
+      legMesh.position.y = -0.50;
+      var hoof = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.24, 10), blackMat);
+      hoof.position.set(0, -0.98, 0.05);
+      piv.add(legMesh, hoof);
+      g.add(piv);
+      return piv;
+    }
+    var cLeftFore  = makeCowLeg(-0.65,  1.05);
+    var cRightFore = makeCowLeg( 0.65,  1.05);
+    makeCowLeg(-0.65, -1.05);
+    makeCowLeg( 0.65, -1.05);
+    g.userData = { rightForeleg: cRightFore, leftForeleg: cLeftFore, headGroup: headGroupCow };
   } else {
     var yelMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24 });
     var body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.5, 2.9), yelMat); body.position.y = 2.2;
@@ -2671,13 +2821,41 @@ function createDetailedAnimal(type) {
 }
 
 window.daisyTheCow = createDetailedAnimal('cow');
-daisyTheCow.position.set(175, terrainY(175, -185), -185);
+(function placeDaisyTheCowAtTrackLevel() {
+  var cowEdge = edges.find(function(ed) { return ed.id === 'J_NE->J_EAST'; });
+  if (cowEdge && cowEdge.curve) {
+    var cowPt = cowEdge.curve.getPointAt(0.20);
+    var cowTan = cowEdge.curve.getTangentAt(0.20).normalize();
+    var cowPerp = new THREE.Vector3(-cowTan.z, 0, cowTan.x).normalize();
+    var cowWorld = cowPt.clone().add(cowPerp.clone().multiplyScalar(-8.2));
+    var gY = terrainY(cowWorld.x, cowWorld.z);
+    var padH = Math.max(0.6, cowPt.y - gY);
+    var padG = new THREE.Group();
+    padG.position.set(cowWorld.x, cowPt.y, cowWorld.z);
+    var earthCone = new THREE.Mesh(
+      new THREE.CylinderGeometry(4.2, 4.8 + padH * 0.45, padH, 20),
+      new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.78 })
+    );
+    earthCone.position.y = -padH * 0.5;
+    var grassTop = new THREE.Mesh(
+      new THREE.CylinderGeometry(4.3, 4.3, 0.28, 20),
+      new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.70 })
+    );
+    grassTop.position.y = -0.10;
+    padG.add(earthCone, grassTop);
+    scene.add(padG);
+    daisyTheCow.position.set(cowWorld.x, cowPt.y, cowWorld.z);
+    daisyTheCow.lookAt(cowPt.x, cowPt.y, cowPt.z);
+  } else {
+    daisyTheCow.position.set(175, terrainY(175, -185), -185);
+  }
+})();
 scene.add(daisyTheCow);
 
 window.trackSheepFlocks = [];
 [
   { edgeId: 'J_SOUTH->J_SW', t: 0.25 },
-  { edgeId: 'J_SE->J_SOUTH', t: 0.25 }
+  { edgeId: 'J_SE->J_SOUTH', t: 0.22 }
 ].forEach(function(cfg) {
   var e = edges.find(function(ed) { return ed.id === cfg.edgeId; });
   if (!e) return;
@@ -2848,12 +3026,42 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
   }
 
   var latticeTex = createEiffelLatticeTex();
-  var bronzeMat = new THREE.MeshStandardMaterial({ map: latticeTex, color: 0xd97706, roughness: 0.34, metalness: 0.58 });
-  var solidBronzeMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.36, metalness: 0.62 });
-  var goldTrimMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.26, metalness: 0.68 });
-  var deckMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.42, metalness: 0.42 });
+  var bronzeMat = new THREE.MeshStandardMaterial({
+    map: latticeTex,
+    color: 0xd97706,
+    emissive: 0xf59e0b,
+    emissiveIntensity: 0.0,
+    roughness: 0.34,
+    metalness: 0.58
+  });
+  var solidBronzeMat = new THREE.MeshStandardMaterial({
+    color: 0xb45309,
+    emissive: 0xd97706,
+    emissiveIntensity: 0.0,
+    roughness: 0.36,
+    metalness: 0.62
+  });
+  var goldTrimMat = new THREE.MeshStandardMaterial({
+    color: 0xf59e0b,
+    emissive: 0xfbbf24,
+    emissiveIntensity: 0.0,
+    roughness: 0.26,
+    metalness: 0.68
+  });
+  var deckMat = new THREE.MeshStandardMaterial({
+    color: 0x78350f,
+    emissive: 0xb45309,
+    emissiveIntensity: 0.0,
+    roughness: 0.42,
+    metalness: 0.42
+  });
   var stoneMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.55 });
-  var warmStoneMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.48 });
+  var warmStoneMat = new THREE.MeshStandardMaterial({
+    color: 0xfef3c7,
+    emissive: 0xf59e0b,
+    emissiveIntensity: 0.0,
+    roughness: 0.48
+  });
   var glowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
 
   // Grand Parisian Champ de Mars Promenade Plaza with Concentric Cobblestone Rings & Parterres
@@ -2999,6 +3207,121 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
   window.eiffelBeacon = beacon;
   g.add(deck3, cupola, cupolaDome, antenna, beacon);
 
+  // ============================================================================
+  // PARISIAN GOLDEN NIGHT ILLUMINATION (`1. prosím o nasvícení eiffel tower v noci`)
+  // ============================================================================
+  var nightGroup = new THREE.Group();
+  g.add(nightGroup);
+
+  // 1) 3 Tiered Golden Architectural PointLights (Base Arches, Mid Decks & Summit Crown)
+  var baseNightLight = new THREE.PointLight(0xffb703, 0.0, 105, 1.3);
+  baseNightLight.position.set(0, 14.0, 0);
+  var midNightLight = new THREE.PointLight(0xfbbf24, 0.0, 110, 1.3);
+  midNightLight.position.set(0, 39.0, 0);
+  var topNightLight = new THREE.PointLight(0xfef08a, 0.0, 130, 1.25);
+  topNightLight.position.set(0, 69.2, 0);
+  nightGroup.add(baseNightLight, midNightLight, topNightLight);
+
+  // 2) Glowing Golden Contour Festoons along the 4 Arches, 1st Deck, 2nd Deck & 3rd Deck
+  var contourGlowMat = new THREE.MeshBasicMaterial({
+    color: 0xfde047,
+    transparent: true,
+    opacity: 0.0,
+    depthWrite: false
+  });
+  [0, Math.PI * 0.5, Math.PI, Math.PI * 1.5].forEach(function(rotY) {
+    var archGlow = new THREE.Mesh(new THREE.TorusGeometry(9.0, 0.28, 8, 28, Math.PI), contourGlowMat);
+    archGlow.rotation.y = rotY;
+    archGlow.position.set(0, 2.6, legSpreadBot * 0.86);
+    if (rotY === Math.PI * 0.5) archGlow.position.set(legSpreadBot * 0.86, 2.6, 0);
+    else if (rotY === Math.PI) archGlow.position.set(0, 2.6, -legSpreadBot * 0.86);
+    else if (rotY === Math.PI * 1.5) archGlow.position.set(-legSpreadBot * 0.86, 2.6, 0);
+    nightGroup.add(archGlow);
+  });
+
+  var deck1GlowRim = new THREE.Mesh(new THREE.BoxGeometry(19.35, 0.52, 19.35), contourGlowMat);
+  deck1GlowRim.position.y = 19.6;
+  var deck2GlowRim = new THREE.Mesh(new THREE.BoxGeometry(11.85, 0.48, 11.85), contourGlowMat);
+  deck2GlowRim.position.y = 37.4;
+  var deck3GlowRim = new THREE.Mesh(new THREE.CylinderGeometry(3.35, 3.35, 0.55, 20), contourGlowMat);
+  deck3GlowRim.position.y = 63.6;
+  nightGroup.add(deck1GlowRim, deck2GlowRim, deck3GlowRim);
+
+  // 3) Iconic Rotating Twin Golden Searchlight Beams (`Phare de la Tour Eiffel`) at Summit (`y = 69.2`)
+  var beaconRotor = new THREE.Group();
+  beaconRotor.position.set(0, 69.2, 0);
+  var searchBeamMat = new THREE.MeshBasicMaterial({
+    color: 0xfef08a,
+    transparent: true,
+    opacity: 0.0,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  var beamGeo = new THREE.ConeGeometry(7.5, 48.0, 18, 1, true);
+  var searchBeam1 = new THREE.Mesh(beamGeo, searchBeamMat);
+  searchBeam1.rotation.z = Math.PI * 0.5;
+  searchBeam1.position.set(24.0, 0, 0);
+  var searchBeam2 = new THREE.Mesh(beamGeo, searchBeamMat);
+  searchBeam2.rotation.z = -Math.PI * 0.5;
+  searchBeam2.position.set(-24.0, 0, 0);
+  var beaconHalo = new THREE.Mesh(new THREE.SphereGeometry(2.8, 16, 16), searchBeamMat);
+  beaconRotor.add(searchBeam1, searchBeam2, beaconHalo);
+  nightGroup.add(beaconRotor);
+
+  // 4) 68 Sparkling Golden-White Diamond Bulbs (`Scintillement de la Tour Eiffel`) across Legs, Decks & Spire
+  var sparkleGeo = new THREE.SphereGeometry(0.44, 8, 8);
+  var sparkleMatA = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.0, depthWrite: false });
+  var sparkleMatB = new THREE.MeshBasicMaterial({ color: 0xfef08a, transparent: true, opacity: 0.0, depthWrite: false });
+  var sparkleMatC = new THREE.MeshBasicMaterial({ color: 0xfde047, transparent: true, opacity: 0.0, depthWrite: false });
+  var sparkleMats = [sparkleMatA, sparkleMatB, sparkleMatC];
+  var sparkleBulbs = [];
+
+  function addSparkleBulb(bx, by, bz, idx) {
+    var sm = new THREE.Mesh(sparkleGeo, sparkleMats[idx % 3]);
+    sm.position.set(bx, by, bz);
+    nightGroup.add(sm);
+    sparkleBulbs.push({ mesh: sm, phase: idx * 1.37 });
+  }
+
+  var spIdx = 0;
+  // Sparkles along the 4 tapered legs (`y = 4 -> 36`)
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function(c) {
+    for (var ls = 0; ls < 8; ls++) {
+      var uL = ls / 7.0;
+      var sy = 4.0 + uL * 31.5;
+      var spread = legSpreadBot * (1.0 - uL) + legSpreadMid2 * uL;
+      var outSign = 1.08;
+      addSparkleBulb(c[0] * spread * outSign, sy, c[1] * spread * outSign, spIdx++);
+    }
+  });
+  // Sparkles along the upper spire (`y = 39 -> 66`)
+  for (var us = 0; us < 36; us++) {
+    var uS = us / 35.0;
+    var spy = 39.0 + uS * 27.5;
+    var spRad = (3.9 * (1.0 - uS) + 1.55 * uS) + 0.35;
+    var spAng = us * 2.39996;
+    addSparkleBulb(Math.cos(spAng) * spRad, spy, Math.sin(spAng) * spRad, spIdx++);
+  }
+
+  window.eiffelNightSystem = {
+    emissiveMats: [
+      { mat: bronzeMat, maxInt: 0.95 },
+      { mat: solidBronzeMat, maxInt: 0.85 },
+      { mat: goldTrimMat, maxInt: 1.18 },
+      { mat: deckMat, maxInt: 0.72 },
+      { mat: warmStoneMat, maxInt: 0.35 }
+    ],
+    baseLight: baseNightLight,
+    midLight: midNightLight,
+    topLight: topNightLight,
+    contourMat: contourGlowMat,
+    searchBeamMat: searchBeamMat,
+    beaconRotor: beaconRotor,
+    sparkleMats: sparkleMats,
+    sparkleBulbs: sparkleBulbs,
+    currentBlend: 0.0
+  };
+
   scene.add(g);
 
   // Cheerful Parisian Visitors waving near the plaza on the flat plain
@@ -3006,7 +3329,6 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
   spawnPerson(ex - 16, ey, ez + 20, 0x38bdf8, null, false, 1.42, -0.3);
 
   // Wide panoramic perspective framing the ENTIRE 77m Eiffel Tower from base legs to top spire + the train!
-  // Handled with a smooth 5-second timer (`5000 ms`) in `installModelsFrameEnhancer()` so it never stays locked too long!
   window.eiffelWorldCenter = new THREE.Vector3(ex, ey, ez);
 })();
 
@@ -3514,12 +3836,8 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
   spawnPerson(cx - 24, cy, cz - 24, 0xef4444, 0xfacc15, false, 1.45, 2.8);
   spawnPerson(cx + 22, cy, cz - 25, 0x38bdf8, null, false, 1.42, -2.7);
 
-  window.registerLandmarkShowcase('J_SE', 'J_SOUTH', {
-    lookTarget: new THREE.Vector3(cx, cy + 12.0, cz),
-    camHeight: 22,
-    camBack: 42,
-    camSide: -30
-  });
+  // Handled by the Unified 4-Landmark Centered Camera in `installModelsFrameEnhancer()`
+  window.colosseumWorldCenter = new THREE.Vector3(cx, cy, cz);
 })();
 
 // 4. DOWNTOWN GLASS SKYSCRAPER (`J_NORTH -> J_CENTER` at x = -52, z = -108)
@@ -3604,6 +3922,7 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
   }
 
   scene.add(g);
+  window.skyscraperLandmarkGroup = g;
 
   window.registerLandmarkShowcase('J_NORTH', 'J_CENTER', {
     lookTarget: new THREE.Vector3(sx, sy + 28.0, sz),
@@ -5928,15 +6247,8 @@ window.vietnamCrawlingCrabs = [];
   placeParentInGarden('dad', -2.4, 13.8, 0.08);
   placeParentInGarden('mom',  2.4, 13.8, -0.08);
 
-  var frontLookX = mx + 6.5 * sinH;
-  var frontLookZ = mz + 6.5 * cosH;
-  window.registerLandmarkShowcase('J_WEST', 'J_NW', {
-    lookTarget: new THREE.Vector3(frontLookX, my + 5.5, frontLookZ),
-    camHeight: 16.5,
-    camBack: 32,
-    camSide: -24,
-    lookLerp: 0.68
-  });
+  // Handled by the Unified 4-Landmark Centered Camera in `installModelsFrameEnhancer()`
+  window.momHouseWorldCenter = new THREE.Vector3(mx, my, mz);
 })();
 
 // 7. GRANDMA & GRANDPA'S 3-STORY YELLOW HOUSE IN BOHUMÍN (`J_NORTH -> J_NE` at x = 148, z = -226)
@@ -6637,15 +6949,8 @@ window.vietnamCrawlingCrabs = [];
   placeGrandparentInGarden('grandpa', -2.2, 13.8, 0.08);
   placeGrandparentInGarden('grandma',  2.2, 13.8, -0.08);
 
-  var frontLookGX = gx + 4.0 * sinG;
-  var frontLookGZ = gz + 4.0 * cosG;
-  window.registerLandmarkShowcase('J_NORTH', 'J_NE', {
-    lookTarget: new THREE.Vector3(frontLookGX, gy + 9.5, frontLookGZ),
-    camHeight: 22.0,
-    camBack: 44,
-    camSide: -30,
-    lookLerp: 0.62
-  });
+  // Handled by the Unified 4-Landmark Centered Camera in `installModelsFrameEnhancer()`
+  window.grandmaHouseWorldCenter = new THREE.Vector3(gx + 2.0 * cosG, gy, gz - 2.0 * sinG);
 })();
 
 // Lush Forest Park with 2.5D Storybook Pine Trees grounded on terrain
@@ -7814,23 +8119,297 @@ window.createDetailedCoach = function(colHex, coachIndex) {
   }
 })();
 
-// 2) Wrap `renderer.render` so every frame right before WebGL draw:
-//    - AI trains never deadlock with Toby inside turnouts/junctions (fixes train stopping at Jewel!).
-//    - Jewel camera looks smoothly FORWARD along the track at high elevation (showing all 7 floors & full waterfall without spinning!).
-//    - Eiffel Tower camera frames the ENTIRE 77m tower from legs to top antenna even while approaching J_NW!
+// 1B) Fix 3-Branch Railway Junction Routing (`window.getBranches`) & Rebuild 3D Junction Direction Signs
+//     Guarantees that at 3-way junctions (such as `J_SE` before Jewel on `J_SOUTH->J_SE` and `J_NORTH`),
+//     all 3 branches (`left`, `straight`, `right`) are 100% distinct:
+//     - On `J_SOUTH->J_SE`: Left (`⬅`) = Metro 3->1, Straight (`⬆`) = Jewel Hypermarket (`J_SE->J_EAST`), Right (`➡`) = Egypt Pyramids!
+(function fixThreeWayJunctionBranchesAndSigns() {
+  if (typeof edges === 'undefined' || !edges || !edges.length) return;
+
+  window.getBranches = function(currentEdge) {
+    var baseEdge = currentEdge.isTurnout ? currentEdge.targetEdge : currentEdge;
+    var node = baseEdge.to;
+    var p1 = baseEdge.curve.getPointAt(0.84);
+    var inDir = baseEdge.curve.getTangentAt(0.84).normalize();
+
+    var candidates = edges.filter(function(e) {
+      if (e.from !== node || e.to === baseEdge.from) return false;
+      return true;
+    });
+    if (candidates.length === 0) {
+      candidates = edges.filter(function(e) { return e.from === node && !e.isSubway; });
+    }
+
+    var scored = candidates.map(function(e) {
+      var p2 = e.curve.getPointAt(0.18);
+      var outDir = p2.clone().sub(p1).normalize();
+      var cross = inDir.x * outDir.z - inDir.z * outDir.x;
+      var dot = inDir.x * outDir.x + inDir.z * outDir.z;
+      var angle = Math.atan2(cross, dot);
+      return { edge: e, angle: angle };
+    });
+
+    scored.sort(function(a, b) { return a.angle - b.angle; });
+
+    if (scored.length >= 3) {
+      var midCandidates = scored.slice(1, scored.length - 1);
+      var midBest = midCandidates.reduce(function(best, cur) {
+        return Math.abs(cur.angle) < Math.abs(best.angle) ? cur : best;
+      }, midCandidates[0]);
+      return {
+        left: scored[0].edge,
+        straight: midBest.edge,
+        right: scored[scored.length - 1].edge
+      };
+    }
+
+    var straight = scored.reduce(function(best, cur) {
+      return Math.abs(cur.angle) < Math.abs(best.angle) ? cur : best;
+    }, scored[0]).edge;
+
+    return {
+      left: scored[0].edge,
+      straight: straight,
+      right: scored[scored.length - 1].edge
+    };
+  };
+
+  // Rebuild `window.junctionSignsGroup` so all 3D junction signposts reflect the complete 3-way branches
+  if (window.junctionSignsGroup) {
+    while (window.junctionSignsGroup.children.length > 0) {
+      window.junctionSignsGroup.remove(window.junctionSignsGroup.children[0]);
+    }
+
+    function getBranchDestinationInfo(bEdge) {
+      if (!bEdge) return { icon: 'fountain', badgeCol: '#0284c7' };
+      if (bEdge.isSubway) return { icon: 'metro', badgeCol: '#2563eb' };
+      if (bEdge.to === 'EXIT_ALPS') return { icon: 'alps', badgeCol: '#0284c7' };
+      if (bEdge.to === 'EXIT_EGYPT') return { icon: 'egypt', badgeCol: '#ca8a04' };
+      var stIcon = (bEdge.station && bEdge.station.icon) ? bEdge.station.icon : '';
+      var badgeColors = {
+        eiffel: '#b45309',
+        grandma_house: '#be185d',
+        airport: '#0284c7',
+        jewel: '#0d9488',
+        colosseum: '#c2410c',
+        stadium: '#15803d',
+        bigben: '#a16207',
+        mom_house: '#e11d48',
+        skyscraper: '#1d4ed8',
+        fountain: '#0369a1'
+      };
+      if (stIcon && badgeColors[stIcon]) {
+        return { icon: stIcon, badgeCol: badgeColors[stIcon] };
+      }
+      return { icon: 'fountain', badgeCol: '#0284c7' };
+    }
+
+    function drawBigDirectionArrow(ctx, dirType, cx, cy, size) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      if (dirType === 'left') ctx.rotate(-Math.PI * 0.5);
+      else if (dirType === 'right') ctx.rotate(Math.PI * 0.5);
+
+      var s = size * 0.52;
+      ctx.fillStyle = '#fde047';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 10;
+      ctx.lineJoin = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.lineTo(s * 0.92, -s * 0.05);
+      ctx.lineTo(s * 0.42, -s * 0.05);
+      ctx.lineTo(s * 0.42, s * 0.92);
+      ctx.lineTo(-s * 0.42, s * 0.92);
+      ctx.lineTo(-s * 0.42, -s * 0.05);
+      ctx.lineTo(-s * 0.92, -s * 0.05);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = '#fef9c3';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawPictogramIcon(ctx, iconType, cx, cy, r) {
+      if (window.drawLandmarkPictogram) {
+        window.drawLandmarkPictogram(ctx, iconType, cx, cy, r);
+        return;
+      }
+      if (iconType === 'metro' && window.drawPragueMetroSymbol) {
+        window.drawPragueMetroSymbol(ctx, cx, cy, r, '#d9261c');
+      }
+    }
+
+    function createJunctionSignCanvas(rows) {
+      var rowH = 168;
+      var padY = 20;
+      var c = document.createElement('canvas');
+      c.width = 520;
+      c.height = padY * 2 + rows.length * rowH;
+      var ctx = c.getContext('2d');
+
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 12;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(8, 8, c.width - 16, c.height - 16, 34);
+      else ctx.rect(8, 8, c.width - 16, c.height - 16);
+      ctx.fill();
+      ctx.stroke();
+
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        var ry = padY + i * rowH;
+        var cardH = rowH - 12;
+        var cy = ry + cardH * 0.5;
+
+        ctx.fillStyle = r.info.badgeCol;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(24, ry + 6, c.width - 48, cardH, 26);
+        else ctx.rect(24, ry + 6, c.width - 48, cardH);
+        ctx.fill();
+        ctx.stroke();
+
+        drawBigDirectionArrow(ctx, r.dirType, 130, cy + 6, 98);
+        drawPictogramIcon(ctx, r.info.icon, 355, cy + 6, 68);
+      }
+      return c;
+    }
+
+    var postMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.5, roughness: 0.4 });
+    var trimMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
+
+    edges.forEach(function(e) {
+      if (e.isSubway || e.isTurnout) return;
+      if (e.to.indexOf('EXIT_') === 0) return;
+
+      var br = window.getBranches(e);
+      if (!br) return;
+
+      var rows = [];
+      var usedIds = {};
+      if (br.left && (!br.straight || br.left.id !== br.straight.id)) {
+        usedIds[br.left.id] = true;
+        rows.push({ dirType: 'left', info: getBranchDestinationInfo(br.left) });
+      }
+      if (br.straight && !usedIds[br.straight.id]) {
+        usedIds[br.straight.id] = true;
+        rows.push({ dirType: 'straight', info: getBranchDestinationInfo(br.straight) });
+      }
+      if (br.right && !usedIds[br.right.id]) {
+        usedIds[br.right.id] = true;
+        rows.push({ dirType: 'right', info: getBranchDestinationInfo(br.right) });
+      }
+      if (rows.length === 0) return;
+
+      var uSign = 0.81;
+      var pt = e.curve.getPointAt(uSign);
+      var tan = e.curve.getTangentAt(uSign).normalize();
+      var rightVec = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+      var signPos = pt.clone().add(rightVec.clone().multiplyScalar(7.8));
+
+      var signG = new THREE.Group();
+      signG.position.copy(signPos);
+
+      var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.32, 9.6, 10), postMat);
+      pole.position.y = 1.4;
+      var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.35, 10), trimMat);
+      cap.position.y = 6.2;
+      signG.add(pole, cap);
+
+      var signCanvas = createJunctionSignCanvas(rows);
+      var signTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(signCanvas) : new THREE.CanvasTexture(signCanvas);
+      var signSprite = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: signTex, transparent: true, depthTest: true })
+      );
+      var signH = 2.4 * rows.length;
+      signSprite.scale.set(7.4, signH, 1);
+      signSprite.position.set(0, 6.4 + signH * 0.45, 0);
+      signG.add(signSprite);
+
+      window.junctionSignsGroup.add(signG);
+    });
+  }
+
+  setTimeout(function() {
+    if (typeof window.updateHUD === 'function') window.updateHUD();
+  }, 30);
+})();
+
+// // 2) Wrap `renderer.render` so every frame right before WebGL draw:
+//    - 1. UNIFIED 3.0-SECOND (`3000 ms`) CAMERA PERSPECTIVE SHOWCASE for all important objects
+//         (Eiffel Tower, Colosseum, Mom's House, Grandma's House, Airport, Jewel Waterfall,
+//          Soccer Stadium, Big Ben, Skyscraper, Fountain Square, Track Monsters, Rabbit,
+//          Squirrel, Owl, Cow, Sheep), while keeping the camera at a CONSTANT ANGLE ABOVE
+//          THE TRAIN at all other times so it never gets confused or spins!
+//    - 2. MUTUAL TRAIN HORN GREETINGS when passing other trains (`window.aiTrains`).
+//    - 3. FLASHING HEADLIGHTS & SMILING FACES for cars stopped at railway crossings (`window.livingVehicles`).
+//    - 4. EDUCATIONAL ENGLISH OBJECT DESCRIPTIONS when focusing on any object for 3 seconds.
 (function installModelsFrameEnhancer() {
   if (typeof renderer === 'undefined' || !renderer || !renderer.render || renderer._modelsEnhanced) return;
   renderer._modelsEnhanced = true;
   var origRender = renderer.render.bind(renderer);
 
+  // Per-object showcase state: strictly 3.0 seconds (3000 ms) per pass with cooldown
+  var activeShowcaseState = {
+    id: null,
+    startMs: -99999,
+    camPos: null,
+    camLook: null,
+    targetFov: 36.0
+  };
+  var showcaseCooldowns = {};
+
   renderer.render = function(sceneArg, cameraArg) {
     try {
-      // A) Prevent mutual AI-train / Player-train turnout deadlock at Jewel & all junctions
+      var nowMs = performance.now();
+
+      // ======================================================================
+      // A) AI TRAINS: PREVENT TURNOUT DEADLOCK + MUTUAL HORN GREETING WHEN PASSING!
+      //    ("2. Pokud se vláček míjí s jinými vláčky, mašinky na sebe troubí na pozdrav.")
+      // ======================================================================
       if (window.aiTrains && window.pState && window.playerLoco) {
+        if (!window._aiPassGreetingTriggered) window._aiPassGreetingTriggered = {};
         for (var aii = 0; aii < window.aiTrains.length; aii++) {
           var ai = window.aiTrains[aii];
           if (!ai || !ai.edge) continue;
-          var nearPlayer = ai.loco && ai.loco.position && (ai.loco.position.distanceTo(window.playerLoco.position) < 30.0);
+          var distToPlayer = (ai.loco && ai.loco.position)
+            ? ai.loco.position.distanceTo(window.playerLoco.position)
+            : 999.0;
+          var nearPlayer = (distToPlayer < 30.0);
+
+          // Mutual horn greeting when trains pass each other (< 30m, resets when > 46m)
+          if (!window.pState.inSubway && distToPlayer < 30.0) {
+            if (!window._aiPassGreetingTriggered[aii]) {
+              window._aiPassGreetingTriggered[aii] = true;
+              // 1. Player locomotive honks immediately in greeting!
+              if (typeof window.playTrainHorn === 'function') {
+                window.playTrainHorn();
+              }
+              // 2. Passing AI locomotive answers with its own joyful two-tone steam whistle 340ms later!
+              (function(friendIdx, friendTrain) {
+                setTimeout(function() {
+                  if (typeof window.playFriendTrainGreetingHorn === 'function') {
+                    window.playFriendTrainGreetingHorn(friendIdx);
+                  }
+                  if (friendTrain && friendTrain.loco && typeof window.spawnSmoke === 'function') {
+                    var cPos = new THREE.Vector3(0, 4.9, 1.35);
+                    friendTrain.loco.localToWorld(cPos);
+                    window.spawnSmoke(cPos, true);
+                  }
+                }, 340);
+              })(aii, ai);
+            }
+          } else if (distToPlayer > 46.0) {
+            window._aiPassGreetingTriggered[aii] = false;
+          }
+
           if (ai.edge.isTurnout || (nearPlayer && window.pState.t > 0.65)) {
             var spd = ai.baseSpeed || 0.38;
             ai.currentSpeed = spd;
@@ -7855,9 +8434,9 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         }
       }
 
-      // A2) Animate Automatic Airport Parking Barrier Boom (`window.airportParkingBarrier`)
-      //     Raises smoothly whenever any road vehicle (`livingVehicles` on `loopIdx = 2` or `airportShuttleBuses`)
-      //     approaches the parking entrance, and lowers once it passes!
+      // ======================================================================
+      // A2) AUTOMATIC AIRPORT PARKING BARRIER BOOM (`window.airportParkingBarrier`)
+      // ======================================================================
       if (window.airportParkingBarrier && window.airportParkingBarrier.pivot) {
         var apb = window.airportParkingBarrier;
         var minVehDist = 999.0;
@@ -7881,349 +8460,1513 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         }
         var targetOpenBoom = (minVehDist < 24.0) ? 1.0 : 0.0;
         apb.openAmount += (targetOpenBoom - apb.openAmount) * 0.14;
-        // Rotate around X axis from 0 (horizontal across road) to -Math.PI * 0.44 (vertical open!)
         apb.pivot.rotation.x = -apb.openAmount * Math.PI * 0.44;
         if (apb.statusMat) {
           apb.statusMat.color.setHex(apb.openAmount > 0.25 ? 0x22c55e : 0xef4444);
         }
       }
 
-      // B) 3-Stage Cinematic Camera for Jewel (`5s pre-entry high pull-back` -> `top-of-dome interior follow` + `3s waterfall close-up`)
-      //    & 5-Second Smooth Camera Showcase for Eiffel Tower
+      // ======================================================================
+      // A3) CARS AT RAILWAY CROSSINGS FLASH HEADLIGHTS & SMILE AT THE TRAIN!
+      //     ("3. Auta na přejezdu blikají na vláček a usmívají se.")
+      // ======================================================================
+      if (window.livingVehicles) {
+        for (var cvi = 0; cvi < window.livingVehicles.length; cvi++) {
+          var veh = window.livingVehicles[cvi];
+          if (!veh || !veh.mesh || !veh.mesh.userData) continue;
+
+          // Check if vehicle is waiting at a closed railway crossing (`veh.isStopped` or near an active crossing)
+          var isAtClosedCrossing = Boolean(veh.isStopped);
+          if (!isAtClosedCrossing && window.levelCrossings && veh.mesh.position) {
+            for (var xci = 0; xci < window.levelCrossings.length; xci++) {
+              var xc = window.levelCrossings[xci];
+              if (xc && xc.gateTarget > 0.25 && xc.pos && xc.pos.distanceTo(veh.mesh.position) < 22.0) {
+                isAtClosedCrossing = true;
+                break;
+              }
+            }
+          }
+
+          var cLights = veh.mesh.userData.crossingLights;
+          var cSmile  = veh.mesh.userData.crossingSmileGroup;
+          var cMouth  = veh.mesh.userData.mouth;
+
+          if (isAtClosedCrossing) {
+            // Big beaming 3D smile + rosy cheeks while greeting the train!
+            if (cSmile) {
+              cSmile.visible = true;
+              var smilePulse = 1.0 + Math.sin(nowMs * 0.012 + cvi) * 0.08;
+              cSmile.scale.set(smilePulse, smilePulse, 1.0);
+            }
+            if (cMouth) cMouth.visible = false;
+
+            // Joyful friendly bounce while flashing headlights at the train
+            if (veh.mesh.children && veh.mesh.children[0]) {
+              veh.mesh.children[0].position.y = Math.abs(Math.sin(nowMs * 0.010 + cvi)) * 0.14;
+            }
+
+            // Flash headlights on and off (~4.5 Hz bright high-beam wink!)
+            if (cLights) {
+              var flashWave = Math.sin(nowMs * 0.028 + cvi * 1.7);
+              var isBeamOn = (flashWave > -0.15);
+              if (cLights.haloL) cLights.haloL.visible = isBeamOn;
+              if (cLights.haloR) cLights.haloR.visible = isBeamOn;
+              if (cLights.coneL) cLights.coneL.visible = isBeamOn;
+              if (cLights.coneR) cLights.coneR.visible = isBeamOn;
+              if (cLights.lensMat && cLights.lensMat.color) {
+                cLights.lensMat.color.setHex(isBeamOn ? 0xffffff : 0xfffbeb);
+              }
+              if (cLights.haloMat) {
+                cLights.haloMat.opacity = isBeamOn ? (0.75 + 0.25 * Math.max(0, flashWave)) : 0.08;
+              }
+              if (cLights.coneMat) {
+                cLights.coneMat.opacity = isBeamOn ? (0.34 + 0.16 * Math.max(0, flashWave)) : 0.0;
+              }
+            }
+          } else {
+            if (cSmile) cSmile.visible = false;
+            if (cMouth) cMouth.visible = true;
+            if (veh.mesh.children && veh.mesh.children[0]) {
+              veh.mesh.children[0].position.y = 0;
+            }
+            if (cLights) {
+              if (cLights.haloL) cLights.haloL.visible = false;
+              if (cLights.haloR) cLights.haloR.visible = false;
+              if (cLights.coneL) cLights.coneL.visible = false;
+              if (cLights.coneR) cLights.coneR.visible = false;
+            }
+          }
+        }
+      }
+
+      // ======================================================================
+      // A4) EIFFEL TOWER NIGHT ILLUMINATION (`1. prosím o nasvícení eiffel tower v noci`)
+      // ======================================================================
+      if (window.eiffelNightSystem) {
+        var ens = window.eiffelNightSystem;
+        var hoursNow = (typeof gameTimeSeconds === 'number') ? ((gameTimeSeconds / 300.0) * 24.0) : 12.0;
+        var isFullNight = (hoursNow >= 20.0 || hoursNow < 5.5);
+        var isTwilight = (hoursNow >= 18.0 && hoursNow < 20.0) || (hoursNow >= 5.5 && hoursNow < 7.0);
+        var sunDark = (typeof sunLight !== 'undefined' && sunLight && typeof sunLight.intensity === 'number' && sunLight.intensity < 0.35);
+        var targetNight = (isFullNight || sunDark) ? 1.0 : (isTwilight ? 0.48 : 0.0);
+
+        ens.currentBlend += (targetNight - ens.currentBlend) * 0.06;
+        var nb = ens.currentBlend;
+
+        if (ens.emissiveMats) {
+          for (var emi = 0; emi < ens.emissiveMats.length; emi++) {
+            var emItem = ens.emissiveMats[emi];
+            if (emItem && emItem.mat) {
+              emItem.mat.emissiveIntensity = emItem.maxInt * nb;
+            }
+          }
+        }
+        if (ens.baseLight) ens.baseLight.intensity = 2.6 * nb;
+        if (ens.midLight)  ens.midLight.intensity  = 3.0 * nb;
+        if (ens.topLight)  ens.topLight.intensity  = 3.6 * nb;
+        if (ens.contourMat) ens.contourMat.opacity = 0.88 * nb;
+        if (ens.searchBeamMat) ens.searchBeamMat.opacity = 0.44 * nb;
+        if (ens.beaconRotor) {
+          ens.beaconRotor.rotation.y = nowMs * 0.0009;
+        }
+        if (ens.sparkleMats) {
+          for (var smi = 0; smi < ens.sparkleMats.length; smi++) {
+            var twk = 0.30 + 0.70 * Math.pow(0.5 + 0.5 * Math.sin(nowMs * 0.009 + smi * 2.1), 2.0);
+            ens.sparkleMats[smi].opacity = nb * twk;
+          }
+        }
+        if (ens.sparkleBulbs && nb > 0.02) {
+          for (var sbi2 = 0; sbi2 < ens.sparkleBulbs.length; sbi2++) {
+            var sbItem = ens.sparkleBulbs[sbi2];
+            var scPulse = 0.65 + 0.85 * Math.abs(Math.sin(nowMs * 0.0065 + sbItem.phase));
+            sbItem.mesh.scale.set(scPulse, scPulse, scPulse);
+          }
+        }
+      }
+
+      // ======================================================================
+      // B) WIDE PANORAMIC WORLD CAMERA SYSTEM
+      //    - 1. 360° Panoramic Horizon Ring, Distant Rolling Hills & Sky Clouds:
+      //         Extends the visible world to 1800m+ with soft atmospheric fog
+      //         so the horizon, distant hills, and sky are genuinely visible.
+      //    - 2. Base Panoramic Camera (Section 2):
+      //         * Distance: `48.0m` behind locomotive (`50.2m` slant distance)
+      //           so the locomotive occupies ~10.3% of screen height (`8–12%`)
+      //           primarily via physical camera distance rather than extreme FOV.
+      //         * Height & Pitch: `14.2m` above rails looking `54.0m` ahead at
+      //           `+5.4m` (`pitch = -4.93°`), placing the train in the lower
+      //           third of the screen (`NDC Y ≈ -0.38`) and the horizon at
+      //           `NDC Y ≈ +0.20` with ~40% of the screen showing sky, horizon,
+      //           and wide surrounding landscape.
+      //         * FOV: `46.0°` natural wide-angle panoramic lens.
+      //    - 3. Large Landmarks 3D Bounding-Box Frustum Solver (Section 3):
+      //         * Projects all 9 3D bounding points of the landmark (base, top
+      //           spire/roof, left/right edges) + foreground train into NDC and
+      //           iteratively adjusts optical center and camera retreat distance
+      //           so 100% of the landmark (from base to summit) fits on screen
+      //           with generous margins.
+      //    - 4. Small Animals & Characters (Section 4):
+      //         * ZERO automatic zoom (`FOV = 46.0°`) and NO close-up cut!
+      //         * Keeps the panoramic distance (`~45–48m`), gently pans toward
+      //           the animal in context with its surroundings and the train, and
+      //           uses 3D Raycast + obstacle cylinder checks to step around any
+      //           intervening trees or buildings.
+      // ======================================================================
+      if (!window._panoramicHorizonBuilt && typeof scene !== 'undefined' && scene) {
+        window._panoramicHorizonBuilt = true;
+        try {
+          if (scene.fog && typeof scene.fog.density === 'number') {
+            scene.fog.density = 0.00024;
+          }
+          if (cameraArg && typeof cameraArg.far === 'number' && cameraArg.far < 3200) {
+            cameraArg.far = 3200;
+            if (typeof cameraArg.updateProjectionMatrix === 'function') {
+              cameraArg.updateProjectionMatrix();
+            }
+          }
+          var horizonGroup = new THREE.Group();
+          horizonGroup.name = 'panoramicHorizonScenery';
+
+          // Outer rolling meadow skirt extending terrain out to radius 1950m so the horizon is seamless
+          var outerSkirtMat = new THREE.MeshStandardMaterial({ color: 0x38c172, roughness: 0.90, metalness: 0.0 });
+          var outerSkirt = new THREE.Mesh(new THREE.RingGeometry(820, 1950, 64, 1), outerSkirtMat);
+          outerSkirt.rotation.x = -Math.PI / 2;
+          outerSkirt.position.y = -1.2;
+          horizonGroup.add(outerSkirt);
+
+          // 24 Distant Panoramic Rolling Hills & Mountain Silhouettes around the 360° horizon
+          var hillPalette = [0x22c55e, 0x16a34a, 0x34d399, 0x15803d];
+          for (var hi = 0; hi < 24; hi++) {
+            var hAng = (hi / 24) * Math.PI * 2.0 + (hi % 2) * 0.06;
+            var hDist = 760 + (hi % 3) * 145;
+            var hRad = 155 + (hi % 4) * 45;
+            var hHeight = 38 + (hi % 5) * 14;
+            var hillMesh = new THREE.Mesh(
+              new THREE.SphereGeometry(1.0, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.52),
+              new THREE.MeshStandardMaterial({ color: hillPalette[hi % hillPalette.length], roughness: 0.88 })
+            );
+            hillMesh.scale.set(hRad * 1.35, hHeight, hRad * 0.95);
+            hillMesh.position.set(Math.cos(hAng) * hDist, -3.5, Math.sin(hAng) * hDist);
+            hillMesh.rotation.y = -hAng + Math.PI * 0.5;
+            horizonGroup.add(hillMesh);
+          }
+
+          // 28 Fluffy Storybook Sky Clouds floating above the horizon
+          var cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.88 });
+          for (var cli = 0; cli < 28; cli++) {
+            var cAng = (cli / 28) * Math.PI * 2.0;
+            var cDist = 520 + (cli % 4) * 165;
+            var cY = 82 + (cli % 5) * 16;
+            var cGroup = new THREE.Group();
+            cGroup.position.set(Math.cos(cAng) * cDist, cY, Math.sin(cAng) * cDist);
+            cGroup.rotation.y = -cAng + Math.PI * 0.5;
+            var puffs = [
+              [0, 0, 0, 22, 11, 14],
+              [-18, -2, 2, 16, 8.5, 11],
+              [18, -1.5, -2, 17, 9, 11],
+              [6, 5, 3, 14, 8, 10]
+            ];
+            for (var pfi = 0; pfi < puffs.length; pfi++) {
+              var pf = puffs[pfi];
+              var pm = new THREE.Mesh(new THREE.SphereGeometry(1.0, 12, 10), cloudMat);
+              pm.scale.set(pf[3], pf[4], pf[5]);
+              pm.position.set(pf[0], pf[1], pf[2]);
+              cGroup.add(pm);
+            }
+            horizonGroup.add(cGroup);
+          }
+
+          scene.add(horizonGroup);
+          window.panoramicHorizonGroup = horizonGroup;
+        } catch (hErr) {}
+      }
+
+      if (window.panoramicHorizonGroup && window.pState) {
+        window.panoramicHorizonGroup.visible = !window.pState.inSubway;
+      }
+
       if (window.pState && window.pState.edge && window.playerLoco && window.smoothCamPos && window.smoothCamLook && cameraArg) {
-        if (!window._enhancerCamPos) {
-          window._enhancerCamPos = window.smoothCamPos.clone();
-          window._enhancerCamLook = window.smoothCamLook.clone();
+        if (!window._camSysState) {
+          window._camSysState = {
+            lastMs: nowMs,
+            pos: window.smoothCamPos.clone(),
+            look: window.smoothCamLook.clone(),
+            posVel: new THREE.Vector3(0, 0, 0),
+            lookVel: new THREE.Vector3(0, 0, 0),
+            dir: null,
+            dirVel: new THREE.Vector3(0, 0, 0),
+            curveLead: new THREE.Vector3(0, 0, 0),
+            curveLeadVel: new THREE.Vector3(0, 0, 0),
+            reverseBlend: 0.0,
+            reverseVel: 0.0,
+            speedBlend: 0.2,
+            speedVel: 0.0,
+            fov: (cameraArg && typeof cameraArg.fov === 'number') ? cameraArg.fov : 46.0,
+            fovVel: 0.0,
+            activePoiId: null,
+            activePoiSwitchMs: -99999,
+            poiWeight: 0.0,
+            poiWeightVel: 0.0,
+            poiOffsetPos: new THREE.Vector3(0, 0, 0),
+            poiOffsetPosVel: new THREE.Vector3(0, 0, 0),
+            poiLookPoint: window.smoothCamLook.clone(),
+            poiLookVel: new THREE.Vector3(0, 0, 0),
+            poiTargetFov: 46.0,
+            narratedReadyMap: {},
+            selectedAnimalAngleIdx: 0
+          };
+        }
+
+        var cs = window._camSysState;
+        var dtCam = Math.min(0.067, Math.max(0.002, (nowMs - cs.lastMs) / 1000.0));
+        cs.lastMs = nowMs;
+
+        // Critically-damped 2nd-order spring helpers (FPS-independent, zero overshoot/jerk)
+        function smoothDampScalar(current, target, stateObj, velProp, smoothTime, dt, maxSpeed) {
+          var st = Math.max(0.0001, smoothTime);
+          var omega = 2.0 / st;
+          var x = omega * dt;
+          var exp = 1.0 / (1.0 + x + 0.48 * x * x + 0.235 * x * x * x);
+          var change = current - target;
+          var origTo = target;
+          var maxChg = (maxSpeed || 9999.0) * st;
+          change = Math.max(-maxChg, Math.min(maxChg, change));
+          target = current - change;
+          var v = stateObj[velProp] || 0.0;
+          var temp = (v + omega * change) * dt;
+          stateObj[velProp] = (v - omega * temp) * exp;
+          var out = target + (change + temp) * exp;
+          if ((origTo - current > 0.0) === (out > origTo)) {
+            out = origTo;
+            stateObj[velProp] = (out - origTo) / Math.max(0.0001, dt);
+          }
+          return out;
+        }
+
+        function smoothDampVec3(curV, tgtV, velV, smoothTime, dt, maxSpeed) {
+          var st = Math.max(0.0001, smoothTime);
+          var omega = 2.0 / st;
+          var x = omega * dt;
+          var exp = 1.0 / (1.0 + x + 0.48 * x * x + 0.235 * x * x * x);
+          var dx = curV.x - tgtV.x;
+          var dy = curV.y - tgtV.y;
+          var dz = curV.z - tgtV.z;
+          var maxChg = (maxSpeed || 9999.0) * st;
+          var sqD = dx * dx + dy * dy + dz * dz;
+          if (sqD > maxChg * maxChg) {
+            var mag = Math.sqrt(sqD);
+            dx = (dx / mag) * maxChg;
+            dy = (dy / mag) * maxChg;
+            dz = (dz / mag) * maxChg;
+          }
+          var tx = curV.x - dx;
+          var ty = curV.y - dy;
+          var tz = curV.z - dz;
+          var tempX = (velV.x + omega * dx) * dt;
+          var tempY = (velV.y + omega * dy) * dt;
+          var tempZ = (velV.z + omega * dz) * dt;
+          velV.x = (velV.x - omega * tempX) * exp;
+          velV.y = (velV.y - omega * tempY) * exp;
+          velV.z = (velV.z - omega * tempZ) * exp;
+          curV.x = tx + (dx + tempX) * exp;
+          curV.y = ty + (dy + tempY) * exp;
+          curV.z = tz + (dz + tempZ) * exp;
+        }
+
+        function smootherstep01(u) {
+          var c = Math.max(0.0, Math.min(1.0, u));
+          return c * c * c * (c * (c * 6.0 - 15.0) + 10.0);
         }
 
         var curEdge = window.pState.edge;
         var baseEdge = curEdge.isTurnout ? curEdge.targetEdge : curEdge;
         var edgeId = baseEdge ? baseEdge.id : curEdge.id;
         var pos = window.playerLoco.position;
-        var ct = Math.max(0, Math.min(1, window.pState.t || 0));
-        var tan = (curEdge.curve && curEdge.curve.getTangentAt)
-          ? curEdge.curve.getTangentAt(ct).normalize()
-          : new THREE.Vector3(0, 0, 1);
-        var perpVec = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+        var ct = Math.max(0.0, Math.min(1.0, window.pState.t || 0.0));
+        var curVel = window.pState.currentVel || 0.0;
+        var absVel = Math.abs(curVel);
+        var isReversing = (curVel < -0.006 || window.pState.speedStage === -1);
+        var camAspect = (cameraArg && cameraArg.aspect) ? cameraArg.aspect : (window.innerWidth / Math.max(1, window.innerHeight));
 
-        // Standard driving camera baseline
-        var normalCamPos = pos.clone()
-          .sub(tan.clone().multiplyScalar(54.0))
-          .add(perpVec.clone().multiplyScalar(36.0))
-          .add(new THREE.Vector3(0, 38.0, 0));
-        var normalCamLook = pos.clone()
-          .add(tan.clone().multiplyScalar(12.0))
-          .add(new THREE.Vector3(0, 2.5, 0));
-
-        // ====================================================================
-        // 1. JEWEL CHANGI CINEMATIC CAMERA CHOREOGRAPHY + 3-SECOND WATERFALL CLOSE-UP:
-        //    - STAGE 1 (5 seconds before entering Jewel):
-        //      Camera pulls back (`68m`) and rises high (`+44m`) behind the train, framing the train on the
-        //      elevated Skytrain bridge, the opening glass portal doors, and the entire toroidal Jewel dome!
-        //    - STAGE 2 (Inside Jewel):
-        //      Camera glides into the top of the dome (`od vrcholu kopule`, `+30.5m` above track) and follows
-        //      the train, capturing the entire Jewel interior!
-        //    - STAGE 3 (Special 3-Second Close-Up on the Rain Vortex Waterfall):
-        //      When the train reaches the heart of Jewel (`ct >= 0.34`), the camera glides in for a dedicated
-        //      3.0-second close-up shot purely of the cascading Rain Vortex waterfall, glowing turquoise plunge
-        //      pool, rising mist, and roof Oculus, synchronized with realistic cascading waterfall sound!
-        // ====================================================================
-        var isApproachingJewel = false;
-        var isInsideJewel = false;
-        var approachingSouthPortal = false;
-        var distToJewelPortal = 999.0;
-
-        if (!window.pState.inSubway && window.jewelDomeCenterWorld && window.jewelNorthPortalPos && window.jewelSouthPortalPos) {
-          if (!curEdge.isTurnout && (edgeId === 'J_EAST->J_SE' || edgeId === 'J_SE->J_EAST')) {
-            approachingSouthPortal = (edgeId === 'J_SE->J_EAST');
-            var jLen = (curEdge.curve && curEdge.curve.getLength) ? (curEdge.curve.getLength() || 200.0) : 200.0;
-            if (ct < 0.20) {
-              isApproachingJewel = true;
-              distToJewelPortal = (0.20 - ct) * jLen;
-            } else if (ct <= 0.88) {
-              isInsideJewel = true;
-              distToJewelPortal = 0.0;
-            }
-          } else if (curEdge.isTurnout && (edgeId === 'J_EAST->J_SE' || edgeId === 'J_SE->J_EAST')) {
-            approachingSouthPortal = (edgeId === 'J_SE->J_EAST');
-            var tLen = (curEdge.curve && curEdge.curve.getLength) ? (curEdge.curve.getLength() || 62.0) : 62.0;
-            isApproachingJewel = true;
-            distToJewelPortal = Math.max(0.0, 1.0 - ct) * tLen + 8.0;
-          } else if (!curEdge.isTurnout && (curEdge.to === 'J_EAST' || curEdge.to === 'J_SE') && window.getBranches) {
-            var brJ = window.getBranches(curEdge);
-            var nextJ = brJ ? (brJ[window.pState.switchChoice] || brJ.straight) : null;
-            if (nextJ && (nextJ.id === 'J_EAST->J_SE' || nextJ.id === 'J_SE->J_EAST')) {
-              approachingSouthPortal = (nextJ.id === 'J_SE->J_EAST');
-              var aLen = (curEdge.curve && curEdge.curve.getLength) ? (curEdge.curve.getLength() || 200.0) : 200.0;
-              var remCur = Math.max(0.0, 0.84 - ct) * aLen;
-              distToJewelPortal = remCur + 70.0;
-              isApproachingJewel = true;
-            }
-          }
+        // --------------------------------------------------------------------
+        // 1. MULTI-SAMPLE PREDICTIVE TRACK DIRECTION & CURVE ANTICIPATION
+        // --------------------------------------------------------------------
+        var rawTanNow = new THREE.Vector3(0, 0, 1);
+        var rawTanAhead = new THREE.Vector3(0, 0, 1);
+        var rawTanBehind = new THREE.Vector3(0, 0, 1);
+        if (curEdge.curve && curEdge.curve.getTangentAt) {
+          rawTanNow = curEdge.curve.getTangentAt(ct).normalize();
+          var dtAhead = isReversing ? -0.055 : 0.055;
+          var dtBehind = isReversing ? 0.035 : -0.035;
+          rawTanAhead = curEdge.curve.getTangentAt(Math.max(0.0, Math.min(1.0, ct + dtAhead))).normalize();
+          rawTanBehind = curEdge.curve.getTangentAt(Math.max(0.0, Math.min(1.0, ct + dtBehind))).normalize();
         }
 
-        var nowMs = performance.now();
-        if (isInsideJewel) {
-          if (ct >= 0.34 && !window._waterfallCloseUpTriggeredInPass) {
-            window._waterfallCloseUpTriggeredInPass = true;
-            window._waterfallCloseUpStartMs = nowMs;
-          }
+        var blendedFlatTan = new THREE.Vector3(
+          rawTanBehind.x * 0.22 + rawTanNow.x * 0.44 + rawTanAhead.x * 0.34,
+          0.0,
+          rawTanBehind.z * 0.22 + rawTanNow.z * 0.44 + rawTanAhead.z * 0.34
+        );
+        if (blendedFlatTan.lengthSq() < 0.0001) {
+          blendedFlatTan.set(rawTanNow.x, 0.0, rawTanNow.z);
+        }
+        if (blendedFlatTan.lengthSq() < 0.0001) {
+          blendedFlatTan.set(0.0, 0.0, 1.0);
+        }
+        blendedFlatTan.normalize();
+
+        if (!cs.dir) {
+          cs.dir = blendedFlatTan.clone();
         } else {
-          window._waterfallCloseUpTriggeredInPass = false;
+          var dirSmoothTime = (absVel < 0.005) ? 0.58 : Math.max(0.34, 0.50 - Math.min(0.14, absVel * 0.22));
+          smoothDampVec3(cs.dir, blendedFlatTan, cs.dirVel, dirSmoothTime, dtCam, 8.0);
+          cs.dir.y = 0.0;
+          if (cs.dir.lengthSq() > 0.0001) cs.dir.normalize();
+        }
+        window._smoothTrainDir = cs.dir.clone();
+
+        var forwardDir = cs.dir;
+        var trackRight = new THREE.Vector3(-forwardDir.z, 0.0, forwardDir.x).normalize();
+
+        // Curve anticipation vector: smoothly opens the view into upcoming turns
+        var rawCurveDelta = new THREE.Vector3(
+          (rawTanAhead.x - rawTanNow.x) * 14.0,
+          0.0,
+          (rawTanAhead.z - rawTanNow.z) * 14.0
+        );
+        smoothDampVec3(cs.curveLead, rawCurveDelta, cs.curveLeadVel, 0.44, dtCam, 22.0);
+
+        var targetSpeedNorm = Math.min(1.0, absVel / 0.68);
+        cs.speedBlend = smoothDampScalar(cs.speedBlend, targetSpeedNorm, cs, 'speedVel', 0.55, dtCam, 3.0);
+        var targetRevBlend = isReversing ? 1.0 : 0.0;
+        cs.reverseBlend = smoothDampScalar(cs.reverseBlend, targetRevBlend, cs, 'reverseVel', 0.62, dtCam, 2.5);
+
+        // --------------------------------------------------------------------
+        // 2. NEW WIDE PANORAMIC BASE CAMERA (Section 2 Requirements)
+        //    - Physical Distance: `48.0m` behind locomotive (up to `52.0m` at
+        //      express speed), shrinking the locomotive naturally in 3D space
+        //      to `~10.3%` of screen height (`8–12%` target range).
+        //    - Height: `14.2m` above track (`pos.y + 14.2m`).
+        //    - Look-Ahead Target: `54.0m` ahead of locomotive at height
+        //      `pos.y + 5.4m` -> shallow pitch angle of `-4.93°` (instead of
+        //      the old steep `-18.14°`).
+        //    - Result:
+        //      * Locomotive sits in the lower third (`NDC Y ≈ -0.38`, ~31% from bottom).
+        //      * Horizon sits at `NDC Y ≈ +0.20` (~60% from bottom), leaving ~40%
+        //        of the screen for sky, clouds, horizon hills & distant landmarks!
+        // --------------------------------------------------------------------
+        var baseBackDist = 48.0 + cs.speedBlend * 4.0 + cs.reverseBlend * 6.0;
+        var baseHeight = 14.2 + cs.speedBlend * 0.8 + cs.reverseBlend * 1.8;
+        var baseSideOffset = 3.6 + cs.reverseBlend * 5.2;
+
+        var behindTrainCamPos = new THREE.Vector3(
+          pos.x - forwardDir.x * baseBackDist + trackRight.x * baseSideOffset,
+          pos.y + baseHeight,
+          pos.z - forwardDir.z * baseBackDist + trackRight.z * baseSideOffset
+        );
+
+        var forwardLookLead = (54.0 + cs.speedBlend * 6.0) * (1.0 - cs.reverseBlend * 1.25);
+        var behindTrainCamLook = new THREE.Vector3(
+          pos.x + forwardDir.x * forwardLookLead + cs.curveLead.x * (1.0 - cs.reverseBlend * 0.5),
+          pos.y + 5.40 - cs.reverseBlend * 0.40,
+          pos.z + forwardDir.z * forwardLookLead + cs.curveLead.z * (1.0 - cs.reverseBlend * 0.5)
+        );
+
+        var baseDrivingCamPos = behindTrainCamPos.clone();
+        var baseDrivingCamLook = behindTrainCamLook.clone();
+        var baseDrivingFov = 46.0;
+
+        // --------------------------------------------------------------------
+        // 3. SCREEN-SPACE PROJECTION & 3D FRUSTUM-FITTING HELPERS
+        // --------------------------------------------------------------------
+        function projectWorldPointToNDC(worldPt, camOrigin, camLookAt, fovDeg, aspect) {
+          var fwd = camLookAt.clone().sub(camOrigin);
+          var fLen = fwd.length();
+          if (fLen < 0.0001) return { x: 0, y: 0, z: 1, behind: false };
+          fwd.divideScalar(fLen);
+
+          var worldUp = new THREE.Vector3(0, 1, 0);
+          var right = new THREE.Vector3().crossVectors(fwd, worldUp);
+          if (right.lengthSq() < 0.0001) right.set(1, 0, 0);
+          else right.normalize();
+          var up = new THREE.Vector3().crossVectors(right, fwd).normalize();
+
+          var rel = worldPt.clone().sub(camOrigin);
+          var cz = rel.dot(fwd);
+          var cx = rel.dot(right);
+          var cy = rel.dot(up);
+
+          if (cz <= 0.25) {
+            return { x: cx >= 0 ? 4.0 : -4.0, y: cy >= 0 ? 4.0 : -4.0, z: cz, behind: true };
+          }
+          var halfTanY = Math.tan((fovDeg * Math.PI / 180.0) * 0.5);
+          var halfTanX = halfTanY * Math.max(1.0, aspect || 1.7778);
+          return {
+            x: cx / (cz * halfTanX),
+            y: cy / (cz * halfTanY),
+            z: cz,
+            behind: false
+          };
         }
 
-        var targetWfCloseUpBlend = 0.0;
-        var wfProgress = 0.0;
-        if (isInsideJewel && window._waterfallCloseUpStartMs) {
-          var elapsedWfMs = nowMs - window._waterfallCloseUpStartMs;
-          if (elapsedWfMs >= 0 && elapsedWfMs <= 3000) {
-            wfProgress = elapsedWfMs / 3000.0;
-            if (elapsedWfMs < 520) {
-              var uWfIn = elapsedWfMs / 520.0;
-              targetWfCloseUpBlend = uWfIn * uWfIn * (3.0 - 2.0 * uWfIn);
-            } else if (elapsedWfMs > 2480) {
-              var uWfOut = (3000.0 - elapsedWfMs) / 520.0;
-              targetWfCloseUpBlend = uWfOut * uWfOut * (3.0 - 2.0 * uWfOut);
+        // --------------------------------------------------------------------
+        // 4. JEWEL CHANGI AIRPORT DRIVE-THROUGH CHOREOGRAPHY (`J_EAST <-> J_SE`)
+        // --------------------------------------------------------------------
+        if (!window.pState.inSubway && !curEdge.isTurnout && (edgeId === 'J_EAST->J_SE' || edgeId === 'J_SE->J_EAST') &&
+            window.jewelDomeCenterWorld && window.jewelVortexWorldPos && window.jewelInwardLeftVec) {
+          var uJewel = (edgeId === 'J_EAST->J_SE') ? ct : (1.0 - ct);
+          if (uJewel >= 0.02 && uJewel <= 0.90) {
+            var inwardLeft = window.jewelInwardLeftVec;
+            var entryPortalPos = (edgeId === 'J_EAST->J_SE')
+              ? (window.jewelNorthPortalPos || window.jewelDomeCenterWorld)
+              : (window.jewelSouthPortalPos || window.jewelDomeCenterWorld);
+
+            // Stage 1 (uJewel < 0.22): Wide panoramic exterior bridge approach showing full Jewel glass dome + train
+            var preEntryCamPos = pos.clone()
+              .sub(forwardDir.clone().multiplyScalar(48.0))
+              .add(inwardLeft.clone().multiplyScalar(14.0))
+              .add(new THREE.Vector3(0, 16.5, 0));
+            var preEntryCamLook = pos.clone()
+              .add(forwardDir.clone().multiplyScalar(22.0))
+              .lerp(entryPortalPos, 0.52)
+              .add(new THREE.Vector3(0, 8.5, 0));
+
+            // Stage 2 (uJewel >= 0.22): Inside dome panoramic view framing full Rain Vortex waterfall from pool to roof oculus
+            var domeFollowCamPos = pos.clone()
+              .sub(forwardDir.clone().multiplyScalar(32.0))
+              .sub(inwardLeft.clone().multiplyScalar(15.5));
+            domeFollowCamPos.y = window.jewelDomeCenterWorld.y + 16.0;
+
+            var trainLeadInJewel = pos.clone().add(forwardDir.clone().multiplyScalar(10.0)).add(new THREE.Vector3(0, 3.2, 0));
+            var vortexFocus = new THREE.Vector3(
+              window.jewelVortexWorldPos.x,
+              window.jewelDomeCenterWorld.y + 13.0,
+              window.jewelVortexWorldPos.z
+            );
+            var domeFollowCamLook = trainLeadInJewel.lerp(vortexFocus, 0.62);
+
+            var jewelPassPos, jewelPassLook;
+            if (uJewel < 0.20) {
+              jewelPassPos = preEntryCamPos;
+              jewelPassLook = preEntryCamLook;
+            } else if (uJewel < 0.34) {
+              var sTrans = smootherstep01((uJewel - 0.20) / 0.14);
+              jewelPassPos = preEntryCamPos.clone().lerp(domeFollowCamPos, sTrans);
+              jewelPassLook = preEntryCamLook.clone().lerp(domeFollowCamLook, sTrans);
             } else {
-              targetWfCloseUpBlend = 1.0;
+              jewelPassPos = domeFollowCamPos;
+              jewelPassLook = domeFollowCamLook;
             }
+
+            var jewelEnv = 1.0;
+            if (uJewel < 0.14) {
+              jewelEnv = smootherstep01((uJewel - 0.02) / 0.12);
+            } else if (uJewel > 0.76) {
+              jewelEnv = smootherstep01((0.90 - uJewel) / 0.14);
+            }
+
+            baseDrivingCamPos.lerp(jewelPassPos, jewelEnv);
+            baseDrivingCamLook.lerp(jewelPassLook, jewelEnv);
+            baseDrivingFov = 46.0 + 3.0 * jewelEnv;
           }
         }
-        window._jewelWfCloseUpBlend = (window._jewelWfCloseUpBlend || 0.0) + (targetWfCloseUpBlend - (window._jewelWfCloseUpBlend || 0.0)) * 0.14;
 
-        var speedMps = Math.max(12.0, Math.abs(window.pState.currentVel || 0.25) * 60.0);
-        var secondsToPortal = distToJewelPortal / speedMps;
+        // --------------------------------------------------------------------
+        // 5. SPATIAL POI WEIGHT & LARGE/SMALL OBJECT COMPOSERS
+        // --------------------------------------------------------------------
+        function computeSpatialPoiWeight(anchorPt, spec) {
+          var dx = anchorPt.x - pos.x;
+          var dz = anchorPt.z - pos.z;
+          var signedAlong = dx * forwardDir.x + dz * forwardDir.z;
+          var perpDist = Math.abs(-dx * forwardDir.z + dz * forwardDir.x);
 
-        var targetJewelMasterBlend = 0.0;
-        var targetStage2Blend = 0.0;
+          if (perpDist > (spec.maxPerpDist || 110.0)) return 0.0;
 
-        if (isApproachingJewel && secondsToPortal <= 5.0) {
-          // Stage 1: Ramp up smoothly starting 5.0 seconds before entering the Jewel portal!
-          var uPre = Math.max(0.0, Math.min(1.0, (5.0 - secondsToPortal) / 1.25));
-          targetJewelMasterBlend = uPre * uPre * (3.0 - 2.0 * uPre);
-          targetStage2Blend = 0.0;
-        } else if (isInsideJewel) {
-          // Stage 2: Inside Jewel — transition smoothly from Stage 1 (pre-entry high pull-back) to Stage 2 (top-of-dome interior follow)
-          if (ct > 0.78) {
-            var uExit = Math.max(0.0, Math.min(1.0, (0.88 - ct) / 0.10));
-            targetJewelMasterBlend = uExit * uExit * (3.0 - 2.0 * uExit);
+          var perpFade = 1.0;
+          var innerPerp = (spec.maxPerpDist || 110.0) * 0.70;
+          if (perpDist > innerPerp) {
+            perpFade = 1.0 - smootherstep01((perpDist - innerPerp) / Math.max(1.0, (spec.maxPerpDist || 110.0) - innerPerp));
+          }
+
+          var alongWeight = 0.0;
+          var approachDist = spec.approachDist || 90.0;
+          var peakAhead = spec.peakAheadDist || 22.0;
+          var peakBehind = spec.peakBehindDist !== undefined ? spec.peakBehindDist : -12.0;
+          var departDist = spec.departDist || 48.0;
+
+          if (signedAlong > peakAhead) {
+            if (signedAlong >= approachDist) return 0.0;
+            alongWeight = smootherstep01((approachDist - signedAlong) / Math.max(1.0, approachDist - peakAhead));
+          } else if (signedAlong >= peakBehind) {
+            alongWeight = 1.0;
           } else {
-            targetJewelMasterBlend = 1.0;
+            var behindPast = -signedAlong;
+            var peakBehindAbs = -peakBehind;
+            if (behindPast >= departDist) return 0.0;
+            alongWeight = 1.0 - smootherstep01((behindPast - peakBehindAbs) / Math.max(1.0, departDist - peakBehindAbs));
           }
-          var uInDome = Math.max(0.0, Math.min(1.0, (ct - 0.19) / 0.10));
-          targetStage2Blend = uInDome * uInDome * (3.0 - 2.0 * uInDome);
-        }
 
-        window._jewelCamBlend = (window._jewelCamBlend || 0.0) + (targetJewelMasterBlend - (window._jewelCamBlend || 0.0)) * 0.09;
-        window._jewelStage2Blend = (window._jewelStage2Blend || 0.0) + (targetStage2Blend - (window._jewelStage2Blend || 0.0)) * 0.08;
-
-        // Update Realistic Jewel Waterfall Sound (swells to full close-up waterfall roar during the 3s waterfall showcase!)
-        if (window.updateJewelWaterfallAudio) {
-          var distToVortex = window.jewelVortexWorldPos ? pos.distanceTo(window.jewelVortexWorldPos) : 999.0;
-          var proximityGain = (!window.pState.inSubway && distToVortex < 95.0)
-            ? Math.pow(Math.max(0.0, 1.0 - distToVortex / 95.0), 1.6) * 0.18
-            : 0.0;
-          var insideBoost = isInsideJewel ? 0.22 : 0.0;
-          var closeUpBoost = (window._jewelWfCloseUpBlend || 0.0) * 0.44;
-          var targetWfVol = Math.min(0.48, Math.max(proximityGain, insideBoost) + closeUpBoost);
-          window.updateJewelWaterfallAudio(targetWfVol, window._jewelWfCloseUpBlend || 0.0);
-        }
-
-        // Smoothly adjust glass dome shell opacity so from outside (Stage 1) the building glass is crisp & solid (0.64),
-        // and when inside at the top of the dome (Stage 2) the interior is 100% vivid and unobstructed (0.28)!
-        if (window.jewelGlassDomeMat) {
-          var desiredDomeOpacity = 0.64 - (window._jewelCamBlend * window._jewelStage2Blend) * 0.36;
-          window.jewelGlassDomeMat.opacity += (desiredDomeOpacity - window.jewelGlassDomeMat.opacity) * 0.12;
-        }
-
-        var activeCustomBlend = 0.0;
-        var customTargetCam = normalCamPos;
-        var customTargetLook = normalCamLook;
-
-        if (window._jewelCamBlend > 0.003 && window.jewelInwardLeftVec && window.jewelDomeCenterWorld && window.jewelVortexWorldPos) {
-          var inwardLeft = window.jewelInwardLeftVec;
-          var portalTargetPos = approachingSouthPortal ? window.jewelSouthPortalPos : window.jewelNorthPortalPos;
-          var domeEntryFocus = portalTargetPos.clone().lerp(window.jewelDomeCenterWorld, 0.36);
-
-          var toPortalDir = domeEntryFocus.clone().sub(pos);
-          toPortalDir.y = 0;
-          if (toPortalDir.lengthSq() > 0.001) toPortalDir.normalize();
-          else toPortalDir.copy(tan);
-
-          var chaseForward = tan.clone().lerp(toPortalDir, 0.65).normalize();
-
-          // STAGE 1 CAMERA: High (`+44m`) and pulled back (`68m`) behind the train, capturing the train
-          // on the Skytrain viaduct entering the Jewel building through the opening sliding glass doors!
-          var stage1CamPos = pos.clone()
-            .sub(chaseForward.clone().multiplyScalar(68.0))
-            .sub(inwardLeft.clone().multiplyScalar(8.5))
-            .add(new THREE.Vector3(0, 44.0, 0));
-          var stage1CamLook = pos.clone()
-            .lerp(domeEntryFocus, 0.54)
-            .add(new THREE.Vector3(0, 10.5, 0));
-
-          // STAGE 2 CAMERA: At the top of the dome (`od vrcholu kopule`, `y = domeCenter.y + 30.5m`) following
-          // the train and looking down across the entire Jewel interior (Oculus, Rain Vortex waterfall,
-          // turquoise plunge pool, 6 stepped rainforest terraces, shops, `JEWEL` living wall, and the train)!
-          var domeCrownY = window.jewelDomeCenterWorld.y + 30.5;
-          var followPos = pos.clone()
-            .sub(tan.clone().multiplyScalar(34.0))
-            .add(inwardLeft.clone().multiplyScalar(5.0));
-          var crownAnchor = window.jewelDomeCenterWorld.clone()
-            .sub(tan.clone().multiplyScalar(18.0))
-            .add(inwardLeft.clone().multiplyScalar(4.0));
-          var stage2CamPos = followPos.clone().lerp(crownAnchor, 0.38);
-          stage2CamPos.y = domeCrownY;
-
-          var trainLookAhead = pos.clone()
-            .add(tan.clone().multiplyScalar(8.0))
-            .add(new THREE.Vector3(0, 2.5, 0));
-          var stage2CamLook = trainLookAhead.clone().lerp(window.jewelVortexWorldPos, 0.56);
-
-          // STAGE 3 CAMERA (3-SECOND WATERFALL CLOSE-UP):
-          // Positioned inside the atrium right in front of the HSBC Rain Vortex waterfall (`16.2m` in front of the vortex),
-          // framing ONLY the cascading water funnel, glowing turquoise plunge pool, rising mist, and roof Oculus!
-          var wfLateralSweep = Math.sin(wfProgress * Math.PI * 2.0) * 3.8;
-          var wfCloseUpCamPos = window.jewelVortexWorldPos.clone()
-            .sub(inwardLeft.clone().multiplyScalar(16.2))
-            .add(tan.clone().multiplyScalar(wfLateralSweep - 2.0));
-          wfCloseUpCamPos.y = window.jewelDomeCenterWorld.y + 11.5 + wfProgress * 4.5;
-
-          var wfCloseUpCamLook = window.jewelVortexWorldPos.clone();
-          wfCloseUpCamLook.y = window.jewelDomeCenterWorld.y + 10.5 + Math.sin(wfProgress * Math.PI) * 7.5;
-
-          var interiorCamPos = stage2CamPos.clone().lerp(wfCloseUpCamPos, window._jewelWfCloseUpBlend || 0.0);
-          var interiorCamLook = stage2CamLook.clone().lerp(wfCloseUpCamLook, window._jewelWfCloseUpBlend || 0.0);
-
-          var jewelCombinedCam = stage1CamPos.clone().lerp(interiorCamPos, window._jewelStage2Blend);
-          var jewelCombinedLook = stage1CamLook.clone().lerp(interiorCamLook, window._jewelStage2Blend);
-
-          customTargetCam = normalCamPos.clone().lerp(jewelCombinedCam, window._jewelCamBlend);
-          customTargetLook = normalCamLook.clone().lerp(jewelCombinedLook, window._jewelCamBlend);
-          activeCustomBlend = window._jewelCamBlend;
+          return alongWeight * perpFade;
         }
 
         // ====================================================================
-        // 2. EIFFEL TOWER 5-SECOND SMOOTH CAMERA SHOWCASE:
+        // CATEGORY A SOLVER: LARGE LANDMARKS WITH 3D BOUNDING-BOX FRUSTUM FIT
+        // Guarantees 100% of the landmark (base, top spire/roof, left & right
+        // edges) AND the foreground train fit inside safe screen margins!
         // ====================================================================
-        if (window.eiffelWorldCenter && !window.pState.inSubway) {
-          var isOnEiffelTrack = (edgeId === 'J_NW->J_NORTH' || edgeId === 'J_NORTH->J_NW') && !curEdge.isTurnout && ct >= 0.12 && ct <= 0.88;
+        function buildLargeLandmarkCandidate(spec) {
+          if (!spec || !spec.center) return null;
+          var w = computeSpatialPoiWeight(spec.center, spec);
+          if (w <= 0.005) return null;
 
-          if (isOnEiffelTrack) {
-            if (!window._wasOnEiffelTrack) {
-              window._wasOnEiffelTrack = true;
-              window._eiffelShowcaseStartMs = nowMs;
+          var cx = spec.center.x;
+          var cz = spec.center.z;
+          var baseY = (spec.baseY !== undefined) ? spec.baseY : spec.center.y;
+          var objHeight = spec.height || 30.0;
+          var objRadius = spec.radius || 24.0;
+
+          var toObjX = cx - pos.x;
+          var toObjZ = cz - pos.z;
+          var sideDot = toObjX * trackRight.x + toObjZ * trackRight.z;
+          var sideSign = (sideDot >= 0.0) ? 1.0 : -1.0;
+
+          // Initial wide cinematic camera position on the opposite side of the track from the landmark
+          var backDist = spec.camBack || 54.0;
+          var oppSideDist = spec.camOppositeSide || 22.0;
+          var camHeight = spec.camHeight || 15.2;
+          var fov = spec.targetFov || 48.0;
+
+          var camPos = new THREE.Vector3(
+            pos.x - forwardDir.x * backDist - trackRight.x * (sideSign * oppSideDist),
+            pos.y + camHeight,
+            pos.z - forwardDir.z * backDist - trackRight.z * (sideSign * oppSideDist)
+          );
+
+          // Initial optical target between the foreground train corridor and the landmark's vertical midpoint
+          var trainLeadDist = isReversing ? -6.0 : 14.0;
+          var trainFocus = new THREE.Vector3(
+            pos.x + forwardDir.x * trainLeadDist,
+            pos.y + 2.8,
+            pos.z + forwardDir.z * trainLeadDist
+          );
+          var landmarkLookY = (spec.lookHeightOffset !== undefined)
+            ? (baseY + spec.lookHeightOffset)
+            : (baseY + objHeight * 0.48);
+          var landmarkMid = new THREE.Vector3(cx, landmarkLookY, cz);
+          var camLook = trainFocus.clone().lerp(landmarkMid, spec.lookShare || 0.62);
+
+          // Iterative 3D Bounding-Box Frustum Solver (verifies base, summit, sides & train all fit in NDC!)
+          var safeMaxX = 0.78;
+          var safeMinY = -0.74;
+          var safeMaxY = 0.68; // Keeps top spire strictly below the top UI bar (`#top-bar`)
+
+          for (var iter = 0; iter < 8; iter++) {
+            var viewDirXZ = new THREE.Vector3(cx - camPos.x, 0, cz - camPos.z);
+            if (viewDirXZ.lengthSq() < 0.001) viewDirXZ.set(0, 0, 1);
+            else viewDirXZ.normalize();
+            var rightXZ = new THREE.Vector3(-viewDirXZ.z, 0, viewDirXZ.x);
+
+            // 9 bounding points: Landmark Base, Landmark Summit, Landmark Left/Right Base & Upper, + Train Base/Top/Lead
+            var boundPts = [
+              new THREE.Vector3(cx - viewDirXZ.x * objRadius * 0.45, baseY, cz - viewDirXZ.z * objRadius * 0.45),
+              new THREE.Vector3(cx, baseY + objHeight, cz),
+              new THREE.Vector3(cx - rightXZ.x * objRadius, baseY + 1.0, cz - rightXZ.z * objRadius),
+              new THREE.Vector3(cx + rightXZ.x * objRadius, baseY + 1.0, cz + rightXZ.z * objRadius),
+              new THREE.Vector3(cx - rightXZ.x * objRadius * 0.65, baseY + objHeight * 0.78, cz - rightXZ.z * objRadius * 0.65),
+              new THREE.Vector3(cx + rightXZ.x * objRadius * 0.65, baseY + objHeight * 0.78, cz + rightXZ.z * objRadius * 0.65),
+              new THREE.Vector3(pos.x, pos.y, pos.z),
+              new THREE.Vector3(pos.x, pos.y + 4.35, pos.z),
+              new THREE.Vector3(pos.x + forwardDir.x * 12.0, pos.y + 2.2, pos.z + forwardDir.z * 12.0)
+            ];
+
+            var minNX = 999.0, maxNX = -999.0, minNY = 999.0, maxNY = -999.0;
+            for (var bpi = 0; bpi < boundPts.length; bpi++) {
+              var pr = projectWorldPointToNDC(boundPts[bpi], camPos, camLook, fov, camAspect);
+              if (pr.x < minNX) minNX = pr.x;
+              if (pr.x > maxNX) maxNX = pr.x;
+              if (pr.y < minNY) minNY = pr.y;
+              if (pr.y > maxNY) maxNY = pr.y;
             }
-          } else {
-            window._wasOnEiffelTrack = false;
+
+            var spanX = maxNX - minNX;
+            var spanY = maxNY - minNY;
+            var centerNX = 0.5 * (minNX + maxNX);
+            var centerNY = 0.5 * (minNY + maxNY);
+            var desiredCenterNY = 0.5 * (safeMinY + safeMaxY); // -0.03
+
+            var fitsX = (minNX >= -safeMaxX && maxNX <= safeMaxX);
+            var fitsY = (minNY >= safeMinY && maxNY <= safeMaxY);
+            if (fitsX && fitsY) break;
+
+            // 1) Re-center optical axis (`camLook`) in camera right/up plane so the bounding box is centered
+            var fwdVec = camLook.clone().sub(camPos);
+            var lookDist = fwdVec.length();
+            if (lookDist > 0.1) {
+              fwdVec.divideScalar(lookDist);
+              var rVec = new THREE.Vector3().crossVectors(fwdVec, new THREE.Vector3(0, 1, 0)).normalize();
+              var uVec = new THREE.Vector3().crossVectors(rVec, fwdVec).normalize();
+              var halfTanY = Math.tan((fov * Math.PI / 180.0) * 0.5);
+              var halfTanX = halfTanY * Math.max(1.0, camAspect);
+
+              var errX = centerNX * lookDist * halfTanX * 0.72;
+              var errY = (centerNY - desiredCenterNY) * lookDist * halfTanY * 0.75;
+              camLook.addScaledVector(rVec, errX);
+              camLook.addScaledVector(uVec, errY);
+            }
+
+            // 2) If total angular span exceeds the safe screen margins, retreat camera backward & slightly widen FOV
+            var allowedSpanX = safeMaxX * 2.0; // 1.56
+            var allowedSpanY = safeMaxY - safeMinY; // 1.42
+            var overflowRatio = Math.max(spanX / allowedSpanX, spanY / allowedSpanY);
+            if (overflowRatio > 1.0) {
+              var retreatStep = Math.min(1.24, 1.0 + (overflowRatio - 1.0) * 0.68);
+              var anchorMid = trainFocus.clone().lerp(landmarkMid, 0.35);
+              var awayVec = camPos.clone().sub(anchorMid);
+              awayVec.x *= retreatStep;
+              awayVec.z *= retreatStep;
+              awayVec.y = Math.max(awayVec.y, (pos.y + camHeight) - anchorMid.y);
+              camPos.copy(anchorMid).add(awayVec);
+              fov = Math.min(52.5, fov + (overflowRatio - 1.0) * 2.2);
+            }
+            if (spec.minCamHeight && camPos.y < pos.y + spec.minCamHeight) {
+              camPos.y = pos.y + spec.minCamHeight;
+            }
           }
 
-          var targetEiffelBlend = 0.0;
-          if (isOnEiffelTrack && window._eiffelShowcaseStartMs) {
-            var elapsedEiffelMs = nowMs - window._eiffelShowcaseStartMs;
-            if (elapsedEiffelMs >= 0 && elapsedEiffelMs <= 5000) {
-              if (elapsedEiffelMs < 1100) {
-                var uIn = elapsedEiffelMs / 1100.0;
-                targetEiffelBlend = uIn * uIn * (3.0 - 2.0 * uIn);
-              } else if (elapsedEiffelMs > 3900) {
-                var uOut = (5000.0 - elapsedEiffelMs) / 1100.0;
-                targetEiffelBlend = uOut * uOut * (3.0 - 2.0 * uOut);
-              } else {
-                targetEiffelBlend = 1.0;
+          return {
+            id: spec.id,
+            narrationId: spec.narrationId || spec.id,
+            category: 'large',
+            weight: w,
+            priority: spec.priority || 1.05,
+            camPos: camPos,
+            camLook: camLook,
+            targetFov: fov
+          };
+        }
+
+        // ====================================================================
+        // CATEGORY B SOLVER: SMALL ANIMALS & CHARACTERS (Section 4)
+        // - NO automatic zoom (`targetFov = baseDrivingFov = 46.0°`).
+        // - NO extreme close-up (`camBack ≈ 45–48m`, keeping the wide panoramic
+        //   world, horizon, train, and animal's surroundings in one continuous scene).
+        // - Raycast + 3D Obstacle Cylinder Avoidance: checks if any tree trunk,
+        //   canopy, house, or pole blocks the line of sight from `camPos` to the
+        //   animal, and automatically slides the camera laterally to an
+        //   unobstructed panoramic vantage!
+        // ====================================================================
+        function gatherAnimalObstacles(excludeObjList) {
+          var obsList = [];
+          // 1. Interactive character trees (Monster hiding trees, Squirrel tree trunk, Owl tree trunk)
+          var sb = window.storybookInteractiveCharacters;
+          if (sb) {
+            if (sb.monsters) {
+              for (var mi = 0; mi < sb.monsters.length; mi++) {
+                var m = sb.monsters[mi];
+                if (m && m.hidingTreePos) {
+                  obsList.push({ x: m.hidingTreePos.x, z: m.hidingTreePos.z, minY: m.hidingTreePos.y, maxY: m.hidingTreePos.y + 12.5, rad: 3.2, mesh: m.hidingTree });
+                }
+              }
+            }
+            if (sb.squirrel && sb.squirrel.worldPos) {
+              var sqP = sb.squirrel.worldPos;
+              obsList.push({ x: sqP.x, z: sqP.z, minY: sqP.y, maxY: sqP.y + 12.5, rad: 1.65, mesh: sb.squirrel.obj ? sb.squirrel.obj.envGroup : null });
+            }
+            if (sb.owl && sb.owl.worldPos) {
+              var owP = sb.owl.worldPos;
+              obsList.push({ x: owP.x, z: owP.z, minY: owP.y, maxY: owP.y + 11.5, rad: 1.55, mesh: sb.owl.obj ? sb.owl.obj.envGroup : null });
+            }
+          }
+          // 2. Nearby houses (`window.surfaceHousesList`)
+          if (window.surfaceHousesList) {
+            for (var hi = 0; hi < window.surfaceHousesList.length; hi++) {
+              var hMesh = window.surfaceHousesList[hi];
+              if (hMesh && hMesh.visible && hMesh.position && hMesh.position.y > -100) {
+                obsList.push({ x: hMesh.position.x, z: hMesh.position.z, minY: hMesh.position.y, maxY: hMesh.position.y + 14.0, rad: 7.5, mesh: hMesh });
+              }
+            }
+          }
+          // 3. Locomotive body (so the locomotive itself never blocks the animal!)
+          obsList.push({ x: pos.x, z: pos.z, minY: pos.y, maxY: pos.y + 4.5, rad: 2.6, mesh: window.playerLoco });
+          return obsList;
+        }
+
+        function computeSightlineOcclusionPenalty(camOrigin, targetPt, obstacles, animalRootMesh) {
+          var penalty = 0.0;
+          var segX = targetPt.x - camOrigin.x;
+          var segY = targetPt.y - camOrigin.y;
+          var segZ = targetPt.z - camOrigin.z;
+          var segLenSqXZ = segX * segX + segZ * segZ;
+          var segLenXZ = Math.sqrt(segLenSqXZ);
+          if (segLenXZ < 0.1) return 0.0;
+
+          // A) Analytical 3D Cylinder/Segment Intersection against all nearby obstacles
+          for (var oi = 0; oi < obstacles.length; oi++) {
+            var ob = obstacles[oi];
+            if (ob.mesh && ob.mesh === animalRootMesh) continue;
+            var toObX = ob.x - camOrigin.x;
+            var toObZ = ob.z - camOrigin.z;
+            var u = (toObX * segX + toObZ * segZ) / segLenSqXZ;
+            // Only check obstacles strictly between camera (u > 0.05) and animal (u < 0.96)
+            if (u > 0.05 && u < 0.96) {
+              var closestX = camOrigin.x + u * segX;
+              var closestZ = camOrigin.z + u * segZ;
+              var rayYAtU = camOrigin.y + u * segY;
+              if (rayYAtU >= (ob.minY - 0.5) && rayYAtU <= (ob.maxY + 0.5)) {
+                var distXZ = Math.hypot(ob.x - closestX, ob.z - closestZ);
+                if (distXZ < ob.rad) {
+                  penalty += 100.0 * (1.0 - distXZ / ob.rad);
+                } else if (distXZ < ob.rad + 1.8) {
+                  penalty += 18.0 * (1.0 - (distXZ - ob.rad) / 1.8);
+                }
               }
             }
           }
 
-          window._eiffelCamBlend = (window._eiffelCamBlend || 0.0) + (targetEiffelBlend - (window._eiffelCamBlend || 0.0)) * 0.09;
-
-          if (window._eiffelCamBlend > 0.003 && activeCustomBlend < 0.01) {
-            var toEiffel = window.eiffelWorldCenter.clone().sub(pos);
-            var horizToEiffel = new THREE.Vector3(toEiffel.x, 0, toEiffel.z);
-            if (horizToEiffel.lengthSq() < 0.001) horizToEiffel.set(0, 0, -1);
-            horizToEiffel.normalize();
-
-            var targetCamEiffel = pos.clone()
-              .sub(tan.clone().multiplyScalar(92.0))
-              .sub(horizToEiffel.clone().multiplyScalar(96.0))
-              .add(new THREE.Vector3(0, 32.0, 0));
-
-            var eiffelMidSpire = new THREE.Vector3(
-              window.eiffelWorldCenter.x,
-              window.eiffelWorldCenter.y + 39.0,
-              window.eiffelWorldCenter.z
-            );
-            var targetLookEiffel = pos.clone()
-              .add(tan.clone().multiplyScalar(8.0))
-              .add(new THREE.Vector3(0, 6.0, 0))
-              .lerp(eiffelMidSpire, 0.72);
-
-            customTargetCam = normalCamPos.clone().lerp(targetCamEiffel, window._eiffelCamBlend);
-            customTargetLook = normalCamLook.clone().lerp(targetLookEiffel, window._eiffelCamBlend);
-            activeCustomBlend = window._eiffelCamBlend;
+          // B) THREE.Raycaster check if available on the runtime THREE object
+          if (typeof THREE.Raycaster === 'function' && scene && scene.children) {
+            try {
+              if (!window._animalCamRaycaster) {
+                window._animalCamRaycaster = new THREE.Raycaster();
+              }
+              var rc = window._animalCamRaycaster;
+              if (typeof camera !== 'undefined' && camera) {
+                rc.camera = camera;
+              }
+              var rayDir = targetPt.clone().sub(camOrigin);
+              var totalDist = rayDir.length();
+              if (totalDist > 1.0) {
+                rayDir.divideScalar(totalDist);
+                rc.set(camOrigin, rayDir);
+                rc.near = 1.5;
+                rc.far = Math.max(2.0, totalDist - 1.6);
+                var testMeshes = [];
+                for (var oi2 = 0; oi2 < obstacles.length; oi2++) {
+                  if (obstacles[oi2].mesh && obstacles[oi2].mesh !== animalRootMesh) {
+                    testMeshes.push(obstacles[oi2].mesh);
+                  }
+                }
+                if (testMeshes.length > 0 && typeof rc.intersectObjects === 'function') {
+                  var hits = rc.intersectObjects(testMeshes, true);
+                  if (hits && hits.length > 0) {
+                    penalty += 120.0;
+                  }
+                }
+              }
+            } catch (rcErr) {}
           }
+
+          return penalty;
         }
 
-        // ====================================================================
-        // 3. INTERACTIVE MONSTERS & ANIMALS (RABBIT, SQUIRREL, OWL) CAMERA ZOOM
-        //    - Monsters: Smooth camera zoom 3s before startle from 5m above the
-        //      train (`z pozice 5m nad vláčkem`), framing both the front of the
-        //      train (`začátek vláčku`) AND the monster!
-        //    - Rabbit, Squirrel, Owl: Smooth camera zoom when the train passes
-        //      by, framing both the train AND the animal!
-        // ====================================================================
-        var targetCharBlend = (window._storybookCharCamActive && window._storybookCharCamPos && window._storybookCharCamLook) ? 1.0 : 0.0;
-        window._storybookCharCamBlend = (window._storybookCharCamBlend || 0.0) + (targetCharBlend - (window._storybookCharCamBlend || 0.0)) * 0.11;
+        function buildSmallCharacterCandidate(spec) {
+          if (!spec || !spec.anchorPos || !spec.focusPos) return null;
+          var w = computeSpatialPoiWeight(spec.anchorPos, spec);
+          if (spec.activeBoost && w > 0.05) {
+            w = Math.min(1.0, Math.max(w, 0.85));
+          }
+          if (w <= 0.005) return null;
 
-        if (window._storybookCharCamBlend > 0.003 && window._storybookCharCamPos && window._storybookCharCamLook && activeCustomBlend < 0.02) {
-          customTargetCam = normalCamPos.clone().lerp(window._storybookCharCamPos, window._storybookCharCamBlend);
-          customTargetLook = normalCamLook.clone().lerp(window._storybookCharCamLook, window._storybookCharCamBlend);
-          activeCustomBlend = window._storybookCharCamBlend;
-        }
+          var toCharX = spec.focusPos.x - pos.x;
+          var toCharZ = spec.focusPos.z - pos.z;
+          var sideDot = toCharX * trackRight.x + toCharZ * trackRight.z;
+          var sideSign = (sideDot >= 0.0) ? 1.0 : -1.0;
 
-        // ====================================================================
-        // 4. AUTOMATIC SLOWDOWN TO MINIMUM SPEED DURING ALL DETAIL PERSPECTIVES
-        //    ("1. Prosím, aby vlak, když je změna perspektivy na detaily např.
-        //     eiffel tower, kolosea, při průjezdu budovou jewel a dalších objektů,
-        //     zpomalil na minimální rychlost.")
-        // ====================================================================
-        var landmarkShowcase = (!curEdge.isTurnout && window.landmarkShowcases)
-          ? window.landmarkShowcases[edgeId]
-          : null;
-        var inLandmarkZone = Boolean(landmarkShowcase && ct >= 0.22 && ct <= 0.78 && !window.pState.inSubway);
-        var inAnyDetailPerspective = Boolean(
-          inLandmarkZone ||
-          (window._jewelCamBlend && window._jewelCamBlend > 0.02) ||
-          (window._eiffelCamBlend && window._eiffelCamBlend > 0.02) ||
-          (window._storybookCharCamBlend && window._storybookCharCamBlend > 0.02) ||
-          window._storybookSlowdownRequested
-        );
+          // Evaluate 7 panoramic candidate vantages (keeping panoramic distance ~45-48m and height ~14.2m, NO zoom!)
+          var baseBack = spec.camBack || 46.5;
+          var baseH = spec.camHeight || 14.2;
+          var lateralMultipliers = [1.0, 1.55, 0.45, 2.15, -0.65, 2.75, -1.25];
+          var heightOffsets = [0.0, 0.5, 0.0, 1.4, 0.8, 2.4, 1.6];
+          var backOffsets = [0.0, -2.5, 2.0, -5.0, 0.0, -6.5, -2.0];
 
-        if (inAnyDetailPerspective && window.pState) {
-          if (window.pState.speedStage > 1) {
-            window.pState.speedStage = 1;
-            if (typeof window.updateHUD === 'function') {
-              window.updateHUD();
+          var obstacles = gatherAnimalObstacles();
+          var bestPos = null;
+          var bestLook = null;
+          var bestCost = 999999.0;
+
+          for (var ai = 0; ai < lateralMultipliers.length; ai++) {
+            var latShift = (spec.camLateralShift !== undefined ? spec.camLateralShift : (sideSign * 6.8)) * lateralMultipliers[ai];
+            var candBack = baseBack + backOffsets[ai];
+            var candH = baseH + heightOffsets[ai];
+
+            var candPos = new THREE.Vector3(
+              pos.x - forwardDir.x * candBack + trackRight.x * latShift,
+              pos.y + candH,
+              pos.z - forwardDir.z * candBack + trackRight.z * latShift
+            );
+
+            // Gentle panoramic pan toward the animal while preserving the forward horizon look-ahead!
+            var lookShare = spec.lookShare || 0.32;
+            var animalWorldLook = new THREE.Vector3(
+              spec.focusPos.x,
+              Math.max(pos.y + 4.8, spec.focusPos.y + 1.8),
+              spec.focusPos.z
+            );
+            var candLook = behindTrainCamLook.clone().lerp(animalWorldLook, lookShare);
+
+            // Check 1: Raycast / Cylinder occlusion between camera and animal
+            var occPenalty = computeSightlineOcclusionPenalty(candPos, spec.focusPos, obstacles, spec.animalRootMesh);
+
+            // Check 2: Verify both animal and locomotive project cleanly inside the panoramic frame
+            var prAnimal = projectWorldPointToNDC(spec.focusPos, candPos, candLook, baseDrivingFov, camAspect);
+            var prLoco = projectWorldPointToNDC(new THREE.Vector3(pos.x, pos.y + 2.2, pos.z), candPos, candLook, baseDrivingFov, camAspect);
+            var framePenalty = 0.0;
+            if (prAnimal.behind || Math.abs(prAnimal.x) > 0.78 || prAnimal.y < -0.75 || prAnimal.y > 0.68) {
+              framePenalty += 45.0;
+            }
+            if (prLoco.behind || Math.abs(prLoco.x) > 0.80 || prLoco.y < -0.78 || prLoco.y > 0.55) {
+              framePenalty += 35.0;
+            }
+
+            // Prefer minimal deviation from the primary panoramic angle unless occluded
+            var angleDeviationCost = ai * 2.2;
+            var totalCost = occPenalty + framePenalty + angleDeviationCost;
+            if (totalCost < bestCost) {
+              bestCost = totalCost;
+              bestPos = candPos;
+              bestLook = candLook;
+              if (occPenalty === 0.0 && framePenalty === 0.0) break;
             }
           }
-          var maxAllowedVel = window._storybookMonsterHoldCrawl ? 0.036 : 0.14;
-          if (window.pState.currentVel > maxAllowedVel) {
-            window.pState.currentVel += (maxAllowedVel - window.pState.currentVel) * 0.22;
+
+          return {
+            id: spec.id,
+            narrationId: spec.narrationId || spec.id,
+            category: 'small',
+            weight: w,
+            priority: spec.priority || 1.16,
+            camPos: bestPos,
+            camLook: bestLook,
+            targetFov: baseDrivingFov // Strictly 46.0° (NO zoom on small animals!)
+          };
+        }
+
+        var candidates = [];
+
+        if (!window.pState.inSubway) {
+          // ------------------------------------------------------------------
+          // CATEGORY B: SMALL CHARACTERS & ANIMALS (Panoramic, Zoom-Free, Occlusion-Free)
+          // ------------------------------------------------------------------
+          var sbChars = window.storybookInteractiveCharacters;
+          if (sbChars) {
+            // 1) Two Track Monsters (`Strašidla sedící na kolejích`)
+            if (sbChars.monsters && sbChars.monsters.length) {
+              for (var mIdx = 0; mIdx < sbChars.monsters.length; mIdx++) {
+                var mInst = sbChars.monsters[mIdx];
+                if (!mInst || !mInst.model || !mInst.model.root) continue;
+                var mRootPos = mInst.model.root.position;
+                var mDistToTrain = pos.distanceTo(mInst.trackCenterPos);
+                var mActiveAnim = (
+                  mInst.state === 'STARTLED' ||
+                  mInst.state === 'RUNNING_OFF' ||
+                  (mInst.state === 'HIDING_PEEKING' && mInst.stateTimer < 4.2) ||
+                  Boolean(mInst.preStartleHornTriggered) ||
+                  (mInst.state === 'SITTING' && mDistToTrain <= 64.0)
+                );
+                var treeSideDot = (-mInst.perp.x) * trackRight.x + (-mInst.perp.z) * trackRight.z;
+                var treeLateralShift = (treeSideDot >= 0.0 ? 1.0 : -1.0) * 7.2;
+
+                var mCand = buildSmallCharacterCandidate({
+                  id: 'monster_' + mIdx,
+                  narrationId: 'monster_' + mIdx,
+                  anchorPos: mInst.trackCenterPos,
+                  focusPos: new THREE.Vector3(mRootPos.x, mRootPos.y + 2.1, mRootPos.z),
+                  animalRootMesh: mInst.model.root,
+                  approachDist: 82.0,
+                  peakAheadDist: 42.0,
+                  peakBehindDist: -14.0,
+                  departDist: 36.0,
+                  maxPerpDist: 36.0,
+                  camBack: 44.0,
+                  camLateralShift: treeLateralShift,
+                  camHeight: 14.2,
+                  lookShare: 0.36,
+                  priority: 1.32,
+                  activeBoost: mActiveAnim
+                });
+                if (mCand) candidates.push(mCand);
+              }
+            }
+
+            // 2) White Rabbit (`Králík u cesty`)
+            if (sbChars.rabbit && sbChars.rabbit.obj && sbChars.rabbit.worldPos) {
+              var rState = sbChars.rabbit;
+              var rHopY = (rState.obj.bodyGroup && rState.obj.bodyGroup.position) ? rState.obj.bodyGroup.position.y * 0.45 : 0.0;
+              var rCand = buildSmallCharacterCandidate({
+                id: 'rabbit',
+                narrationId: 'rabbit',
+                anchorPos: rState.trackAnchorPos || rState.worldPos,
+                focusPos: new THREE.Vector3(rState.worldPos.x, rState.worldPos.y + 1.85 + rHopY, rState.worldPos.z),
+                animalRootMesh: rState.obj.root,
+                approachDist: 52.0,
+                peakAheadDist: 18.0,
+                peakBehindDist: -8.0,
+                departDist: 28.0,
+                maxPerpDist: 28.0,
+                camBack: 46.0,
+                camHeight: 14.0,
+                lookShare: 0.30,
+                priority: 1.18,
+                activeBoost: (rState.state === 'HOPPING_AND_WAVING')
+              });
+              if (rCand) candidates.push(rCand);
+            }
+
+            // 3) Orange Squirrel (`Veverka u stromu` — uses true world coordinates of `squirrelGroup`)
+            if (sbChars.squirrel && sbChars.squirrel.obj && sbChars.squirrel.worldPos) {
+              var sqState = sbChars.squirrel;
+              var sqWorldPt = new THREE.Vector3(sqState.worldPos.x, sqState.worldPos.y + 2.4, sqState.worldPos.z);
+              if (sqState.obj.squirrelGroup && typeof sqState.obj.envGroup.localToWorld === 'function') {
+                sqWorldPt.copy(sqState.obj.squirrelGroup.position);
+                sqState.obj.envGroup.localToWorld(sqWorldPt);
+                sqWorldPt.y += 0.9;
+              }
+              var sqCand = buildSmallCharacterCandidate({
+                id: 'squirrel',
+                narrationId: 'squirrel',
+                anchorPos: sqState.trackAnchorPos || sqState.worldPos,
+                focusPos: sqWorldPt,
+                animalRootMesh: sqState.obj.squirrelGroup,
+                approachDist: 52.0,
+                peakAheadDist: 18.0,
+                peakBehindDist: -8.0,
+                departDist: 28.0,
+                maxPerpDist: 28.0,
+                camBack: 46.0,
+                camHeight: 14.2,
+                lookShare: 0.32,
+                priority: 1.18,
+                activeBoost: (sqState.state === 'SPIN_AND_LEAP')
+              });
+              if (sqCand) candidates.push(sqCand);
+            }
+
+            // 4) Friendly Owl (`Sova u stromu` — uses true world coordinates of `owlGroup`)
+            if (sbChars.owl && sbChars.owl.obj && sbChars.owl.worldPos) {
+              var oState = sbChars.owl;
+              var owlWorldPt = new THREE.Vector3(oState.worldPos.x, oState.worldPos.y + 4.85, oState.worldPos.z);
+              if (oState.obj.owlGroup && typeof oState.obj.envGroup.localToWorld === 'function') {
+                owlWorldPt.copy(oState.obj.owlGroup.position);
+                oState.obj.envGroup.localToWorld(owlWorldPt);
+                owlWorldPt.y += 0.8;
+              }
+              var oCand = buildSmallCharacterCandidate({
+                id: 'owl',
+                narrationId: 'owl',
+                anchorPos: oState.trackAnchorPos || oState.worldPos,
+                focusPos: owlWorldPt,
+                animalRootMesh: oState.obj.owlGroup,
+                approachDist: 52.0,
+                peakAheadDist: 18.0,
+                peakBehindDist: -8.0,
+                departDist: 28.0,
+                maxPerpDist: 28.0,
+                camBack: 46.0,
+                camHeight: 14.2,
+                lookShare: 0.32,
+                priority: 1.18,
+                activeBoost: (oState.state === 'GREETING')
+              });
+              if (oCand) candidates.push(oCand);
+            }
+          }
+
+          // 5) Daisy the Friendly Cow (`Kravička`)
+          if (window.daisyTheCow && window.daisyTheCow.position) {
+            var cowP = window.daisyTheCow.position;
+            var cowCand = buildSmallCharacterCandidate({
+              id: 'cow',
+              narrationId: 'cow',
+              anchorPos: cowP,
+              focusPos: new THREE.Vector3(cowP.x, cowP.y + 2.0, cowP.z),
+              animalRootMesh: window.daisyTheCow,
+              approachDist: 48.0,
+              peakAheadDist: 16.0,
+              peakBehindDist: -6.0,
+              departDist: 26.0,
+              maxPerpDist: 28.0,
+              camBack: 46.5,
+              camHeight: 14.2,
+              lookShare: 0.28,
+              priority: 1.12,
+              activeBoost: false
+            });
+            if (cowCand) candidates.push(cowCand);
+          }
+
+          // 6) Fluffy Sheep Flocks (`Ovečky`)
+          if (window.trackSheepFlocks) {
+            for (var sfi = 0; sfi < window.trackSheepFlocks.length; sfi++) {
+              var fl = window.trackSheepFlocks[sfi];
+              if (fl && fl.basePos) {
+                var shPos = (fl.group && fl.group.position) ? fl.group.position : fl.basePos;
+                var shCand = buildSmallCharacterCandidate({
+                  id: 'sheep_' + sfi,
+                  narrationId: 'sheep_' + sfi,
+                  anchorPos: fl.basePos,
+                  focusPos: new THREE.Vector3(shPos.x, shPos.y + 1.6, shPos.z),
+                  animalRootMesh: fl.group,
+                  approachDist: 48.0,
+                  peakAheadDist: 16.0,
+                  peakBehindDist: -6.0,
+                  departDist: 26.0,
+                  maxPerpDist: 28.0,
+                  camBack: 46.5,
+                  camHeight: 14.2,
+                  lookShare: 0.28,
+                  priority: 1.10,
+                  activeBoost: false
+                });
+                if (shCand) candidates.push(shCand);
+              }
+            }
+          }
+
+          // ------------------------------------------------------------------
+          // CATEGORY A: LARGE LANDMARKS (Full 3D Bounding-Box Frustum Fit)
+          // ------------------------------------------------------------------
+          // 1) HSBC Rain Vortex Waterfall inside Jewel (`jewel`)
+          if ((edgeId === 'J_EAST->J_SE' || edgeId === 'J_SE->J_EAST') &&
+              window.jewelDomeCenterWorld && window.jewelVortexWorldPos && window.jewelInwardLeftVec) {
+            var jCand = buildLargeLandmarkCandidate({
+              id: 'jewel',
+              narrationId: 'jewel',
+              center: window.jewelVortexWorldPos,
+              baseY: window.jewelDomeCenterWorld.y,
+              height: 28.0,
+              radius: 26.0,
+              approachDist: 68.0,
+              peakAheadDist: 18.0,
+              peakBehindDist: -12.0,
+              departDist: 38.0,
+              maxPerpDist: 56.0,
+              camBack: 42.0,
+              camOppositeSide: 16.0,
+              camHeight: 14.5,
+              lookShare: 0.60,
+              targetFov: 48.0,
+              priority: 1.12
+            });
+            if (jCand) candidates.push(jCand);
+          }
+
+          // 2) Eiffel Tower (`eiffel`, H = 76.5m at -108, 7.35, -266)
+          if (window.eiffelWorldCenter) {
+            var eifCand = buildLargeLandmarkCandidate({
+              id: 'eiffel',
+              narrationId: 'eiffel',
+              center: window.eiffelWorldCenter,
+              baseY: window.eiffelWorldCenter.y,
+              height: 76.8,
+              radius: 24.0,
+              approachDist: 120.0,
+              peakAheadDist: 32.0,
+              peakBehindDist: -18.0,
+              departDist: 64.0,
+              maxPerpDist: 112.0,
+              camBack: 66.0,
+              camOppositeSide: 28.0,
+              camHeight: 16.5,
+              lookShare: 0.68,
+              targetFov: 50.0,
+              priority: 1.10
+            });
+            if (eifCand) candidates.push(eifCand);
+          }
+
+          // 3) Roman Colosseum (`colosseum`, H = 26m, W = 64m at 115, cy, 258)
+          if (window.colosseumWorldCenter) {
+            var colCand = buildLargeLandmarkCandidate({
+              id: 'colosseum',
+              narrationId: 'colosseum',
+              center: window.colosseumWorldCenter,
+              baseY: window.colosseumWorldCenter.y,
+              height: 28.0,
+              radius: 34.0,
+              approachDist: 105.0,
+              peakAheadDist: 26.0,
+              peakBehindDist: -14.0,
+              departDist: 54.0,
+              maxPerpDist: 102.0,
+              camBack: 54.0,
+              camOppositeSide: 22.0,
+              camHeight: 16.0,
+              lookShare: 0.60,
+              targetFov: 48.0,
+              priority: 1.06
+            });
+            if (colCand) candidates.push(colCand);
+          }
+
+          // 4) Mom & Dad's House in Vietnam (`mom_house`)
+          if (window.momHouseWorldCenter) {
+            var momCand = buildLargeLandmarkCandidate({
+              id: 'mom_house',
+              narrationId: 'mom_house',
+              center: window.momHouseWorldCenter,
+              baseY: window.momHouseWorldCenter.y,
+              height: 17.0,
+              radius: 28.0,
+              approachDist: 88.0,
+              peakAheadDist: 22.0,
+              peakBehindDist: -10.0,
+              departDist: 44.0,
+              maxPerpDist: 88.0,
+              camBack: 48.0,
+              camOppositeSide: 18.0,
+              camHeight: 14.8,
+              lookShare: 0.56,
+              targetFov: 47.0,
+              priority: 1.04
+            });
+            if (momCand) candidates.push(momCand);
+          }
+
+          // 5) Grandma & Grandpa's House in Bohumín (`grandma_house`)
+          if (window.grandmaHouseWorldCenter) {
+            var gmaCand = buildLargeLandmarkCandidate({
+              id: 'grandma_house',
+              narrationId: 'grandma_house',
+              center: window.grandmaHouseWorldCenter,
+              baseY: window.grandmaHouseWorldCenter.y,
+              height: 24.0,
+              radius: 30.0,
+              approachDist: 88.0,
+              peakAheadDist: 22.0,
+              peakBehindDist: -10.0,
+              departDist: 44.0,
+              maxPerpDist: 88.0,
+              camBack: 50.0,
+              camOppositeSide: 19.0,
+              camHeight: 15.2,
+              lookShare: 0.58,
+              targetFov: 47.5,
+              priority: 1.04
+            });
+            if (gmaCand) candidates.push(gmaCand);
+          }
+
+          // 6) International Airport (`airport` on J_NE->J_EAST at 324, 0, -64)
+          var airCand = buildLargeLandmarkCandidate({
+            id: 'airport',
+            narrationId: 'airport',
+            center: new THREE.Vector3(324, 0, -64),
+            baseY: 0.0,
+            height: 40.0,
+            radius: 54.0,
+            approachDist: 115.0,
+            peakAheadDist: 28.0,
+            peakBehindDist: -16.0,
+            departDist: 58.0,
+            maxPerpDist: 115.0,
+            camBack: 58.0,
+            camOppositeSide: 24.0,
+            camHeight: 16.5,
+            lookShare: 0.62,
+            targetFov: 49.0,
+            priority: 1.05
+          });
+          if (airCand) candidates.push(airCand);
+
+          // 7) Champions Soccer Stadium (`stadium` on J_SOUTH->J_SW at -115, stY, 282)
+          // High aerial vantage (`camHeight: 54.0m`) so the camera looks cleanly OVER the 12m outer stadium wall/canopy
+          // right onto the green soccer pitch, 6 running players (`window.soccerPlayers`), and ball (`window.soccerBall`)!
+          var stadY = (typeof window.getTerrainHeight === 'function') ? window.getTerrainHeight(-115, 282) : 0.0;
+          var stadCand = buildLargeLandmarkCandidate({
+            id: 'stadium',
+            narrationId: 'stadium',
+            center: new THREE.Vector3(-115, stadY, 282),
+            baseY: stadY,
+            height: 22.0,
+            radius: 38.0,
+            lookHeightOffset: 1.8,
+            minCamHeight: 52.0,
+            approachDist: 108.0,
+            peakAheadDist: 28.0,
+            peakBehindDist: -18.0,
+            departDist: 56.0,
+            maxPerpDist: 112.0,
+            camBack: 44.0,
+            camOppositeSide: 12.0,
+            camHeight: 54.0,
+            lookShare: 0.66,
+            targetFov: 50.0,
+            priority: 1.06
+          });
+          if (stadCand) candidates.push(stadCand);
+
+          // 8) Big Ben Clocktower (`bigben`, H = 74m on J_SW->J_WEST at -286, by, 92)
+          var benY = (typeof window.getTerrainHeight === 'function') ? window.getTerrainHeight(-286, 92) : 0.0;
+          var benCand = buildLargeLandmarkCandidate({
+            id: 'bigben',
+            narrationId: 'bigben',
+            center: new THREE.Vector3(-286, benY, 92),
+            baseY: benY,
+            height: 74.0,
+            radius: 20.0,
+            approachDist: 112.0,
+            peakAheadDist: 28.0,
+            peakBehindDist: -14.0,
+            departDist: 56.0,
+            maxPerpDist: 110.0,
+            camBack: 64.0,
+            camOppositeSide: 26.0,
+            camHeight: 16.5,
+            lookShare: 0.66,
+            targetFov: 49.5,
+            priority: 1.03
+          });
+          if (benCand) candidates.push(benCand);
+
+          // 9) Crystal Skyscraper (`skyscraper`, H = 87m on J_NORTH->J_CENTER at -52, sy, -108)
+          var skyY = (typeof window.getTerrainHeight === 'function') ? window.getTerrainHeight(-52, -108) : 0.0;
+          var skyCand = buildLargeLandmarkCandidate({
+            id: 'skyscraper',
+            narrationId: 'skyscraper',
+            center: new THREE.Vector3(-52, skyY, -108),
+            baseY: skyY,
+            height: 86.0,
+            radius: 20.0,
+            approachDist: 105.0,
+            peakAheadDist: 24.0,
+            peakBehindDist: -12.0,
+            departDist: 52.0,
+            maxPerpDist: 98.0,
+            camBack: 66.0,
+            camOppositeSide: 26.0,
+            camHeight: 16.8,
+            lookShare: 0.68,
+            targetFov: 50.0,
+            priority: 1.01
+          });
+          if (skyCand) candidates.push(skyCand);
+
+          // 10) Central Fountain Plaza (`fountain` at 32, fy, 6)
+          var fntY = (typeof window.getTerrainHeight === 'function') ? window.getTerrainHeight(32, 6) : 0.0;
+          var fntCand = buildLargeLandmarkCandidate({
+            id: 'fountain',
+            narrationId: 'fountain',
+            center: new THREE.Vector3(32, fntY, 6),
+            baseY: fntY,
+            height: 15.0,
+            radius: 20.0,
+            approachDist: 78.0,
+            peakAheadDist: 18.0,
+            peakBehindDist: -8.0,
+            departDist: 38.0,
+            maxPerpDist: 74.0,
+            camBack: 48.0,
+            camOppositeSide: 16.0,
+            camHeight: 14.5,
+            lookShare: 0.52,
+            targetFov: 46.5,
+            priority: 0.99
+          });
+          if (fntCand) candidates.push(fntCand);
+
+          // 11) Bangkok Chao Phraya River Adventure POIs (Anantara Resort, Anantara Boat, IconSiam, Railway Bridge)
+          if (typeof window.appendBangkokCameraCandidates === 'function') {
+            window.appendBangkokCameraCandidates(candidates, buildLargeLandmarkCandidate);
           }
         }
 
-        // Apply custom camera smoothly without any tug-of-war against `game.js`
-        if (activeCustomBlend > 0.003) {
-          var camLerpSpeed = (window._jewelWfCloseUpBlend && window._jewelWfCloseUpBlend > 0.05) ? 0.18 : 0.14;
-          var lookLerpSpeed = (window._jewelWfCloseUpBlend && window._jewelWfCloseUpBlend > 0.05) ? 0.20 : 0.16;
-          window._enhancerCamPos.lerp(customTargetCam, camLerpSpeed);
-          window._enhancerCamLook.lerp(customTargetLook, lookLerpSpeed);
-          window.smoothCamPos.copy(window._enhancerCamPos);
-          window.smoothCamLook.copy(window._enhancerCamLook);
-          cameraArg.position.copy(window._enhancerCamPos);
-          cameraArg.lookAt(window._enhancerCamLook);
+        // --------------------------------------------------------------------
+        // 6. SELECT SINGLE BEST POI WITH HYSTERESIS (PREVENT CAMERA FLICKERING)
+        // --------------------------------------------------------------------
+        var bestPoi = null;
+        var bestScore = 0.0;
+        var currentActiveCand = null;
+
+        for (var ci = 0; ci < candidates.length; ci++) {
+          var cand = candidates[ci];
+          var isCurrent = (cand.id === cs.activePoiId);
+          if (isCurrent) currentActiveCand = cand;
+          var hysteresisBoost = isCurrent ? 1.25 : 1.0;
+          var score = cand.weight * cand.priority * hysteresisBoost;
+          if (score > bestScore) {
+            bestScore = score;
+            bestPoi = cand;
+          }
+        }
+
+        // Enforce a 1.4s minimum hold before switching from one valid POI to another
+        if (bestPoi && cs.activePoiId && bestPoi.id !== cs.activePoiId && currentActiveCand && currentActiveCand.weight > 0.12) {
+          if ((nowMs - cs.activePoiSwitchMs) < 1400) {
+            bestPoi = currentActiveCand;
+          }
+        }
+
+        if (bestPoi && bestPoi.weight > 0.02) {
+          if (cs.activePoiId !== bestPoi.id) {
+            cs.activePoiId = bestPoi.id;
+            cs.activePoiSwitchMs = nowMs;
+          }
+          if (bestPoi.weight >= 0.52) {
+            var lastNarrMs = cs.narratedReadyMap[bestPoi.id] || -99999;
+            if ((nowMs - lastNarrMs) > 14000) {
+              cs.narratedReadyMap[bestPoi.id] = nowMs;
+              if (typeof window.triggerEnglishShowcaseNarration === 'function') {
+                window.triggerEnglishShowcaseNarration(bestPoi.narrationId);
+              }
+            }
+          }
+        } else if (!bestPoi || bestPoi.weight <= 0.008) {
+          if (cs.poiWeight < 0.02) {
+            cs.activePoiId = null;
+          }
+        }
+
+        var activeIdsNow = {};
+        for (var aIdx = 0; aIdx < candidates.length; aIdx++) {
+          activeIdsNow[candidates[aIdx].id] = candidates[aIdx].weight;
+        }
+        for (var kId in cs.narratedReadyMap) {
+          if (Object.prototype.hasOwnProperty.call(cs.narratedReadyMap, kId)) {
+            if (!activeIdsNow[kId] || activeIdsNow[kId] < 0.02) {
+              if ((nowMs - cs.narratedReadyMap[kId]) > 4500) {
+                delete cs.narratedReadyMap[kId];
+              }
+            }
+          }
+        }
+
+        var isMonsterPoi = Boolean(bestPoi && bestPoi.id && bestPoi.id.indexOf('monster_') === 0);
+        var poiBlendSmoothTime = isMonsterPoi
+          ? 0.28
+          : (bestPoi
+              ? Math.max(0.40, 0.62 - cs.speedBlend * 0.16)
+              : Math.max(0.52, 0.76 - cs.speedBlend * 0.16));
+        var targetPoiWeight = bestPoi ? bestPoi.weight : 0.0;
+        cs.poiWeight = smoothDampScalar(cs.poiWeight, targetPoiWeight, cs, 'poiWeightVel', poiBlendSmoothTime, dtCam, 2.6);
+        window._unifiedShowcaseBlend = cs.poiWeight;
+
+        if (bestPoi) {
+          var desiredOffset = bestPoi.camPos.clone().sub(baseDrivingCamPos);
+          var offsetSmooth = isMonsterPoi ? 0.30 : 0.48;
+          var lookSmooth = isMonsterPoi ? 0.28 : 0.44;
+          smoothDampVec3(cs.poiOffsetPos, desiredOffset, cs.poiOffsetPosVel, offsetSmooth, dtCam, 65.0);
+          smoothDampVec3(cs.poiLookPoint, bestPoi.camLook, cs.poiLookVel, lookSmooth, dtCam, 75.0);
+          cs.poiTargetFov = bestPoi.targetFov || baseDrivingFov;
         } else {
-          window._enhancerCamPos.copy(window.smoothCamPos);
-          window._enhancerCamLook.copy(window.smoothCamLook);
+          smoothDampVec3(cs.poiLookPoint, baseDrivingCamLook, cs.poiLookVel, 0.50, dtCam, 60.0);
+          cs.poiTargetFov = baseDrivingFov;
+        }
+
+        // --------------------------------------------------------------------
+        // 7. AUDIO, TRANSPARENCY & GENTLE MONSTER SAFETY CRAWL
+        // --------------------------------------------------------------------
+        if (window.updateJewelWaterfallAudio) {
+          var distToVortex = window.jewelVortexWorldPos ? pos.distanceTo(window.jewelVortexWorldPos) : 999.0;
+          var isInsideJewelNow = (!window.pState.inSubway && (edgeId === 'J_EAST->J_SE' || edgeId === 'J_SE->J_EAST') && ct >= 0.20 && ct <= 0.88);
+          var proximityGain = (!window.pState.inSubway && distToVortex < 95.0)
+            ? Math.pow(Math.max(0.0, 1.0 - distToVortex / 95.0), 1.6) * 0.18
+            : 0.0;
+          var insideBoost = isInsideJewelNow ? 0.24 : 0.0;
+          var jewelFocusBoost = (cs.activePoiId === 'jewel' ? cs.poiWeight : 0.0) * 0.42;
+          var targetWfVol = Math.min(0.48, Math.max(proximityGain, insideBoost) + jewelFocusBoost);
+          window.updateJewelWaterfallAudio(targetWfVol, (cs.activePoiId === 'jewel' ? cs.poiWeight : 0.0));
+        }
+
+        if (window.jewelGlassDomeMat) {
+          var insideJewelForGlass = (!window.pState.inSubway && (edgeId === 'J_EAST->J_SE' || edgeId === 'J_SE->J_EAST') && ct >= 0.18 && ct <= 0.88);
+          var desiredDomeOpacity = insideJewelForGlass ? 0.28 : 0.64;
+          window.jewelGlassDomeMat.opacity += (desiredDomeOpacity - window.jewelGlassDomeMat.opacity) * (1.0 - Math.exp(-6.0 * dtCam));
+        }
+
+        if (window.skyscraperLandmarkGroup) {
+          var hideSkyForEiffel = Boolean(cs.poiWeight > 0.18 && cs.activePoiId === 'eiffel');
+          window.skyscraperLandmarkGroup.visible = !hideSkyForEiffel;
+        }
+        if (cs.poiWeight > 0.05 && window.tunnelRoofMeshes) {
+          for (var tri = 0; tri < window.tunnelRoofMeshes.length; tri++) {
+            var trm = window.tunnelRoofMeshes[tri];
+            if (trm && typeof trm.opacity === 'number') {
+              trm.opacity = Math.min(trm.opacity, Math.max(0.18, 1.0 - cs.poiWeight * 0.82));
+            }
+          }
+        }
+
+        if (window._storybookMonsterHoldCrawl && window.pState && window.pState.currentVel > 0.015) {
+          var crawlTarget = window._storybookMonsterStopWait ? 0.010 : 0.032;
+          window.pState.currentVel += (crawlTarget - window.pState.currentVel) * (1.0 - Math.exp(-12.0 * dtCam));
+        } else if ((window._storybookSlowdownRequested || (cs.poiWeight > 0.28 && cs.activePoiId)) && window.pState && window.pState.currentVel > 0.125) {
+          window.pState.currentVel += (0.12 - window.pState.currentVel) * (1.0 - Math.exp(-6.0 * dtCam));
+        }
+
+        // --------------------------------------------------------------------
+        // 8. TERRAIN & BUILDING COLLISION AVOIDANCE + FINAL STEADICAM DAMPING
+        // --------------------------------------------------------------------
+        if (!window.pState.inSubway) {
+          var finalTargetCam = baseDrivingCamPos.clone().addScaledVector(cs.poiOffsetPos, cs.poiWeight);
+          var finalTargetLook = baseDrivingCamLook.clone().lerp(cs.poiLookPoint, cs.poiWeight);
+
+          if (typeof window.getTerrainHeight === 'function') {
+            var terrAtCam = window.getTerrainHeight(finalTargetCam.x, finalTargetCam.z);
+            var midX = 0.5 * (finalTargetCam.x + pos.x);
+            var midZ = 0.5 * (finalTargetCam.z + pos.z);
+            var terrAtMid = window.getTerrainHeight(midX, midZ);
+            var minSafeY = Math.max(terrAtCam + 5.2, terrAtMid + 4.2, pos.y + 8.0);
+            if (finalTargetCam.y < minSafeY) {
+              finalTargetCam.y = minSafeY;
+            }
+          }
+
+          var solidObstacles = [
+            { pos: window.eiffelWorldCenter, rad: 24.0, maxH: 77.0 },
+            { pos: window.colosseumWorldCenter, rad: 32.0, maxH: 28.0 },
+            { pos: window.momHouseWorldCenter, rad: 18.0, maxH: 18.0 },
+            { pos: window.grandmaHouseWorldCenter, rad: 18.0, maxH: 24.0 },
+            { pos: new THREE.Vector3(105, 0, 56), rad: 15.0, maxH: 46.0 },
+            { pos: new THREE.Vector3(-102, 0, -56), rad: 17.0, maxH: 54.0 },
+            { pos: new THREE.Vector3(-255, 0, 128), rad: 28.0, maxH: 26.0 }
+          ];
+          if (Array.isArray(window.bangkokObstacles)) {
+            for (var boi = 0; boi < window.bangkokObstacles.length; boi++) {
+              solidObstacles.push(window.bangkokObstacles[boi]);
+            }
+          }
+          for (var oi = 0; oi < solidObstacles.length; oi++) {
+            var obs = solidObstacles[oi];
+            if (obs && obs.pos && finalTargetCam.y < (obs.pos.y + obs.maxH)) {
+              var odx = finalTargetCam.x - obs.pos.x;
+              var odz = finalTargetCam.z - obs.pos.z;
+              var odist = Math.hypot(odx, odz);
+              if (odist < obs.rad && odist > 0.001) {
+                var pushScale = obs.rad / odist;
+                finalTargetCam.x = obs.pos.x + odx * pushScale;
+                finalTargetCam.z = obs.pos.z + odz * pushScale;
+              }
+            }
+          }
+
+          var camPosSmoothTime = Math.max(0.30, 0.44 - cs.speedBlend * 0.10);
+          var camLookSmoothTime = Math.max(0.26, 0.38 - cs.speedBlend * 0.08);
+          smoothDampVec3(cs.pos, finalTargetCam, cs.posVel, camPosSmoothTime, dtCam, 90.0);
+          smoothDampVec3(cs.look, finalTargetLook, cs.lookVel, camLookSmoothTime, dtCam, 100.0);
+
+          var desiredFov = baseDrivingFov + (cs.poiTargetFov - baseDrivingFov) * cs.poiWeight;
+          cs.fov = smoothDampScalar(cs.fov, desiredFov, cs, 'fovVel', 0.44, dtCam, 25.0);
+          if (cameraArg && typeof cameraArg.fov === 'number' && typeof cameraArg.updateProjectionMatrix === 'function') {
+            if (Math.abs(cameraArg.fov - cs.fov) > 0.01) {
+              cameraArg.fov = cs.fov;
+              cameraArg.updateProjectionMatrix();
+            }
+          }
+
+          window._enhancerCamPos = cs.pos;
+          window._enhancerCamLook = cs.look;
+          window.smoothCamPos.copy(cs.pos);
+          window.smoothCamLook.copy(cs.look);
+          cameraArg.position.copy(cs.pos);
+          cameraArg.lookAt(cs.look);
+        } else {
+          // Inside underground Metro caverns: keep `game.js` 2.5D underground diorama camera untouched
+          cs.pos.copy(window.smoothCamPos);
+          cs.look.copy(window.smoothCamLook);
+          cs.posVel.set(0, 0, 0);
+          cs.lookVel.set(0, 0, 0);
+          window._enhancerCamPos = cs.pos;
+          window._enhancerCamLook = cs.look;
         }
       }
     } catch (err) {}
@@ -8233,8 +9976,10 @@ window.createDetailedCoach = function(colHex, coachIndex) {
 })();
 
 // ============================================================================
-// REALISTIC ACOUSTIC WATERFALL SOUND ENGINE (For Jewel Rain Vortex) &
-// AUTHENTIC MULTI-CHIME STEAM LOCOMOTIVE WHISTLE (`window.playTrainHorn`)
+// REALISTIC ACOUSTIC WATERFALL SOUND ENGINE (For Jewel Rain Vortex),
+// AUTHENTIC MULTI-CHIME STEAM LOCOMOTIVE WHISTLE (`window.playTrainHorn`),
+// FRIEND TRAIN GREETING WHISTLE (`window.playFriendTrainGreetingHorn`), &
+// VARIED ENGLISH VOICE LINES + EDUCATIONAL OBJECT DESCRIPTIONS FOR KIDS
 // ============================================================================
 (function installRealisticWaterfallAndSteamWhistleAudio() {
   var wfNodes = null;
@@ -8255,7 +10000,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         var brown = 0;
         for (var i = 0; i < len; i++) {
           var t = i / sr;
-          // Seamless loop crossfade angle
           var loopAng = (i / len) * Math.PI * 2.0;
           var white = Math.random() * 2.0 - 1.0;
 
@@ -8273,7 +10017,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           brown = (brown + 0.02 * white) / 1.02;
           var deepRumble = brown * 0.42;
 
-          // Organic water stream surging modulation (seamless over 4.0s loop)
           var surge1 = 0.86 + 0.14 * Math.sin(loopAng * 2.0 + ch * 1.1);
           var surge2 = 0.90 + 0.10 * Math.cos(loopAng * 5.0 - ch * 0.8);
           var dropletSparkle = white * 0.065 * (0.75 + 0.25 * Math.sin(loopAng * 11.0 + t * 3.0));
@@ -8286,13 +10029,11 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       src.buffer = buf;
       src.loop = true;
 
-      // Warm resonant filter that opens up as the camera moves into the 3-second waterfall close-up
       var lpFilter = audioCtx.createBiquadFilter();
       lpFilter.type = 'lowpass';
       lpFilter.frequency.setValueAtTime(1800, audioCtx.currentTime);
       lpFilter.Q.setValueAtTime(0.65, audioCtx.currentTime);
 
-      // Plunge pool body resonance around 185 Hz
       var poolEq = audioCtx.createBiquadFilter();
       poolEq.type = 'peaking';
       poolEq.frequency.setValueAtTime(185, audioCtx.currentTime);
@@ -8332,22 +10073,18 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     var safeGain = Math.max(0.0001, currentWfGain);
     wfNodes.masterGain.gain.setTargetAtTime(safeGain, now, 0.06);
 
-    // Open filter brightness during the 3s waterfall close-up so individual cascading water streams & splashes shine
     var targetCutoff = 1650 + (closeUpBlend || 0.0) * 3600;
     wfNodes.lpFilter.frequency.setTargetAtTime(targetCutoff, now, 0.08);
   };
 
   // ==========================================================================
   // AUTHENTIC HERITAGE STEAM LOCOMOTIVE WHISTLE (`window.playTrainHorn`)
-  // Multi-chamber cylindrical brass bell chord + steam pressure pitch bend +
-  // boiler vibrato + high-pressure steam valve hiss + outdoor valley echo!
   // ==========================================================================
   var cachedBrassWave = null;
   var cachedWarmShaperCurve = null;
 
   function getSteamBrassPeriodicWave(ctx) {
     if (cachedBrassWave) return cachedBrassWave;
-    // Cylindrical stopped brass whistle pipe harmonic spectrum (strong fundamental + rich 2nd/3rd/4th/5th/6th harmonics)
     var real = new Float32Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
     var imag = new Float32Array([0.0, 1.00, 0.42, 0.68, 0.24, 0.32, 0.12, 0.08]);
     cachedBrassWave = ctx.createPeriodicWave(real, imag, { disableNormalization: false });
@@ -8369,7 +10106,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
   window.playTrainHorn = function() {
     if (window.initAudio) window.initAudio();
 
-    // Trigger the signature glossy iridescent chimney steam/bubble bursts
     if (typeof spawnGlossyChimneyBurst === 'function') {
       spawnGlossyChimneyBurst(16);
       setTimeout(function() { spawnGlossyChimneyBurst(12); }, 140);
@@ -8384,7 +10120,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     var now = audioCtx.currentTime;
     var brassWave = getSteamBrassPeriodicWave(audioCtx);
 
-    // Master Whistle Acoustic Chain: Resonant Horn Body Filter -> Warm Brass Saturation -> Valley Echo + Dry Out
     var hornBodyFilter = audioCtx.createBiquadFilter();
     hornBodyFilter.type = 'lowpass';
     hornBodyFilter.frequency.setValueAtTime(2350, now);
@@ -8403,7 +10138,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     var masterWhistleGain = audioCtx.createGain();
     masterWhistleGain.gain.setValueAtTime(0.26, now);
 
-    // Outdoor Valley Echo (dual-tap warm acoustic reflection)
     var echoDelay1 = audioCtx.createDelay(1.0);
     echoDelay1.delayTime.setValueAtTime(0.175, now);
     var echoGain1 = audioCtx.createGain();
@@ -8423,7 +10157,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     shaper.connect(masterWhistleGain);
     masterWhistleGain.connect(audioCtx.destination);
 
-    // Connect Valley Echo taps
     masterWhistleGain.connect(echoFilter);
     echoFilter.connect(echoDelay1);
     echoDelay1.connect(echoGain1);
@@ -8432,29 +10165,25 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     echoDelay2.connect(echoGain2);
     echoGain2.connect(audioCtx.destination);
 
-    // Authentic 5-Chime Heritage Steam Whistle Tuning (Rich C#6/9 / E-major/minor blend with natural pipe detuning)
-    // Plus a deep sub-harmonic boiler pipe resonance (146.83 Hz) for unmistakable heavy steam locomotive weight!
     var chimePipes = [
-      { freq: 146.83, weight: 0.42, detune: -3.0 }, // Deep boiler resonance pipe (D3)
-      { freq: 293.66, weight: 1.00, detune:  0.0 }, // Main long bell chamber (D4)
-      { freq: 349.23, weight: 0.88, detune: +4.5 }, // Minor third / warm chime chamber (F4)
-      { freq: 440.00, weight: 0.92, detune: -2.5 }, // Fifth chime chamber (A4)
-      { freq: 523.25, weight: 0.68, detune: +3.5 }, // Seventh chime chamber (C5)
-      { freq: 587.33, weight: 0.50, detune: -4.0 }  // High crown chamber (D5)
+      { freq: 146.83, weight: 0.42, detune: -3.0 },
+      { freq: 293.66, weight: 1.00, detune:  0.0 },
+      { freq: 349.23, weight: 0.88, detune: +4.5 },
+      { freq: 440.00, weight: 0.92, detune: -2.5 },
+      { freq: 523.25, weight: 0.68, detune: +3.5 },
+      { freq: 587.33, weight: 0.50, detune: -4.0 }
     ];
 
-    // Two expressive steam lever pulls: "WHOOOO — WHOOOOOOOO-ooo"
     var pulls = [
       { start: 0.02, dur: 0.44, level: 0.92, tailDrop: 0.965 },
       { start: 0.54, dur: 0.88, level: 1.00, tailDrop: 0.925 }
     ];
 
-    // Natural steam boiler pressure vibrato LFO (~5.8 Hz)
     var vibLfo = audioCtx.createOscillator();
     vibLfo.type = 'sine';
     vibLfo.frequency.setValueAtTime(5.8, now);
     var vibGain = audioCtx.createGain();
-    vibGain.gain.setValueAtTime(2.6, now); // +/- 2.6 Hz organic pressure flutter
+    vibGain.gain.setValueAtTime(2.6, now);
     vibLfo.connect(vibGain);
     vibLfo.start(now);
     vibLfo.stop(now + 1.65);
@@ -8474,7 +10203,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         }
         osc.detune.setValueAtTime(pipe.detune, t0);
 
-        // Steam pressure pitch envelope: scoops up as valve opens, holds steady, then sighs downward as valve closes!
         var fBase = pipe.freq;
         osc.frequency.setValueAtTime(fBase * 0.945, t0);
         osc.frequency.exponentialRampToValueAtTime(fBase * 1.004, tAttack);
@@ -8499,7 +10227,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       });
     });
 
-    // High-Pressure Steam Jet & Valve Chuff Layer (starts 20ms before the brass bells speak, just like real steam!)
     try {
       var totalDur = 1.55;
       var bufLen = Math.floor(audioCtx.sampleRate * totalDur);
@@ -8515,25 +10242,21 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       var steamNoise = audioCtx.createBufferSource();
       steamNoise.buffer = steamBuf;
 
-      // Turbulent aperture hiss filter (1750 Hz bandpass)
       var jetFilter = audioCtx.createBiquadFilter();
       jetFilter.type = 'bandpass';
       jetFilter.frequency.setValueAtTime(1750, now);
       jetFilter.Q.setValueAtTime(0.85, now);
 
-      // High-pressure steam sizzle filter (3200 Hz highpass)
       var sizzleFilter = audioCtx.createBiquadFilter();
       sizzleFilter.type = 'highpass';
       sizzleFilter.frequency.setValueAtTime(3200, now);
 
       var steamEnv = audioCtx.createGain();
       steamEnv.gain.setValueAtTime(0.0001, now);
-      // Pull 1 steam burst (initial valve chuff spike -> sustain -> brief dip)
       steamEnv.gain.linearRampToValueAtTime(0.11, now + 0.025);
       steamEnv.gain.exponentialRampToValueAtTime(0.055, now + 0.09);
       steamEnv.gain.setValueAtTime(0.052, now + 0.42);
       steamEnv.gain.exponentialRampToValueAtTime(0.012, now + 0.51);
-      // Pull 2 steam burst (second valve chuff spike -> sustain -> long steam exhaust tail)
       steamEnv.gain.linearRampToValueAtTime(0.12, now + 0.555);
       steamEnv.gain.exponentialRampToValueAtTime(0.062, now + 0.64);
       steamEnv.gain.setValueAtTime(0.058, now + 1.28);
@@ -8550,6 +10273,256 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       steamNoise.stop(now + totalDur);
     } catch (e) {}
   };
+
+  // ==========================================================================
+  // FRIEND TRAIN GREETING HORN (`window.playFriendTrainGreetingHorn`)
+  // Cheerful higher-pitched two-toot answer whistle when an AI friend train
+  // passes Toby on the tracks! ("2. Pokud se vláček míjí s jinými vláčky, mašinky na sebe troubí na pozdrav.")
+  // ==========================================================================
+  window.playFriendTrainGreetingHorn = function(friendIdx) {
+    if (!hasUserGesture || !audioCtx) return;
+    try {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      var now = audioCtx.currentTime;
+      var brassWave = getSteamBrassPeriodicWave(audioCtx);
+      // Distinct cheerful pitch per friend locomotive (Rosie, Bruno, Thomas)
+      var pitchFactor = [1.26, 0.88, 1.15][(friendIdx || 0) % 3];
+      var chord = [330.0 * pitchFactor, 415.3 * pitchFactor, 493.88 * pitchFactor];
+      var toots = [
+        { start: 0.0,  dur: 0.22 },
+        { start: 0.28, dur: 0.36 }
+      ];
+      toots.forEach(function(toot) {
+        var t0 = now + toot.start;
+        var tEnd = t0 + toot.dur;
+        chord.forEach(function(freq) {
+          var osc = audioCtx.createOscillator();
+          if (brassWave) osc.setPeriodicWave(brassWave);
+          else osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq * 0.96, t0);
+          osc.frequency.exponentialRampToValueAtTime(freq, t0 + 0.04);
+          osc.frequency.setValueAtTime(freq, tEnd - 0.06);
+          osc.frequency.exponentialRampToValueAtTime(freq * 0.94, tEnd);
+
+          var g = audioCtx.createGain();
+          g.gain.setValueAtTime(0.0001, t0);
+          g.gain.linearRampToValueAtTime(0.085, t0 + 0.035);
+          g.gain.setValueAtTime(0.075, tEnd - 0.06);
+          g.gain.exponentialRampToValueAtTime(0.0001, tEnd);
+
+          osc.connect(g);
+          g.connect(audioCtx.destination);
+          osc.start(t0);
+          osc.stop(tEnd + 0.02);
+        });
+      });
+    } catch (e) {}
+  };
+
+  // ==========================================================================
+  // 4. VARIED ENGLISH SPEED/SLOWDOWN PHRASES & EDUCATIONAL OBJECT DESCRIPTIONS
+  //    ("4. Prosím o vytvoření i jiných hlášek např. při zrychlení a zpomalení
+  //     vláčku, ať se hláška neopakuje pořád dokola. Hra by měla učit děti
+  //     anglicky, proto by bylo fajn, kdyby vláček popisoval i objekty co vidí,
+  //     na které je zaměřen detail kamery.")
+  // ==========================================================================
+  var accelPhrases = [
+    "Faster, faster! Let's go! Speed {S}!",
+    "Full steam ahead! We are going faster!",
+    "Choo choo! Speeding up to number {S}!",
+    "Hold on tight! The train is going fast!",
+    "Look how fast our wheels are spinning! Speed {S}!",
+    "Here we go! Up, up, up to speed {S}!",
+    "Super express train! Zoom, zoom, zoom!",
+    "Puff, puff, chugga chugga! Going faster now!"
+  ];
+  var decelPhrases = [
+    "Slowing down! Easy does it, little train!",
+    "Brakes on! Let's go nice and slow!",
+    "Slower now! Gently down to speed {S}!",
+    "Careful and slow! Looking around the tracks!",
+    "Whoa there, little engine! Going slower now!",
+    "Taking it easy! Slowing down to number {S}!"
+  ];
+  var stopPhrases = [
+    "All stopped! Brakes say shhh! Time to rest!",
+    "Stop! The train is standing still now!",
+    "Station stop! Zero speed, good job driver!",
+    "Phew! Our wheels have stopped turning!"
+  ];
+  var reversePhrases = [
+    "Backing up! Beep, beep! Going backwards!",
+    "Reverse gear! Watch out behind the train!",
+    "Chugga chugga backwards! Slowly backing up!",
+    "Going in reverse! Beep, beep, careful behind us!"
+  ];
+
+  var accelIdx = 0;
+  var decelIdx = 0;
+  var stopIdx  = 0;
+  var revIdx   = 0;
+
+  // Educational English vocabulary & descriptions for every object focused by the 3-second camera
+  var showcaseEnglishLessons = {
+    eiffel: [
+      "Look! This is the Eiffel Tower in Paris! It is a very tall iron tower!",
+      "Wow, the Eiffel Tower! Can you say Eiffel Tower? It reaches high into the sky!"
+    ],
+    colosseum: [
+      "Look! This is the Colosseum in Rome! It is a famous ancient stone arena!",
+      "We see the big round Colosseum! Ancient Romans built it a long time ago!"
+    ],
+    mom_house: [
+      "Look! This is Mommy and Daddy's house! Look at the blue swimming pool and palm trees!",
+      "Hello Mommy and Daddy! Here is our family home with a garden and a blue pool!"
+    ],
+    grandma_house: [
+      "Look! This is Grandma and Grandpa's yellow house! I see their blue and red cars outside!",
+      "Hello Grandma and Grandpa! Their big yellow house has solar panels on the roof!"
+    ],
+    airport: [
+      "Look! This is the Airport! Big airplanes fly high up into the clouds from here!",
+      "We are at the International Airport! Airplanes take off and land on the runway!"
+    ],
+    jewel: [
+      "Look inside the glass dome! A giant waterfall is splashing down through the green forest!",
+      "Wow, this is the Jewel waterfall! Listen to the water falling from the roof!"
+    ],
+    stadium: [
+      "Look! This is the Soccer Stadium! Players kick the ball and score goals on the green field!",
+      "What a big Stadium! Fans cheer when the players kick the football into the net!"
+    ],
+    bigben: [
+      "Look! This is Big Ben, the famous clock tower in London! Tick-tock goes the big golden clock!",
+      "Can you see the big clock tower? That is Big Ben! It tells the time for everyone!"
+    ],
+    skyscraper: [
+      "Look up! That is a tall glass Skyscraper! It has so many windows shining in the sun!",
+      "What a tall Skyscraper! Office workers look out from the top floor high above the city!"
+    ],
+    fountain: [
+      "Look! This is the Fountain Square! Cool blue water is dancing and splashing in the park!",
+      "We see the sparkling water Fountain! People love to walk around the park plaza!"
+    ],
+    monster_0: [
+      "Haha! Look at the funny purple monster! It jumped high up and hid behind the tree!",
+      "Peek-a-boo, silly purple monster! Don't sit on the train tracks!"
+    ],
+    monster_1: [
+      "Haha! Look at the fluffy colorful monster with one big eye! It ran behind the tree!",
+      "What a funny fuzzy monster! It is sticking out its tongue at our train!"
+    ],
+    rabbit: [
+      "Look! A cute white Rabbit with long ears! The little bunny is jumping and waving hello!",
+      "Hello, little white Rabbit! Look how high the bunny can hop, hop, hop!"
+    ],
+    squirrel: [
+      "Look! An orange Squirrel with a bushy tail! It jumped right up onto the tree branch!",
+      "Hello, clever Squirrel! The squirrel loves to climb trees and eat crunchy acorns!"
+    ],
+    owl: [
+      "Look up in the tree! A wise brown Owl! The owl flaps its wings and says hoo-hoo!",
+      "Hello, friendly Owl! Owls have big round eyes and sit high up on the branch!"
+    ],
+    cow: [
+      "Look! A spotted farm Cow on the green grass! The cow says moo and gives us fresh milk!",
+      "Hello, Daisy the Cow! Can you see the white and brown cow grazing in the meadow?"
+    ],
+    sheep_0: [
+      "Look! Soft white Sheep in the green pasture! The fluffy sheep say baa, baa!",
+      "Hello, little wooly Sheep! Look at the white flock of sheep on the hill!"
+    ],
+    sheep_1: [
+      "Look! Fluffy white Sheep by the tracks! Sheep give us warm wool for winter sweaters!",
+      "Baa, baa! Look at the happy white Sheep waving at our train!"
+    ],
+    anantara: [
+      "Welcome to Anantara! Look at the tropical hotel with golden Thai roofs and palm trees by the river!",
+      "Look! A beautiful river and the Anantara Riverside Hotel! Can you see the wooden boat pier?"
+    ],
+    anantara_boat: [
+      "Here comes the boat! Look at the Anantara shuttle boat sailing across the river!",
+      "Toot toot! Wave hello to the passengers on the wooden Anantara hotel boat!"
+    ],
+    iconsiam: [
+      "Welcome to IconSiam! Look at the giant golden shopping mall, dancing fountains, and tall skyscrapers!",
+      "Wow, this is IconSiam by the Chao Phraya River! Look at the big Ferris wheel and sparkling water show!"
+    ],
+    bkk_bridge: [
+      "Let's cross the river! We are riding high up over the big railway bridge!",
+      "Look down at the wide Chao Phraya River! Our train is crossing the grand arch bridge!"
+    ]
+  };
+  var lessonVariantCount = {};
+
+  window.triggerEnglishShowcaseNarration = function(focusId) {
+    if (!focusId || !showcaseEnglishLessons[focusId]) return;
+    var variants = showcaseEnglishLessons[focusId];
+    var idx = (lessonVariantCount[focusId] || 0) % variants.length;
+    lessonVariantCount[focusId] = (lessonVariantCount[focusId] || 0) + 1;
+    var text = variants[idx];
+    window._lastShowcaseSpeechMs = performance.now();
+    if (typeof window.speakCharacter === 'function') {
+      window.speakCharacter('train', '🚂 Little Train Toby', '#ef4444', text);
+    }
+  };
+
+  // Wrap `window.speakCharacter` so repetitive speed/slowdown phrases from `game.js`
+  // are automatically replaced with varied, educational English lines, and don't interrupt
+  // an active 3-second object description!
+  if (typeof window.speakCharacter === 'function' && !window.speakCharacter._variedEnglishWrapped) {
+    var origSpeakChar = window.speakCharacter;
+    var wrappedSpeak = function(role, speakerName, avatarColorHex, text, explicitClipKey) {
+      if (arguments.length === 2 && typeof speakerName === 'string') {
+        text = speakerName;
+        speakerName = '🚂 Little Train Toby';
+        avatarColorHex = '#ef4444';
+        role = 'train';
+      }
+      if ((role === 'toby' || role === 'train') && typeof text === 'string') {
+        role = 'train';
+        var nowMs = performance.now();
+        var duringShowcaseLesson = (window._lastShowcaseSpeechMs && (nowMs - window._lastShowcaseSpeechMs) < 3100);
+
+        // 1) Intercept repetitive `Chugga chugga! Speed X!`
+        var speedMatch = text.match(/^Chugga chugga!\s*Speed\s*(\d+)!?$/i);
+        if (speedMatch) {
+          if (duringShowcaseLesson) return; // Let the 3s object description play uninterrupted!
+          var spdNum = parseInt(speedMatch[1], 10);
+          if (spdNum === 0) {
+            text = stopPhrases[stopIdx % stopPhrases.length];
+            stopIdx++;
+          } else {
+            var tplA = accelPhrases[accelIdx % accelPhrases.length];
+            accelIdx++;
+            text = tplA.replace('{S}', String(spdNum));
+          }
+        }
+        // 2) Intercept repetitive `Slowing down!`
+        else if (/^Slowing down!?$/i.test(text)) {
+          if (duringShowcaseLesson) return;
+          var curStage = (window.pState && typeof window.pState.speedStage === 'number') ? window.pState.speedStage : 1;
+          if (curStage <= 0) {
+            text = stopPhrases[stopIdx % stopPhrases.length];
+            stopIdx++;
+          } else {
+            var tplD = decelPhrases[decelIdx % decelPhrases.length];
+            decelIdx++;
+            text = tplD.replace('{S}', String(curStage));
+          }
+        }
+        // 3) Intercept repetitive `Backing up! Beep beep!`
+        else if (/^Backing up!\s*Beep beep!?$/i.test(text)) {
+          if (duringShowcaseLesson) return;
+          text = reversePhrases[revIdx % reversePhrases.length];
+          revIdx++;
+        }
+      }
+      return origSpeakChar(role, speakerName, avatarColorHex, text, explicitClipKey);
+    };
+    wrappedSpeak._variedEnglishWrapped = true;
+    window.speakCharacter = wrappedSpeak;
+  }
 })();
 
 // ============================================================================
@@ -9555,17 +11528,17 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       treeGroup.add(rib);
     }
 
-    // Sturdy Lower Wooden Branch extending forward-right to exact local landing perch `(1.90, 4.30, 1.50)`
-    var branchBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.48, 3.1, 12), trunkMat);
-    branchBeam.position.set(1.15, 4.05, 0.90);
-    branchBeam.rotation.z = -1.12;
-    branchBeam.rotation.y = -0.65;
+    // Sturdy Lower Wooden Branch extending toward the approaching train & track (`local -X, +Z`) to exact landing perch `(-1.85, 4.30, 1.85)`
+    var branchBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.48, 3.2, 12), trunkMat);
+    branchBeam.position.set(-1.10, 4.05, 1.10);
+    branchBeam.rotation.z = 1.12;
+    branchBeam.rotation.y = 0.68;
     branchBeam.castShadow = true;
     treeGroup.add(branchBeam);
 
-    // Flat wooden perch knot at the tip of the branch where the squirrel lands `(1.90, 4.30, 1.50)`
+    // Flat wooden perch knot at the tip of the branch where the squirrel lands `(-1.85, 4.18, 1.85)`
     var perchPad = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.58, 0.26, 14), trunkMat);
-    perchPad.position.set(1.90, 4.18, 1.50);
+    perchPad.position.set(-1.85, 4.18, 1.85);
     treeGroup.add(perchPad);
 
     // Multi-colored spherical pom-pom foliage canopy (`image_67733db9.png`)
@@ -9584,18 +11557,18 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       treeGroup.add(sphere);
     });
 
-    // Foreground Mossy Wooden Log at `[0.0, 0.28, 3.40]` where the squirrel starts on the ground
+    // Foreground Mossy Wooden Log at `[-0.85, 0.36, 3.45]` on the clear track-facing side where the squirrel starts
     var groundLog = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.48, 2.8, 14), trunkMat);
     groundLog.rotation.z = Math.PI * 0.5;
-    groundLog.rotation.y = 0.18;
-    groundLog.position.set(0.0, 0.36, 3.40);
+    groundLog.rotation.y = -0.18;
+    groundLog.position.set(-0.85, 0.36, 3.45);
     groundLog.castShadow = true;
     envGroup.add(groundLog);
 
     // B) Cheerful Orange Squirrel (`squirrelGroup`)
     var squirrelGroup = new THREE.Group();
-    var startGroundPos = new THREE.Vector3(0.0, 0.68, 3.40);
-    var branchLandingPos = new THREE.Vector3(1.90, 4.32, 1.50);
+    var startGroundPos = new THREE.Vector3(-0.85, 0.68, 3.45);
+    var branchLandingPos = new THREE.Vector3(-1.85, 4.32, 1.85);
     squirrelGroup.position.copy(startGroundPos);
     envGroup.add(squirrelGroup);
 
@@ -9663,14 +11636,26 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       sqBody.add(tooth);
     });
 
-    // Articulated Front Paws
-    var leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.58, 10), brightOrangeMat);
-    leftArm.position.set(-0.56, 1.24, 0.34);
-    leftArm.rotation.z = 0.45;
-    leftArm.rotation.x = 0.45;
-    var rightArm = leftArm.clone();
-    rightArm.position.set(0.56, 1.24, 0.34);
-    rightArm.rotation.z = -0.45;
+    // Articulated Front Paws (`leftArm`, `rightArm` — wave hello to the train when in camera view!)
+    function createSquirrelArm(side) {
+      var armPivot = new THREE.Group();
+      armPivot.position.set(side * 0.58, 1.48, 0.22);
+
+      var armMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.12, 0.62, 10), brightOrangeMat);
+      armMesh.position.set(side * 0.14, -0.24, 0.14);
+      armMesh.rotation.z = side * 0.35;
+      armMesh.rotation.x = 0.35;
+      armPivot.add(armMesh);
+
+      var paw = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 10), creamMat);
+      paw.position.set(side * 0.24, -0.52, 0.26);
+      armPivot.add(paw);
+
+      return armPivot;
+    }
+
+    var leftArm = createSquirrelArm(-1);
+    var rightArm = createSquirrelArm(1);
     sqBody.add(leftArm, rightArm);
 
     // Giant Fluffy S-Curved Bushy Tail (`tailGroup`)
@@ -9726,7 +11711,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
 
     var foliageSpheres = [
       [0, 9.4, 0, 2.6, leafMat1],
-      [-1.8, 8.2, 0.9, 2.1, leafMat2],
+      [-1.8, 8.6, -0.5, 2.0, leafMat2],
       [1.9, 8.4, -0.7, 2.1, leafMat2],
       [0.3, 10.6, 0.4, 1.9, leafMat2]
     ];
@@ -9737,17 +11722,17 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       envGroup.add(m);
     });
 
-    // Sturdy Horizontal Perch Branch extending toward the track at `y = 4.45m`
+    // Sturdy Horizontal Perch Branch extending toward the approaching train & track (`local -X, +Z`) at `y = 4.45m`
     var perchBranch = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.46, 3.6, 14), trunkMat);
     perchBranch.rotation.z = Math.PI * 0.5;
-    perchBranch.rotation.y = -0.35;
-    perchBranch.position.set(1.45, 4.45, 0.65);
+    perchBranch.rotation.y = 0.58;
+    perchBranch.position.set(-1.35, 4.45, 1.05);
     perchBranch.castShadow = true;
     envGroup.add(perchBranch);
 
-    // Friendly Owl Group perched squarely on the branch (`[2.25, 4.68, 0.95]`)
+    // Friendly Owl Group perched squarely on the track-facing branch (`[-2.05, 4.68, 1.65]`)
     var owlGroup = new THREE.Group();
-    owlGroup.position.set(2.25, 4.68, 0.95);
+    owlGroup.position.set(-2.05, 4.68, 1.65);
     envGroup.add(owlGroup);
 
     var slatePlumageMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.42 });
@@ -9895,13 +11880,42 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     return { pt: pt, tan: tan, perp: perp };
   }
 
-  var edgeWestNW = findSurfaceEdge('J_WEST->J_NW');
+  var edgeWestNW  = findSurfaceEdge('J_WEST->J_NW');
   var edgeNorthNE = findSurfaceEdge('J_NORTH->J_NE');
+  var edgeSeSouth = findSurfaceEdge('J_SE->J_SOUTH') || edgeNorthNE;
   if (!edgeWestNW || !edgeNorthNE) return;
 
+  // Helper: Builds a lush green storybook meadow terrace pad whose top sits at the
+  // exact level of the railway track (`topY = frame.pt.y`) so animals & hiding trees
+  // are ALWAYS at the same level as the train (`nikdy pod úrovní vláčku`)!
+  function buildTrackLevelMeadowTerrace(x, z, topY, topRadius) {
+    var naturalGroundY = window.getTerrainHeight ? window.getTerrainHeight(x, z) : (topY - 1.5);
+    var terraceH = Math.max(0.65, topY - naturalGroundY);
+    var terraceG = new THREE.Group();
+    terraceG.position.set(x, topY, z);
+
+    var slopeMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(topRadius, topRadius + 1.2 + terraceH * 0.45, terraceH, 24),
+      new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.78 })
+    );
+    slopeMesh.position.y = -terraceH * 0.5;
+    slopeMesh.receiveShadow = true;
+
+    var lawnTop = new THREE.Mesh(
+      new THREE.CylinderGeometry(topRadius + 0.15, topRadius + 0.25, 0.30, 24),
+      new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.68 })
+    );
+    lawnTop.position.y = -0.10;
+    lawnTop.receiveShadow = true;
+
+    terraceG.add(slopeMesh, lawnTop);
+    scene.add(terraceG);
+    return terraceG;
+  }
+
   // 1. TWO TRACK MONSTERS ("Strašidla sedící na kolejích"):
-  //    - Monster #1 (Purple 2-eyed antenna monster): Behind Mom & Dad's House on `J_WEST->J_NW` at `u = 0.72`
-  //    - Monster #2 (Fluffy multi-colored 1-eyed monster): Behind Grandma's House on `J_NORTH->J_NE` at `u = 0.72`
+  //    - Monster #1 (Purple 2-eyed antenna monster): Behind Mom & Dad's House on `J_WEST->J_NW` at `u = 0.79`
+  //    - Monster #2 (Fluffy multi-colored 1-eyed monster): Behind Grandma's House on `J_NORTH->J_NE` at `u = 0.79`
   var monsterInstances = [];
 
   function spawnTrackMonsterOnEdge(edge, uTrack, modelObj, pitchMult, labelName) {
@@ -9909,11 +11923,12 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     var railSurfaceY = frame.pt.y + 0.18;
     var hidingLateral = -11.2; // Safe hiding spot behind tree well outside both tracks
     var hideWorldPos = frame.pt.clone().add(frame.perp.clone().multiplyScalar(hidingLateral));
-    var hideGroundY = window.getTerrainHeight ? Math.max(0.2, window.getTerrainHeight(hideWorldPos.x, hideWorldPos.z)) : frame.pt.y;
+    var hideGroundY = frame.pt.y; // Keep hiding spot & tree at exact track level!
 
-    // Place dedicated hiding tree at `lateral = -9.6m` so the monster at `-11.2m` is right behind it
+    // Place dedicated hiding tree at `lateral = -9.6m` on a track-level green meadow terrace
     var treePos = frame.pt.clone().add(frame.perp.clone().multiplyScalar(-9.6));
-    var treeGroundY = window.getTerrainHeight ? Math.max(0.2, window.getTerrainHeight(treePos.x, treePos.z)) : frame.pt.y;
+    var treeGroundY = frame.pt.y;
+    var treeTerrace = buildTrackLevelMeadowTerrace(treePos.x, treePos.z, treeGroundY, 4.8);
     var hidingTree = buildMonsterHidingTree();
     hidingTree.position.set(treePos.x, treeGroundY, treePos.z);
     scene.add(hidingTree);
@@ -9926,6 +11941,9 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     monsterInstances.push({
       name: labelName,
       model: modelObj,
+      hidingTree: hidingTree,
+      hidingTreeTerrace: treeTerrace,
+      hidingTreePos: new THREE.Vector3(treePos.x, treeGroundY, treePos.z),
       trackCenterPos: new THREE.Vector3(frame.pt.x, railSurfaceY, frame.pt.z),
       parallelTrackPos: new THREE.Vector3(
         frame.pt.x + frame.perp.x * 4.4,
@@ -9948,13 +11966,15 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     });
   }
 
-  spawnTrackMonsterOnEdge(edgeWestNW, 0.72, buildPurpleAntennaMonster(), 1.0, '👾 Purple Track Monster (Mom\'s House)');
-  spawnTrackMonsterOnEdge(edgeNorthNE, 0.72, buildFluffyCyclopsMonster(), 0.88, '👹 Fluffy Track Monster (Grandma\'s House)');
+  spawnTrackMonsterOnEdge(edgeWestNW, 0.79, buildPurpleAntennaMonster(), 1.0, '👾 Purple Track Monster (Mom\'s House)');
+  spawnTrackMonsterOnEdge(edgeNorthNE, 0.79, buildFluffyCyclopsMonster(), 0.88, '👹 Fluffy Track Monster (Grandma\'s House)');
 
-  // 2. KRÁLÍK U CESTY (White Rabbit beside the track on `J_NORTH->J_NE` at `u = 0.21`, lateral `-7.6m` -> < 20m at pass-by!)
-  var rabbitFrame = getTrackFrameAt(edgeNorthNE, 0.21);
-  var rabbitWorldPos = rabbitFrame.pt.clone().add(rabbitFrame.perp.clone().multiplyScalar(-7.6));
-  rabbitWorldPos.y = window.getTerrainHeight ? Math.max(0.2, window.getTerrainHeight(rabbitWorldPos.x, rabbitWorldPos.z)) : rabbitFrame.pt.y;
+  // 2. KRÁLÍK U CESTY (White Rabbit in the SOUTH region on `J_SE->J_SOUTH` at `u = 0.78`, lateral `-7.8m`,
+  //    placed at exact track level `y = rabbitFrame.pt.y` so it is 100% visible at train height and evenly spaced across the map!)
+  var rabbitFrame = getTrackFrameAt(edgeSeSouth, 0.78);
+  var rabbitWorldPos = rabbitFrame.pt.clone().add(rabbitFrame.perp.clone().multiplyScalar(-7.8));
+  rabbitWorldPos.y = rabbitFrame.pt.y;
+  var rabbitTerrace = buildTrackLevelMeadowTerrace(rabbitWorldPos.x, rabbitWorldPos.z, rabbitWorldPos.y, 4.5);
   var rabbitObj = buildStorybookWhiteRabbit();
   rabbitObj.root.position.copy(rabbitWorldPos);
   rabbitObj.root.lookAt(rabbitFrame.pt.x, rabbitWorldPos.y, rabbitFrame.pt.z);
@@ -9962,6 +11982,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
 
   var rabbitState = {
     obj: rabbitObj,
+    terrace: rabbitTerrace,
     trackAnchorPos: rabbitFrame.pt.clone(),
     worldPos: rabbitWorldPos.clone(),
     tan: rabbitFrame.tan.clone(),
@@ -9971,17 +11992,20 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     honkedThisPass: false
   };
 
-  // 3. VEVERKA U STROMU (Orange Squirrel + Colorful Storybook Tree on `J_NORTH->J_NE` at `u = 0.37`, lateral `-9.2m` -> < 20m at pass-by!)
-  var sqFrame = getTrackFrameAt(edgeNorthNE, 0.37);
-  var sqTreeWorldPos = sqFrame.pt.clone().add(sqFrame.perp.clone().multiplyScalar(-9.2));
-  sqTreeWorldPos.y = window.getTerrainHeight ? Math.max(0.2, window.getTerrainHeight(sqTreeWorldPos.x, sqTreeWorldPos.z)) : sqFrame.pt.y;
+  // 3. VEVERKA U STROMU (Orange Squirrel + Colorful Storybook Tree in the NORTH-EAST region on `J_NORTH->J_NE` at `u = 0.20`,
+  //    lateral `-8.4m`, placed at exact track level `y = sqFrame.pt.y` so it is at train height and far from Rabbit & Owl!)
+  var sqFrame = getTrackFrameAt(edgeNorthNE, 0.20);
+  var sqTreeWorldPos = sqFrame.pt.clone().add(sqFrame.perp.clone().multiplyScalar(-8.4));
+  sqTreeWorldPos.y = sqFrame.pt.y;
+  var sqTerrace = buildTrackLevelMeadowTerrace(sqTreeWorldPos.x, sqTreeWorldPos.z, sqTreeWorldPos.y, 5.2);
   var squirrelObj = buildStorybookSquirrelAndTree();
   squirrelObj.envGroup.position.copy(sqTreeWorldPos);
-  squirrelObj.envGroup.lookAt(sqFrame.pt.x, sqTreeWorldPos.y, sqFrame.pt.z);
+  squirrelObj.envGroup.lookAt(sqFrame.pt.x, sqTreeWorldPos.y, sqTreeWorldPos.z);
   scene.add(squirrelObj.envGroup);
 
   var squirrelState = {
     obj: squirrelObj,
+    terrace: sqTerrace,
     trackAnchorPos: sqFrame.pt.clone(),
     worldPos: sqTreeWorldPos.clone(),
     tan: sqFrame.tan.clone(),
@@ -9991,10 +12015,12 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     honkedThisPass: false
   };
 
-  // 4. SOVA U STROMU (Friendly Owl on Tree Branch on `J_WEST->J_NW` at `u = 0.25`, lateral `-9.6m` -> < 20m at pass-by!)
-  var owlFrame = getTrackFrameAt(edgeWestNW, 0.25);
-  var owlTreeWorldPos = owlFrame.pt.clone().add(owlFrame.perp.clone().multiplyScalar(-9.6));
-  owlTreeWorldPos.y = window.getTerrainHeight ? Math.max(0.2, window.getTerrainHeight(owlTreeWorldPos.x, owlTreeWorldPos.z)) : owlFrame.pt.y;
+  // 4. SOVA U STROMU (Friendly Owl on Tree Branch in the NORTH-WEST region on `J_WEST->J_NW` at `u = 0.20`,
+  //    lateral `-8.4m`, placed at exact track level `y = owlFrame.pt.y` so it is at train height and evenly spaced!)
+  var owlFrame = getTrackFrameAt(edgeWestNW, 0.20);
+  var owlTreeWorldPos = owlFrame.pt.clone().add(owlFrame.perp.clone().multiplyScalar(-8.4));
+  owlTreeWorldPos.y = owlFrame.pt.y;
+  var owlTerrace = buildTrackLevelMeadowTerrace(owlTreeWorldPos.x, owlTreeWorldPos.z, owlTreeWorldPos.y, 5.2);
   var owlObj = buildStorybookOwlAndTree();
   owlObj.envGroup.position.copy(owlTreeWorldPos);
   owlObj.envGroup.lookAt(owlFrame.pt.x, owlTreeWorldPos.y, owlFrame.pt.z);
@@ -10002,6 +12028,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
 
   var owlState = {
     obj: owlObj,
+    terrace: owlTerrace,
     trackAnchorPos: owlFrame.pt.clone(),
     worldPos: owlTreeWorldPos.clone(),
     tan: owlFrame.tan.clone(),
@@ -10018,6 +12045,72 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     squirrel: squirrelState,
     owl: owlState
   };
+
+  // Clear any randomly spawned background trees or houses that accidentally landed inside the
+  // 16m sightline corridor around our interactive animals so they are never buried in random foliage!
+  (function clearRandomFoliageFromAnimalCorridors() {
+    var protectedObjects = [
+      rabbitObj.root, rabbitTerrace,
+      squirrelObj.envGroup, sqTerrace,
+      owlObj.envGroup, owlTerrace,
+      window.daisyTheCow
+    ];
+    for (var mi2 = 0; mi2 < monsterInstances.length; mi2++) {
+      protectedObjects.push(
+        monsterInstances[mi2].model.root,
+        monsterInstances[mi2].hidingTree,
+        monsterInstances[mi2].hidingTreeTerrace
+      );
+    }
+    if (window.trackSheepFlocks) {
+      for (var si2 = 0; si2 < window.trackSheepFlocks.length; si2++) {
+        if (window.trackSheepFlocks[si2].group) protectedObjects.push(window.trackSheepFlocks[si2].group);
+      }
+    }
+
+    var clearCenters = [
+      { pos: rabbitWorldPos, rad: 16.5 },
+      { pos: rabbitFrame.pt, rad: 14.0 },
+      { pos: sqTreeWorldPos, rad: 16.5 },
+      { pos: sqFrame.pt, rad: 14.0 },
+      { pos: owlTreeWorldPos, rad: 16.5 },
+      { pos: owlFrame.pt, rad: 14.0 }
+    ];
+    for (var mi3 = 0; mi3 < monsterInstances.length; mi3++) {
+      clearCenters.push({ pos: monsterInstances[mi3].trackCenterPos, rad: 15.0 });
+      clearCenters.push({ pos: monsterInstances[mi3].hidingTreePos, rad: 14.0 });
+    }
+    if (window.daisyTheCow && window.daisyTheCow.position) {
+      clearCenters.push({ pos: window.daisyTheCow.position, rad: 15.0 });
+    }
+
+    if (scene && scene.children) {
+      for (var ci2 = scene.children.length - 1; ci2 >= 0; ci2--) {
+        var ch = scene.children[ci2];
+        if (!ch || !ch.position || protectedObjects.indexOf(ch) !== -1) continue;
+        // Only check small/medium environment props (random trees, bushes, random houses) whose root position is near an animal
+        var chScale = (ch.scale && typeof ch.scale.x === 'number') ? ch.scale.x : 1.0;
+        if (chScale > 2.5) continue;
+        var isRandomProp = (
+          (ch.children && ch.children.length >= 2 && ch.children.length <= 8) ||
+          (window.surfaceHousesList && window.surfaceHousesList.indexOf(ch) !== -1)
+        );
+        if (!isRandomProp) continue;
+        // Never touch track, road, or landmark groups at (0,0,0)
+        if (Math.abs(ch.position.x) < 0.01 && Math.abs(ch.position.z) < 0.01) continue;
+
+        for (var k = 0; k < clearCenters.length; k++) {
+          var cc = clearCenters[k];
+          var dXZ = Math.hypot(ch.position.x - cc.pos.x, ch.position.z - cc.pos.z);
+          if (dXZ < cc.rad) {
+            ch.visible = false;
+            ch.position.y = -500;
+            break;
+          }
+        }
+      }
+    }
+  })();
 
   // --------------------------------------------------------------------------
   // E) HELPER: FIND CLOSEST APPROACHING TRAIN & SPEED FOR ANY TRACK POINT
@@ -10121,29 +12214,77 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       if ((window.pState.currentVel || 0) < -0.01) pTan.negate();
     }
 
-    // Also trigger sheep & cow sounds automatically when the player train comes within < 20m of them
+    // Trigger sheep & cow sounds (< 20m) AND make sheep & Daisy the Cow wave to the train whenever in camera view (<= 46m)!
     if (playerActiveOnSurface && pPos) {
-      if (window.trackSheepFlocks && typeof window.playSheepBaa === 'function') {
+      if (window.trackSheepFlocks) {
         for (var sfi = 0; sfi < window.trackSheepFlocks.length; sfi++) {
           var fl = window.trackSheepFlocks[sfi];
           if (fl && fl.basePos) {
             var dSheep = pPos.distanceTo(fl.basePos);
-            if (dSheep < 19.5 && !fl._baaPlayedWithin20m) {
+            if (dSheep < 19.5 && !fl._baaPlayedWithin20m && typeof window.playSheepBaa === 'function') {
               fl._baaPlayedWithin20m = true;
               window.playSheepBaa();
             } else if (dSheep > 32.0) {
               fl._baaPlayedWithin20m = false;
             }
+            // Wave sheep front hoof/paw when in camera view (`dSheep <= 46m`)!
+            if (fl.group && fl.group.children) {
+              var sheepInCam = (dSheep <= 46.0);
+              for (var sci = 0; sci < fl.group.children.length; sci++) {
+                var shMesh = fl.group.children[sci];
+                if (shMesh && shMesh.userData) {
+                  if (sheepInCam) {
+                    shMesh.lookAt(pPos.x, fl.group.position.y, pPos.z);
+                    if (shMesh.userData.rightForeleg) {
+                      shMesh.userData.rightForeleg.rotation.x = -1.35;
+                      shMesh.userData.rightForeleg.rotation.z = -0.75 + Math.sin(timeSec * 15.0 + sci) * 0.48;
+                    }
+                    if (shMesh.userData.headGroup) {
+                      shMesh.userData.headGroup.rotation.x = Math.sin(timeSec * 8.0 + sci) * 0.18;
+                    }
+                  } else {
+                    if (shMesh.userData.rightForeleg) {
+                      shMesh.userData.rightForeleg.rotation.x = 0.0;
+                      shMesh.userData.rightForeleg.rotation.z = 0.0;
+                    }
+                    if (shMesh.userData.headGroup) {
+                      shMesh.userData.headGroup.rotation.x = 0.0;
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
-      if (window.daisyTheCow && window.daisyTheCow.position && typeof window.playCowMoo === 'function') {
+      if (window.daisyTheCow && window.daisyTheCow.position) {
         var dCow = pPos.distanceTo(window.daisyTheCow.position);
-        if (dCow < 19.5 && !window.daisyTheCow._mooPlayedWithin20m) {
+        if (dCow < 19.5 && !window.daisyTheCow._mooPlayedWithin20m && typeof window.playCowMoo === 'function') {
           window.daisyTheCow._mooPlayedWithin20m = true;
           window.playCowMoo();
         } else if (dCow > 30.0) {
           window.daisyTheCow._mooPlayedWithin20m = false;
+        }
+        // Wave Daisy the Cow's front hoof when in camera view (`dCow <= 46m`)!
+        if (window.daisyTheCow.userData) {
+          if (dCow <= 46.0) {
+            window.daisyTheCow.lookAt(pPos.x, window.daisyTheCow.position.y, pPos.z);
+            if (window.daisyTheCow.userData.rightForeleg) {
+              window.daisyTheCow.userData.rightForeleg.rotation.x = -1.38;
+              window.daisyTheCow.userData.rightForeleg.rotation.z = -0.82 + Math.sin(timeSec * 14.0) * 0.46;
+            }
+            if (window.daisyTheCow.userData.headGroup) {
+              window.daisyTheCow.userData.headGroup.rotation.z = Math.sin(timeSec * 7.0) * 0.14;
+            }
+          } else {
+            if (window.daisyTheCow.userData.rightForeleg) {
+              window.daisyTheCow.userData.rightForeleg.rotation.x = 0.0;
+              window.daisyTheCow.userData.rightForeleg.rotation.z = 0.0;
+            }
+            if (window.daisyTheCow.userData.headGroup) {
+              window.daisyTheCow.userData.headGroup.rotation.z = 0.0;
+            }
+          }
         }
       }
     }
@@ -10152,16 +12293,18 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     // 1. UPDATE BOTH TRACK MONSTERS ("Strašidla sedící na kolejích")
     //    - Stands with back turned to train before honk ("štrašidlo stojí před zatroubením k vláčku zády")
     //    - 3s before startle (`dist <= 45m` down to `19.5m`):
-    //      Smooth camera zoom from 5m above the train (`z pozice 5m nad vláčkem`),
+    //      Smooth camera zoom from ~10m higher above the train (`y = pPos.y + 14.5m`),
     //      showing both the front of the train (`začátek vláčku`) AND the monster,
     //      while slowing the train to minimum speed!
-    //    - At `dist <= 19.5m` (< 20m!):
-    //      Train blows its horn (`zatrub`), monster startles, turns around 180° (`otočí se`),
+    //    - 0.5s BEFORE startle (`1. zatroubení vláčku prosím o 0.5s před zleknutím strašidla`):
+    //      Train blows its horn (`zatrub`) while monster still has its back turned,
+    //      and exactly 0.50s later the monster startles, turns around 180° (`otočí se`),
     //      bulges its eyes (`vytřeští oči`), jumps ~5m high (`vyskočí asi 5m do výšky`),
     //      screams "HEEELP!" (audible within < 20m), runs off tracks (`uteče`),
     //      hides behind the tree (`schová se za strom`), and after 2s peeks out
     //      and sticks out its tongue (`a za 2s vykoukne a vyplázne jazyk`)!
     // ========================================================================
+    window._storybookMonsterStopWait = false;
     for (var mi = 0; mi < monsterInstances.length; mi++) {
       var m = monsterInstances[mi];
       var mod = m.model;
@@ -10169,11 +12312,12 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       var playerDistToMonsterTrack = (playerActiveOnSurface && pPos) ? pPos.distanceTo(m.trackCenterPos) : 999999;
       var playerApproachingMonster = playerActiveOnSurface && isPlayerApproachingPoint(m.trackCenterPos);
 
-      // Startle distance is strictly < 20m (`19.5m`) so the monster's scream is within the 20m audio range!
-      // And 3 seconds before startle at minimum speed (`8.4 m/s`) is `19.5 + 3.0 * 8.4 = ~45.0m`!
-      var startleDist = 19.5;
-      var preZoomDist = 45.5;
-      var resetDist = 56.0;
+      // Horn triggers only AFTER the monster has been clearly visible in the camera shot for >= 2.20s ("alespoň 2s před zahoukáním vláčku a zleknutím strašidla"),
+      // and exact 0.50s after the horn the monster startles!
+      var hornTriggerDist = 21.5;
+      var preZoomDist = 64.0;
+      var minPreHornCamSeconds = 2.20;
+      var resetDist = 32.0;
 
       if (m.state === 'SITTING') {
         m.stateTimer += dt;
@@ -10208,38 +12352,64 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         mod.rightLeg.position.z = 0.05;
         mod.bubble.sprite.visible = false;
 
-        // Check if train has reached the startle point (`dist <= 19.5m`, i.e. 3s after camera zoom began and < 20m!)
-        if (info.dist <= startleDist) {
-          m.state = 'STARTLED';
-          m.stateTimer = 0.0;
-          m.awayTimer = 0.0;
-          m.tongueSoundPlayed = false;
+        // Track how long the monster has been visible in the focused camera shot before the horn
+        var isCamShowingMonster = Boolean(
+          playerActiveOnSurface &&
+          playerDistToMonsterTrack <= preZoomDist &&
+          (playerApproachingMonster || playerDistToMonsterTrack <= 26.0) &&
+          (!window._camSysState || (window._camSysState.activePoiId === 'monster_' + mi && window._camSysState.poiWeight >= 0.40) || playerDistToMonsterTrack <= 48.0)
+        );
+        if (isCamShowingMonster) {
+          m.preHornVisibleTimer = (m.preHornVisibleTimer || 0.0) + dt;
+        } else if (playerDistToMonsterTrack > preZoomDist + 8.0) {
+          m.preHornVisibleTimer = 0.0;
+        }
 
-          // Record initial away-facing point so monster smoothly spins 180° to face the train!
-          if (info.trainPos) {
-            m.startleAwayTarget = new THREE.Vector3(
-              sitWorldPos.x + (sitWorldPos.x - info.trainPos.x),
-              m.railY,
-              sitWorldPos.z + (sitWorldPos.z - info.trainPos.z)
-            );
-          } else {
-            m.startleAwayTarget = sitWorldPos.clone().add(m.tan);
-          }
+        var isPlayerTriggering = (playerDistToMonsterTrack <= 42.0);
+        var hasBeenVisible2Seconds = !isPlayerTriggering || ((m.preHornVisibleTimer || 0.0) >= minPreHornCamSeconds);
 
-          // Train automatically blows its horn right as it startles the monster!
-          if (playerDistToMonsterTrack <= 22.0 && typeof window.playTrainHorn === 'function') {
+        // Step 1: When train reaches `dist <= 21.5m` AND the monster has been visible in the camera shot for >= 2.20s,
+        // blow the train horn 0.5s BEFORE startle!
+        if (info.dist <= hornTriggerDist && hasBeenVisible2Seconds && !m.preStartleHornTriggered) {
+          m.preStartleHornTriggered = true;
+          m.preStartleHornTimer = 0.0;
+          if (playerDistToMonsterTrack <= 25.0 && typeof window.playTrainHorn === 'function') {
             window.playTrainHorn();
           }
+        }
 
-          mod.leftEye.scale.setScalar(1.52);
-          mod.rightEye.scale.setScalar(1.52);
-          mod.mouth.scale.set(1.22, 1.38, 1.12);
-          if (mod.peekingTongue) mod.peekingTongue.visible = false;
-          mod.leftArm.rotation.z = -1.35;
-          mod.rightArm.rotation.z = 1.35;
-          updateComicBubbleText(mod.bubble, 'HEEELP! 😱', '#fef08a', '#9333ea', '#581c87');
-          mod.bubble.sprite.visible = true;
-          playMonsterHelpSound(m.pitchMult, mod.root.position);
+        // Step 2: Count 0.50s after the train horn, then trigger STARTLED!
+        if (m.preStartleHornTriggered) {
+          m.preStartleHornTimer = (m.preStartleHornTimer || 0.0) + dt;
+          if (m.preStartleHornTimer >= 0.50) {
+            m.preStartleHornTriggered = false;
+            m.preStartleHornTimer = 0.0;
+            m.state = 'STARTLED';
+            m.stateTimer = 0.0;
+            m.awayTimer = 0.0;
+            m.tongueSoundPlayed = false;
+
+            // Record initial away-facing point so monster smoothly spins 180° to face the train!
+            if (info.trainPos) {
+              m.startleAwayTarget = new THREE.Vector3(
+                sitWorldPos.x + (sitWorldPos.x - info.trainPos.x),
+                m.railY,
+                sitWorldPos.z + (sitWorldPos.z - info.trainPos.z)
+              );
+            } else {
+              m.startleAwayTarget = sitWorldPos.clone().add(m.tan);
+            }
+
+            mod.leftEye.scale.setScalar(1.52);
+            mod.rightEye.scale.setScalar(1.52);
+            mod.mouth.scale.set(1.22, 1.38, 1.12);
+            if (mod.peekingTongue) mod.peekingTongue.visible = false;
+            mod.leftArm.rotation.z = -1.35;
+            mod.rightArm.rotation.z = 1.35;
+            updateComicBubbleText(mod.bubble, 'HEEELP! 😱', '#fef08a', '#9333ea', '#581c87');
+            mod.bubble.sprite.visible = true;
+            playMonsterHelpSound(m.pitchMult, mod.root.position);
+          }
         }
       } else if (m.state === 'STARTLED') {
         m.stateTimer += dt;
@@ -10371,9 +12541,9 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         }
 
         // Stay safely hidden until the train has departed beyond `resetDist`
-        if (info.dist > resetDist && m.stateTimer > 3.4) {
+        if (info.dist > resetDist && m.stateTimer > 2.8) {
           m.awayTimer += dt;
-          if (m.awayTimer >= 0.9) {
+          if (m.awayTimer >= 0.6) {
             m.state = 'RETURNING';
             m.stateTimer = 0.0;
             if (mod.peekingTongue) mod.peekingTongue.visible = false;
@@ -10383,7 +12553,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           m.awayTimer = 0.0;
         }
       } else if (m.state === 'RETURNING') {
-        if (info.dist <= startleDist) {
+        if (info.dist <= hornTriggerDist) {
           m.state = 'STARTLED';
           m.stateTimer = 0.0;
           updateComicBubbleText(mod.bubble, 'HEEELP! 😱', '#fef08a', '#9333ea', '#581c87');
@@ -10413,27 +12583,30 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           m.state = 'SITTING';
           m.stateTimer = 0.0;
           m.activeSeatLateral = 0.0;
+          m.preStartleHornTriggered = false;
+          m.preStartleHornTimer = 0.0;
+          m.preHornVisibleTimer = 0.0;
         }
       }
 
       // CAMERA CHOREOGRAPHY FOR THIS MONSTER:
-      // Active starting 3 seconds before startle (`playerDistToMonsterTrack <= preZoomDist` while approaching in `SITTING`),
-      // and stays active through `STARTLED`, `RUNNING_OFF`, and `HIDING_PEEKING` (up to `3.8s` so the 2s wait + tongue peek are shown!).
-      var isPreStartleApproach = (m.state === 'SITTING' && playerDistToMonsterTrack <= preZoomDist && playerApproachingMonster);
+      // Hold train crawl while waiting for the >= 2.20s pre-horn camera view AND during the 0.5s pre-startle horn & jump off the rails so the train never collides!
+      var isPreStartleApproach = (m.state === 'SITTING' && ((playerDistToMonsterTrack <= preZoomDist && playerApproachingMonster) || playerDistToMonsterTrack <= 26.0 || m.preStartleHornTriggered));
       var isStartleOrPeekSequence = (
-        playerDistToMonsterTrack <= 48.0 &&
+        playerDistToMonsterTrack <= 52.0 &&
         (m.state === 'STARTLED' || m.state === 'RUNNING_OFF' || (m.state === 'HIDING_PEEKING' && m.stateTimer < 3.8))
       );
 
       if (playerActiveOnSurface && pPos && pTan && (isPreStartleApproach || isStartleOrPeekSequence)) {
         requestSlowdown = true;
-        if (isStartleOrPeekSequence && playerDistToMonsterTrack <= 22.0 && m.stateTimer < 3.4) {
+        var waitingFor2SecPreHorn = (m.state === 'SITTING' && !m.preStartleHornTriggered && (m.preHornVisibleTimer || 0.0) < minPreHornCamSeconds && playerDistToMonsterTrack <= 25.5);
+        if ((waitingFor2SecPreHorn || m.preStartleHornTriggered || m.state === 'STARTLED' || m.state === 'RUNNING_OFF') && playerDistToMonsterTrack <= 25.5) {
           requestMonsterHoldCrawl = true;
+          if (playerDistToMonsterTrack <= 19.5) {
+            window._storybookMonsterStopWait = true;
+          }
         }
 
-        // Position camera 5m above the train (`z pozice 5m nad vláčkem`), slightly behind the locomotive's
-        // front nose so the front of the train (`začátek vláčku`) is visible in the lower foreground
-        // AND the monster (standing on the track / jumping 5m / peeking from behind the tree) is framed ahead!
         var dirToMonster = m.trackCenterPos.clone().sub(pPos);
         dirToMonster.y = 0;
         if (dirToMonster.lengthSq() > 0.001) dirToMonster.normalize();
@@ -10443,26 +12616,37 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         var trainFrontNose = pPos.clone().add(pTan.clone().multiplyScalar(3.4));
 
         charCamPos = pPos.clone()
-          .sub(forwardViewDir.clone().multiplyScalar(6.6))
-          .sub(m.perp.clone().multiplyScalar(1.8))
-          .add(new THREE.Vector3(0, 5.0, 0));
+          .sub(forwardViewDir.clone().multiplyScalar(15.8))
+          .sub(m.perp.clone().multiplyScalar(5.0))
+          .add(new THREE.Vector3(0, 8.8, 0));
 
-        var monsterVisualTarget = mod.root.position.clone().add(new THREE.Vector3(0, 2.1, 0));
-        var noseVisualTarget = trainFrontNose.clone().add(new THREE.Vector3(0, 1.6, 0));
-        charCamLook = noseVisualTarget.lerp(monsterVisualTarget, 0.64);
+        var monsterVisualTarget = mod.root.position.clone().add(new THREE.Vector3(0, 2.2, 0));
+        var noseVisualTarget = trainFrontNose.clone().add(new THREE.Vector3(0, 1.8, 0));
+        charCamLook = noseVisualTarget.lerp(monsterVisualTarget, 0.54);
         charCamActive = true;
+        window._storybookCharId = 'monster_' + mi;
       }
     }
 
     // ========================================================================
     // 2. UPDATE WHITE RABBIT BY THE TRACK ("Králík u cesty")
-    //    - Smooth camera zoom framing both the train and the rabbit
-    //    - Train slows to minimum speed & blows its horn
-    //    - Automatically hops 3 times, waves front paw, and plays sound when < 20m!
+    //    - NEVER displays any "Hello, train!" text bubble (`rObj.bubble.sprite.visible = false`)
+    //    - Calls out "Hello, train!" with a cute generated bunny voice when < 20m!
+    //    - Waves its front paws to the train continuously whenever in the camera view!
     // ========================================================================
     var rObj = rabbitState.obj;
     var pDistRabbitTrack = (playerActiveOnSurface && pPos) ? pPos.distanceTo(rabbitState.trackAnchorPos) : 999999;
     var pDistRabbitWorld = (playerActiveOnSurface && pPos) ? pPos.distanceTo(rabbitState.worldPos) : 999999;
+    var isRabbitInCameraView = (pDistRabbitTrack <= 26.0 || pDistRabbitWorld <= 38.0 || rabbitState.state === 'HOPPING_AND_WAVING');
+
+    // Never show the "Hello, train!" floating text subtitle on the rabbit!
+    if (rObj.bubble && rObj.bubble.sprite) {
+      rObj.bubble.sprite.visible = false;
+    }
+
+    if (pPos && isRabbitInCameraView) {
+      rObj.root.lookAt(pPos.x, rabbitState.worldPos.y, pPos.z);
+    }
 
     if (rabbitState.state === 'IDLE') {
       rabbitState.timer += dt;
@@ -10470,15 +12654,11 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       rObj.bodyGroup.rotation.x = 0.0;
       rObj.leftEar.rotation.x = Math.sin(timeSec * 2.2) * 0.06;
       rObj.rightEar.rotation.x = Math.cos(timeSec * 2.4) * 0.06;
-      rObj.rightArm.rotation.z = 0.0;
-      rObj.rightArm.rotation.x = 0.0;
-      rObj.bubble.sprite.visible = false;
 
       // Trigger automatically whenever the train comes within < 20m (`19.6m`)!
       if (pDistRabbitWorld <= 19.6) {
         rabbitState.state = 'HOPPING_AND_WAVING';
         rabbitState.timer = 0.0;
-        rObj.bubble.sprite.visible = true;
         if (!rabbitState.honkedThisPass && typeof window.playTrainHorn === 'function') {
           rabbitState.honkedThisPass = true;
           window.playTrainHorn();
@@ -10489,11 +12669,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       rabbitState.timer += dt;
       var rt = rabbitState.timer;
 
-      if (pPos) {
-        rObj.root.lookAt(pPos.x, rabbitState.worldPos.y, pPos.z);
-      }
-
-      // Phase 1 (0.0s -> 1.56s): 3 energetic vertical hops (`třikrát výrazně poskočí`)
+      // Phase 1 (0.0s -> 1.56s): 3 energetic vertical hops (`třikrát výrazně poskočí`) while waving!
       if (rt < 1.56) {
         var hopPhase = (rt / 1.56) * Math.PI * 3.0;
         var hopSin = Math.abs(Math.sin(hopPhase));
@@ -10503,57 +12679,69 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         rObj.rightEar.rotation.x = -hopSin * 0.35;
         rObj.leftFoot.rotation.x = hopSin * 0.55;
         rObj.rightFoot.rotation.x = hopSin * 0.55;
-        rObj.rightArm.rotation.z = -0.35;
       }
-      // Phase 2 (1.56s -> 3.60s): Wave right front paw in greeting (`zamává přední tlapkou na pozdrav`)
-      else if (rt < 3.60) {
+      // Phase 2 (1.56s -> 3.00s): Continue waving on the meadow pad
+      else if (rt < 3.00) {
         rObj.bodyGroup.position.y = 0.0;
         rObj.bodyGroup.rotation.x = 0.0;
         rObj.leftEar.rotation.x = 0.05;
         rObj.rightEar.rotation.x = 0.05;
         rObj.leftFoot.rotation.x = 0.0;
         rObj.rightFoot.rotation.x = 0.0;
-        rObj.rightArm.rotation.x = -0.85;
-        rObj.rightArm.rotation.z = -2.15 + Math.sin((rt - 1.56) * 18.0) * 0.42;
       } else {
         rabbitState.state = 'COOLDOWN';
         rabbitState.timer = 0.0;
-        rObj.rightArm.rotation.x = 0.0;
-        rObj.rightArm.rotation.z = 0.0;
-        rObj.bubble.sprite.visible = false;
       }
     } else if (rabbitState.state === 'COOLDOWN') {
       rObj.bodyGroup.position.y = Math.sin(timeSec * 2.5) * 0.04;
-      rObj.rightArm.rotation.x = 0.0;
-      rObj.rightArm.rotation.z = 0.0;
-      if (pDistRabbitWorld > 28.0) {
+      if (pDistRabbitWorld > 23.0) {
         rabbitState.state = 'IDLE';
         rabbitState.timer = 0.0;
         rabbitState.honkedThisPass = false;
       }
     }
 
-    if (!charCamActive && playerActiveOnSurface && pPos && pTan && (pDistRabbitTrack <= 22.0 || rabbitState.state === 'HOPPING_AND_WAVING')) {
+    // Wave front paws continuously whenever the rabbit is in the camera view!
+    if (isRabbitInCameraView) {
+      rObj.rightArm.rotation.x = -0.92;
+      rObj.rightArm.rotation.z = -2.20 + Math.sin(timeSec * 16.0) * 0.48;
+      rObj.leftArm.rotation.x = -0.45;
+      rObj.leftArm.rotation.z = 0.85 + Math.cos(timeSec * 16.0) * 0.28;
+    } else {
+      rObj.rightArm.rotation.x = 0.0;
+      rObj.rightArm.rotation.z = 0.0;
+      rObj.leftArm.rotation.x = 0.0;
+      rObj.leftArm.rotation.z = 0.0;
+    }
+
+    if (!charCamActive && playerActiveOnSurface && pPos && pTan && (pDistRabbitTrack <= 20.0 || rabbitState.state === 'HOPPING_AND_WAVING')) {
       requestSlowdown = true;
       charCamPos = pPos.clone()
-        .sub(pTan.clone().multiplyScalar(18.5))
-        .add(rabbitState.perp.clone().multiplyScalar(13.5))
-        .add(new THREE.Vector3(0, 9.5, 0));
-      var rTarget = rabbitState.worldPos.clone().add(new THREE.Vector3(0, 2.4, 0));
-      var pTargetR = pPos.clone().add(pTan.clone().multiplyScalar(2.5)).add(new THREE.Vector3(0, 2.0, 0));
-      charCamLook = pTargetR.lerp(rTarget, 0.56);
+        .sub(pTan.clone().multiplyScalar(15.2))
+        .add(rabbitState.perp.clone().multiplyScalar(5.0))
+        .add(new THREE.Vector3(0, 7.8, 0));
+      var rTarget = rabbitState.worldPos.clone().add(new THREE.Vector3(0, 2.0, 0));
+      var pTargetR = pPos.clone().add(pTan.clone().multiplyScalar(4.5)).add(new THREE.Vector3(0, 2.0, 0));
+      charCamLook = pTargetR.lerp(rTarget, 0.52);
       charCamActive = true;
+      window._storybookCharId = 'rabbit';
     }
 
     // ========================================================================
     // 3. UPDATE ORANGE SQUIRREL BY THE TREE ("Veverka u stromu")
     //    - Smooth camera zoom framing both the train and the squirrel + tree
-    //    - Train slows to minimum speed & blows its horn
     //    - Automatically spins twice (`2x 360°`), leaps onto the branch, and plays sound when < 20m!
+    //    - Waves both front paws to the train continuously whenever in the camera view!
     // ========================================================================
     var sqObj = squirrelState.obj;
     var pDistSqTrack = (playerActiveOnSurface && pPos) ? pPos.distanceTo(squirrelState.trackAnchorPos) : 999999;
     var pDistSqWorld = (playerActiveOnSurface && pPos) ? pPos.distanceTo(squirrelState.worldPos) : 999999;
+    var isSquirrelInCameraView = (
+      pDistSqTrack <= 26.0 ||
+      pDistSqWorld <= 38.0 ||
+      squirrelState.state === 'SPIN_AND_LEAP' ||
+      squirrelState.state === 'PERCHED_ON_BRANCH'
+    );
 
     if (squirrelState.state === 'GROUND_IDLE') {
       squirrelState.timer += dt;
@@ -10608,10 +12796,10 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       sqObj.squirrelGroup.position.y += Math.sin(timeSec * 4.5) * 0.06;
       sqObj.sqBody.rotation.y = Math.sin(timeSec * 2.5) * 0.18;
       sqObj.tailGroup.rotation.x = Math.sin(timeSec * 5.0) * 0.22;
-      sqObj.bubble.sprite.visible = (squirrelState.timer < 2.6);
+      sqObj.bubble.sprite.visible = (squirrelState.timer < 2.2);
 
-      // Once the train has driven past (`pDistSqWorld > 28m`), hop cleanly back down to the ground log
-      if (pDistSqWorld > 28.0 && squirrelState.timer > 1.2) {
+      // Once the train has driven or reversed away (`pDistSqWorld > 23.0m`), hop cleanly back down to the ground log
+      if (pDistSqWorld > 23.0 && squirrelState.timer > 1.2) {
         squirrelState.state = 'HOPPING_DOWN';
         squirrelState.timer = 0.0;
         sqObj.bubble.sprite.visible = false;
@@ -10629,27 +12817,40 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       }
     }
 
-    if (!charCamActive && playerActiveOnSurface && pPos && pTan && (pDistSqTrack <= 22.0 || squirrelState.state === 'SPIN_AND_LEAP' || (squirrelState.state === 'PERCHED_ON_BRANCH' && squirrelState.timer < 1.6))) {
+    // Wave squirrel's front paws continuously whenever in the camera view!
+    if (isSquirrelInCameraView && sqObj.rightArm && sqObj.leftArm) {
+      sqObj.rightArm.rotation.x = -0.90;
+      sqObj.rightArm.rotation.z = -2.15 + Math.sin(timeSec * 18.0) * 0.50;
+      sqObj.leftArm.rotation.x = -0.75;
+      sqObj.leftArm.rotation.z = 1.85 + Math.cos(timeSec * 18.0) * 0.42;
+    } else if (sqObj.rightArm && sqObj.leftArm) {
+      sqObj.rightArm.rotation.x = 0.0;
+      sqObj.rightArm.rotation.z = 0.0;
+      sqObj.leftArm.rotation.x = 0.0;
+      sqObj.leftArm.rotation.z = 0.0;
+    }
+
+    if (!charCamActive && playerActiveOnSurface && pPos && pTan && (pDistSqTrack <= 20.0 || squirrelState.state === 'SPIN_AND_LEAP' || (squirrelState.state === 'PERCHED_ON_BRANCH' && squirrelState.timer < 1.4))) {
       requestSlowdown = true;
       charCamPos = pPos.clone()
-        .sub(pTan.clone().multiplyScalar(19.5))
-        .add(squirrelState.perp.clone().multiplyScalar(14.5))
-        .add(new THREE.Vector3(0, 10.5, 0));
-      var sqTarget = squirrelState.worldPos.clone().add(new THREE.Vector3(0, 3.6, 0));
-      var pTargetSq = pPos.clone().add(pTan.clone().multiplyScalar(2.5)).add(new THREE.Vector3(0, 2.2, 0));
-      charCamLook = pTargetSq.lerp(sqTarget, 0.56);
+        .sub(pTan.clone().multiplyScalar(15.6))
+        .add(squirrelState.perp.clone().multiplyScalar(5.0))
+        .add(new THREE.Vector3(0, 8.3, 0));
+      var sqTarget = squirrelState.worldPos.clone().add(new THREE.Vector3(0, 3.2, 0));
+      var pTargetSq = pPos.clone().add(pTan.clone().multiplyScalar(4.5)).add(new THREE.Vector3(0, 2.1, 0));
+      charCamLook = pTargetSq.lerp(sqTarget, 0.52);
       charCamActive = true;
+      window._storybookCharId = 'squirrel';
     }
 
     // ========================================================================
     // 4. UPDATE FRIENDLY OWL ON TREE BRANCH ("Sova u stromu")
-    //    - Smooth camera zoom framing both the train and the owl on its branch
-    //    - Train slows to minimum speed & blows its horn
-    //    - Automatically turns head toward train, flaps wings, and hoots when < 20m!
+    //    - Automatically turns head toward train, waves wings in greeting whenever in camera view, and hoots when < 20m!
     // ========================================================================
     var oObj = owlState.obj;
     var pDistOwlTrack = (playerActiveOnSurface && pPos) ? pPos.distanceTo(owlState.trackAnchorPos) : 999999;
     var pDistOwlWorld = (playerActiveOnSurface && pPos) ? pPos.distanceTo(owlState.worldPos) : 999999;
+    var isOwlInCameraView = (pDistOwlTrack <= 26.0 || pDistOwlWorld <= 38.0 || owlState.state === 'GREETING');
 
     var targetHeadYaw = Math.sin(timeSec * 1.2) * 0.15;
     var targetHeadPitch = 0.0;
@@ -10663,8 +12864,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
 
     if (owlState.state === 'PERCHED_IDLE') {
       owlState.timer += dt;
-      oObj.leftWing.rotation.z = 0.0;
-      oObj.rightWing.rotation.z = 0.0;
       oObj.owlGroup.position.y = 4.68 + Math.sin(timeSec * 2.0) * 0.03;
       oObj.bubble.sprite.visible = false;
 
@@ -10683,31 +12882,35 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       owlState.timer += dt;
       var ot = owlState.timer;
 
-      // Flap both wings 5 times energetically in greeting (`několikrát zamává křídly na pozdrav`)
-      if (ot < 3.20) {
-        var flapWave = Math.abs(Math.sin((ot / 3.20) * Math.PI * 5.0));
-        oObj.leftWing.rotation.z = flapWave * 1.38;
-        oObj.rightWing.rotation.z = -flapWave * 1.38;
+      // Flap & wave both wings energetically in greeting (`několikrát zamává křídly na pozdrav`)
+      if (ot < 3.00) {
+        var flapWave = Math.abs(Math.sin((ot / 3.00) * Math.PI * 5.0));
         oObj.owlGroup.position.y = 4.68 + flapWave * 0.26;
       } else {
-        oObj.leftWing.rotation.z = 0.0;
-        oObj.rightWing.rotation.z = 0.0;
         oObj.owlGroup.position.y = 4.68;
         oObj.bubble.sprite.visible = false;
         owlState.state = 'COOLDOWN';
         owlState.timer = 0.0;
       }
     } else if (owlState.state === 'COOLDOWN') {
-      oObj.leftWing.rotation.z = 0.0;
-      oObj.rightWing.rotation.z = 0.0;
-      if (pDistOwlWorld > 28.0) {
+      if (pDistOwlWorld > 23.0) {
         owlState.state = 'PERCHED_IDLE';
         owlState.timer = 0.0;
         owlState.honkedThisPass = false;
       }
     }
 
-    if (!charCamActive && playerActiveOnSurface && pPos && pTan && (pDistOwlTrack <= 22.0 || owlState.state === 'GREETING')) {
+    // Wave owl wings continuously whenever the owl is in the camera view!
+    if (isOwlInCameraView) {
+      var wingWave = 0.95 + Math.sin(timeSec * 14.0) * 0.45;
+      oObj.leftWing.rotation.z = wingWave;
+      oObj.rightWing.rotation.z = -wingWave;
+    } else {
+      oObj.leftWing.rotation.z = 0.0;
+      oObj.rightWing.rotation.z = 0.0;
+    }
+
+    if (!charCamActive && playerActiveOnSurface && pPos && pTan && (pDistOwlTrack <= 20.0 || owlState.state === 'GREETING')) {
       requestSlowdown = true;
       charCamPos = pPos.clone()
         .sub(pTan.clone().multiplyScalar(19.5))
@@ -10717,6 +12920,51 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       var pTargetOwl = pPos.clone().add(pTan.clone().multiplyScalar(2.5)).add(new THREE.Vector3(0, 2.5, 0));
       charCamLook = pTargetOwl.lerp(owlTarget, 0.58);
       charCamActive = true;
+      window._storybookCharId = 'owl';
+    }
+
+    // 5. DAISY THE COW & FLUFFY SHEEP FLOCK CAMERA TARGETS (for unified 3s camera showcase)
+    if (!charCamActive && playerActiveOnSurface && pPos && pTan) {
+      if (window.daisyTheCow && window.daisyTheCow.position) {
+        var distCowCam = pPos.distanceTo(window.daisyTheCow.position);
+        if (distCowCam <= 19.5) {
+          requestSlowdown = true;
+          var cowPos = window.daisyTheCow.position;
+          var toCowPerp = new THREE.Vector3(-pTan.z, 0, pTan.x).normalize();
+          charCamPos = pPos.clone()
+            .sub(pTan.clone().multiplyScalar(18.5))
+            .add(toCowPerp.clone().multiplyScalar(13.5))
+            .add(new THREE.Vector3(0, 10.5, 0));
+          var cowTarget = cowPos.clone().add(new THREE.Vector3(0, 2.2, 0));
+          var pTargetCow = pPos.clone().add(pTan.clone().multiplyScalar(2.5)).add(new THREE.Vector3(0, 2.0, 0));
+          charCamLook = pTargetCow.lerp(cowTarget, 0.56);
+          charCamActive = true;
+          window._storybookCharId = 'cow';
+        }
+      }
+      if (!charCamActive && window.trackSheepFlocks) {
+        for (var sfi2 = 0; sfi2 < window.trackSheepFlocks.length; sfi2++) {
+          var fl2 = window.trackSheepFlocks[sfi2];
+          if (fl2 && fl2.basePos && pPos.distanceTo(fl2.basePos) <= 22.0) {
+            requestSlowdown = true;
+            var shWorld = fl2.group ? fl2.group.position : fl2.basePos;
+            charCamPos = pPos.clone()
+              .sub(pTan.clone().multiplyScalar(18.5))
+              .sub(fl2.perp.clone().multiplyScalar(13.5))
+              .add(new THREE.Vector3(0, 10.5, 0));
+            var shTarget = shWorld.clone().add(new THREE.Vector3(0, 1.8, 0));
+            var pTargetSh = pPos.clone().add(pTan.clone().multiplyScalar(2.5)).add(new THREE.Vector3(0, 2.0, 0));
+            charCamLook = pTargetSh.lerp(shTarget, 0.56);
+            charCamActive = true;
+            window._storybookCharId = 'sheep_' + sfi2;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!charCamActive) {
+      window._storybookCharId = null;
     }
 
     // Export camera & slowdown state for `installModelsFrameEnhancer()`
@@ -10740,3 +12988,2010 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     };
   }
 })();
+
+// ============================================================================
+// BANGKOK CHAO PHRAYA RIVER ADVENTURE EXPANSION (SINGLE-FILE MODULE IN models.js)
+// - New Right-Hand Railway Branch from J_NW (between Eiffel Tower & Mom's House)
+//   passing behind Mom's House -> Anantara Riverside Hotel -> 1km River Track ->
+//   IconSiam Megacomplex -> Grand Tied-Arch Railway Bridge -> Opposite Bank ->
+//   Return Loop back to J_NW behind Mom's House
+// - Anantara Riverside Hotel (Riverfront Main Facade + Railway Garden Facade + Wooden Pier)
+// - Anantara Shuttle Boat (Animated pier-to-pier + synchronized bridge departure)
+// - IconSiam Shopping Complex, Ferris Wheel, Bangkok Skyline, Night Illumination &
+//   The ICONIC Multimedia Dancing Fountains with Web Audio Music
+// ============================================================================
+(function installBangkokChaoPhrayaExpansion() {
+  if (typeof THREE === 'undefined' || typeof scene === 'undefined' || !window.nodes || !window.edges) return;
+  if (window._bangkokChaoPhrayaInstalled) return;
+  window._bangkokChaoPhrayaInstalled = true;
+
+  var bkkRootGroup = new THREE.Group();
+  bkkRootGroup.name = 'BangkokChaoPhrayaExpansion';
+  scene.add(bkkRootGroup);
+
+  var bkkNightLights = []; // { mat, dayHex, nightHex } or { light, dayInt, nightInt }
+  var bkkWavingPeople = []; // { armPivot, phase, baseZ }
+  window.bangkokObstacles = [];
+
+  // --------------------------------------------------------------------------
+  // 1. CHAO PHRAYA RIVER VALLEY TERRAIN CARVING & WATERWAY (WEST OF MOM'S HOUSE)
+  // --------------------------------------------------------------------------
+  function getChaoPhrayaCenterX(z) {
+    return -472.0 + Math.sin(z * 0.0085) * 14.0;
+  }
+
+  var origGetTerrainHeight = window.getTerrainHeight;
+  window.getTerrainHeight = function(x, z) {
+    var baseH = origGetTerrainHeight ? origGetTerrainHeight(x, z) : 0.0;
+    // Keep everything east of x = -325 (including Mom's House at -238, -144) 100% untouched!
+    if (x > -318 || z < -280 || z > 375) return baseH;
+
+    var blendX = Math.min(1.0, Math.max(0.0, (-318.0 - x) / 34.0));
+    blendX = blendX * blendX * (3.0 - 2.0 * blendX);
+
+    var blendZ = 1.0;
+    if (z < -230) {
+      blendZ = Math.max(0.0, (z + 280.0) / 50.0);
+    } else if (z > 320) {
+      blendZ = Math.max(0.0, (375.0 - z) / 55.0);
+    }
+    var blend = blendX * blendZ;
+    if (blend <= 0.0001) return baseH;
+
+    var riverCenterX = getChaoPhrayaCenterX(z);
+    var distFromRiver = Math.abs(x - riverCenterX);
+    var riverHalfWidth = 57.0;
+
+    var targetBkkH = 2.2;
+    if (distFromRiver < riverHalfWidth - 5.0) {
+      targetBkkH = -4.2; // Deep riverbed under the Chao Phraya water surface (y = -1.35)
+    } else if (distFromRiver < riverHalfWidth + 6.0) {
+      var bankT = (distFromRiver - (riverHalfWidth - 5.0)) / 11.0;
+      bankT = bankT * bankT * (3.0 - 2.0 * bankT);
+      targetBkkH = -4.2 + bankT * 6.4; // Smooth embankment rise to y = +2.2m
+    } else {
+      // Gentle tropical coastal plain on both banks
+      targetBkkH = 2.2 + Math.sin(x * 0.02 + z * 0.015) * 0.35;
+    }
+
+    return baseH * (1.0 - blend) + targetBkkH * blend;
+  };
+
+  // Update the existing `grass` terrain mesh vertices in-place for the carved river valley
+  if (typeof grass !== 'undefined' && grass && grass.geometry && grass.geometry.attributes && grass.geometry.attributes.position) {
+    var gPos = grass.geometry.attributes.position;
+    for (var gi = 0; gi < gPos.count; gi++) {
+      var gx = gPos.getX(gi);
+      var gz = gPos.getZ(gi);
+      if (gx < -315 && gz >= -285 && gz <= 380) {
+        gPos.setY(gi, window.getTerrainHeight(gx, gz));
+      }
+    }
+    gPos.needsUpdate = true;
+    grass.geometry.computeVertexNormals();
+  }
+
+  // Build the wide tropical Chao Phraya River water surface & embankments
+  var riverWaterY = -1.35;
+  var riverWaveStrips = [];
+  (function buildChaoPhrayaRiverAndPromenades() {
+    var riverGroup = new THREE.Group();
+    bkkRootGroup.add(riverGroup);
+
+    var zStart = -255;
+    var zEnd = 345;
+    var zSteps = 60;
+    var dz = (zEnd - zStart) / zSteps;
+    var halfW = 57.5;
+
+    var waterMat = new THREE.MeshStandardMaterial({
+      color: 0x0e7490,
+      roughness: 0.16,
+      metalness: 0.28,
+      emissive: 0x083344,
+      emissiveIntensity: 0.22
+    });
+    var seawallMat = new THREE.MeshStandardMaterial({ color: 0xd6d3d1, roughness: 0.75 });
+    var promenadeMat = new THREE.MeshStandardMaterial({ color: 0xe7e5e4, roughness: 0.65 });
+    var goldBollardMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.35, metalness: 0.6 });
+
+    for (var s = 0; s < zSteps; s++) {
+      var z0 = zStart + s * dz;
+      var z1 = z0 + dz;
+      var zMid = 0.5 * (z0 + z1);
+      var cx = getChaoPhrayaCenterX(zMid);
+      var nextCx = getChaoPhrayaCenterX(z1);
+      var yaw = Math.atan2(nextCx - getChaoPhrayaCenterX(z0), dz);
+      var segLen = Math.hypot(nextCx - getChaoPhrayaCenterX(z0), dz) + 0.8;
+
+      var wSeg = new THREE.Mesh(new THREE.BoxGeometry(halfW * 2.0, 0.5, segLen), waterMat);
+      wSeg.position.set(cx, riverWaterY - 0.25, zMid);
+      wSeg.rotation.y = yaw;
+      wSeg.receiveShadow = true;
+      riverGroup.add(wSeg);
+
+      // East & West stone seawalls + waterfront promenades
+      var eastBankX = cx + halfW;
+      var westBankX = cx - halfW;
+
+      var eastWall = new THREE.Mesh(new THREE.BoxGeometry(2.6, 4.4, segLen), seawallMat);
+      eastWall.position.set(eastBankX + 1.0, 0.1, zMid);
+      eastWall.rotation.y = yaw;
+      riverGroup.add(eastWall);
+
+      var eastWalk = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.36, segLen), promenadeMat);
+      eastWalk.position.set(eastBankX + 5.2, 2.25, zMid);
+      eastWalk.rotation.y = yaw;
+      eastWalk.receiveShadow = true;
+      riverGroup.add(eastWalk);
+
+      var westWall = new THREE.Mesh(new THREE.BoxGeometry(2.6, 4.4, segLen), seawallMat);
+      westWall.position.set(westBankX - 1.0, 0.1, zMid);
+      westWall.rotation.y = yaw;
+      riverGroup.add(westWall);
+
+      var westWalk = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.36, segLen), promenadeMat);
+      westWalk.position.set(westBankX - 4.2, 2.25, zMid);
+      westWalk.rotation.y = yaw;
+      westWalk.receiveShadow = true;
+      riverGroup.add(westWalk);
+
+      // Animated shimmering water ripple strips
+      if (s % 2 === 0) {
+        var rippleMat = new THREE.MeshBasicMaterial({
+          color: 0x67e8f9,
+          transparent: true,
+          opacity: 0.35
+        });
+        var ripple = new THREE.Mesh(new THREE.PlaneGeometry(18 + (s % 3) * 8, 1.6), rippleMat);
+        ripple.rotation.x = -Math.PI / 2;
+        ripple.position.set(cx + ((s % 5) - 2) * 14, riverWaterY + 0.05, zMid);
+        riverGroup.add(ripple);
+        riverWaveStrips.push({ mesh: ripple, baseX: ripple.position.x, baseZ: zMid, phase: s * 0.7 });
+      }
+
+      // Golden Thai riverfront bollards & tropical palms along the promenade
+      if (s % 3 === 0 && zMid > -200 && zMid < 290) {
+        var bolE = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 1.1, 8), goldBollardMat);
+        bolE.position.set(eastBankX + 1.3, 2.8, zMid);
+        riverGroup.add(bolE);
+
+        var bolW = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 1.1, 8), goldBollardMat);
+        bolW.position.set(westBankX - 1.3, 2.8, zMid);
+        riverGroup.add(bolW);
+      }
+    }
+  })();
+
+  // Helper to build lush tropical coconut palms
+  function createBangkokPalmTree(x, y, z, scale) {
+    var s = scale || 1.0;
+    var pg = new THREE.Group();
+    pg.position.set(x, y, z);
+    var trunkMat = new THREE.MeshStandardMaterial({ color: 0x78553a, roughness: 0.85 });
+    var frondMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.55, side: THREE.DoubleSide });
+    var cocoMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.7 });
+
+    var segs = 6;
+    var curX = 0, curY = 0;
+    for (var i = 0; i < segs; i++) {
+      var h = 1.45 * s;
+      var rBot = (0.42 - i * 0.04) * s;
+      var rTop = (0.38 - i * 0.04) * s;
+      var tMesh = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, h, 8), trunkMat);
+      tMesh.position.set(curX, curY + h * 0.5, 0);
+      tMesh.rotation.z = -i * 0.035;
+      tMesh.castShadow = true;
+      pg.add(tMesh);
+      curY += h * 0.94;
+      curX += Math.sin(i * 0.035) * h * 0.45;
+    }
+
+    var crown = new THREE.Group();
+    crown.position.set(curX, curY, 0);
+    pg.add(crown);
+
+    for (var c = 0; c < 3; c++) {
+      var ca = (c / 3) * Math.PI * 2;
+      var coco = new THREE.Mesh(new THREE.SphereGeometry(0.26 * s, 8, 8), cocoMat);
+      coco.position.set(Math.cos(ca) * 0.32 * s, -0.2 * s, Math.sin(ca) * 0.32 * s);
+      crown.add(coco);
+    }
+
+    var frondCount = 8;
+    for (var f = 0; f < frondCount; f++) {
+      var ang = (f / frondCount) * Math.PI * 2;
+      var fHolder = new THREE.Group();
+      fHolder.rotation.y = ang;
+      var leaf = new THREE.Mesh(new THREE.BoxGeometry(0.75 * s, 0.08 * s, 3.6 * s), frondMat);
+      leaf.position.set(0, 0.15 * s, 1.75 * s);
+      leaf.rotation.x = 0.38;
+      leaf.castShadow = true;
+      fHolder.add(leaf);
+      crown.add(fHolder);
+    }
+    bkkRootGroup.add(pg);
+    return pg;
+  }
+
+  // Helper to create cheerful waving people for piers, promenade & boat
+  function createBangkokPerson(shirtHex, pantsHex, hatHex, scale) {
+    var s = scale || 1.0;
+    var p = new THREE.Group();
+    var skinMat = new THREE.MeshStandardMaterial({ color: 0xfde047, roughness: 0.5 });
+    var shirtMat = new THREE.MeshStandardMaterial({ color: shirtHex || 0x38bdf8, roughness: 0.5 });
+    var pantsMat = new THREE.MeshStandardMaterial({ color: pantsHex || 0x1e3a8a, roughness: 0.6 });
+
+    var legs = new THREE.Mesh(new THREE.BoxGeometry(0.46 * s, 0.65 * s, 0.28 * s), pantsMat);
+    legs.position.y = 0.32 * s;
+    p.add(legs);
+
+    var torso = new THREE.Mesh(new THREE.BoxGeometry(0.56 * s, 0.72 * s, 0.34 * s), shirtMat);
+    torso.position.y = 0.98 * s;
+    p.add(torso);
+
+    var head = new THREE.Mesh(new THREE.SphereGeometry(0.28 * s, 12, 12), skinMat);
+    head.position.y = 1.56 * s;
+    p.add(head);
+
+    if (hatHex) {
+      var hat = new THREE.Mesh(new THREE.CylinderGeometry(0.22 * s, 0.38 * s, 0.18 * s, 12), new THREE.MeshStandardMaterial({ color: hatHex, roughness: 0.5 }));
+      hat.position.y = 1.78 * s;
+      p.add(hat);
+    }
+
+    var leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.16 * s, 0.56 * s, 0.16 * s), shirtMat);
+    leftArm.position.set(-0.38 * s, 0.96 * s, 0);
+    p.add(leftArm);
+
+    var rightArmPivot = new THREE.Group();
+    rightArmPivot.position.set(0.36 * s, 1.24 * s, 0);
+    var rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.16 * s, 0.58 * s, 0.16 * s), shirtMat);
+    rightArm.position.set(0.06 * s, 0.26 * s, 0);
+    rightArmPivot.add(rightArm);
+    rightArmPivot.rotation.z = -0.45;
+    p.add(rightArmPivot);
+
+    bkkWavingPeople.push({
+      armPivot: rightArmPivot,
+      phase: Math.random() * Math.PI * 2,
+      baseZ: -0.45
+    });
+    return p;
+  }
+
+  // --------------------------------------------------------------------------
+  // 2. NEW RAILWAY BRANCH & LOOP (NODES, EDGES, TURNOUTS, SIGNPOSTS)
+  // --------------------------------------------------------------------------
+  (function buildBangkokRailwayLoopAndTurnouts() {
+    // 3 New Junction Nodes forming the Chao Phraya Riverside Loop (matching tracks.js `{ id, pos, name }` schema!)
+    window.nodes['J_BKK_ANANTARA'] = {
+      id: 'J_BKK_ANANTARA',
+      pos: new THREE.Vector3(-348.0, 2.8, -125.0),
+      name: "🏨 Anantara Riverside Hotel"
+    };
+    window.nodes['J_BKK_ICONSIAM'] = {
+      id: 'J_BKK_ICONSIAM',
+      pos: new THREE.Vector3(-368.0, 4.2, 215.0),
+      name: "🛍️ IconSiam & Dancing Fountains"
+    };
+    window.nodes['J_BKK_WESTBANK'] = {
+      id: 'J_BKK_WESTBANK',
+      pos: new THREE.Vector3(-562.0, 3.6, 20.0),
+      name: "🌉 Chao Phraya Railway Bridge"
+    };
+
+    var jNwPos = (window.nodes['J_NW'] && window.nodes['J_NW'].pos)
+      ? window.nodes['J_NW'].pos.clone()
+      : new THREE.Vector3(-125.0, 12.4, -185.0);
+    var jAnantaraPos = window.nodes['J_BKK_ANANTARA'].pos.clone();
+    var jIconsiamPos = window.nodes['J_BKK_ICONSIAM'].pos.clone();
+    var jWestbankPos = window.nodes['J_BKK_WESTBANK'].pos.clone();
+
+    var bkkBaseEdges = [
+      // 1) Branch off from J_NW (-125, 12.4, -185) behind Mom's House (-238, 0.85, -144) to Anantara (-348, 2.8, -125)
+      {
+        from: 'J_NW',
+        to: 'J_BKK_ANANTARA',
+        pts: [
+          jNwPos.clone(),
+          new THREE.Vector3(-186.0, 9.2, -214.0),
+          new THREE.Vector3(-258.0, 5.4, -212.0),
+          new THREE.Vector3(-318.0, 3.2, -176.0),
+          jAnantaraPos.clone()
+        ],
+        landmark: { type: 'anantara', name: '🏨 Anantara Riverside Hotel' },
+        station: {
+          type: 'landmark',
+          icon: 'anantara',
+          name: '🏨 Anantara Riverside Hotel',
+          emoji: '🏨',
+          voice: 'Welcome to the Chao Phraya River and the Anantara Riverside Hotel!'
+        }
+      },
+      // 2) Scenic ~1km Riverside Railway along the East Bank past Anantara Resort & IconSiam
+      {
+        from: 'J_BKK_ANANTARA',
+        to: 'J_BKK_ICONSIAM',
+        pts: [
+          jAnantaraPos.clone(),
+          new THREE.Vector3(-358.0, 2.8, -42.0),
+          new THREE.Vector3(-365.0, 2.8, 52.0),
+          new THREE.Vector3(-366.0, 3.0, 142.0),
+          jIconsiamPos.clone()
+        ],
+        landmark: { type: 'iconsiam', name: '🛍️ IconSiam & Dancing Fountains' },
+        station: {
+          type: 'landmark',
+          icon: 'iconsiam',
+          name: '🛍️ IconSiam & Dancing Fountains',
+          emoji: '🛍️',
+          voice: 'Look at the golden IconSiam mall, the Ferris wheel, and the dancing water fountains!'
+        }
+      },
+      // 3) Grand Chao Phraya Tied-Arch Railway Bridge crossing the wide river south of IconSiam
+      {
+        from: 'J_BKK_ICONSIAM',
+        to: 'J_BKK_WESTBANK',
+        pts: [
+          jIconsiamPos.clone(),
+          new THREE.Vector3(-396.0, 9.2, 252.0),
+          new THREE.Vector3(-474.0, 14.2, 260.0),
+          new THREE.Vector3(-548.0, 9.0, 232.0),
+          new THREE.Vector3(-568.0, 4.0, 130.0),
+          jWestbankPos.clone()
+        ],
+        landmark: { type: 'bkk_bridge', name: '🌉 Chao Phraya Railway Bridge' },
+        station: {
+          type: 'bridge_suspension',
+          icon: 'bkk_bridge',
+          name: '🌉 Chao Phraya Railway Bridge',
+          emoji: '🌉',
+          voice: 'Riding high across the grand Chao Phraya River railway bridge! Look at the Anantara boat below!'
+        }
+      },
+      // 4) Opposite Bank Northbound Return & Northern River Crossing back behind Mom's House
+      {
+        from: 'J_BKK_WESTBANK',
+        to: 'J_BKK_ANANTARA',
+        pts: [
+          jWestbankPos.clone(),
+          new THREE.Vector3(-564.0, 4.0, -95.0),
+          new THREE.Vector3(-540.0, 8.6, -182.0),
+          new THREE.Vector3(-472.0, 11.8, -198.0),
+          new THREE.Vector3(-395.0, 7.2, -172.0),
+          jAnantaraPos.clone()
+        ],
+        landmark: { type: 'anantara', name: '🏨 Anantara & Return to City' },
+        station: {
+          type: 'landmark',
+          icon: 'anantara',
+          name: '🏨 Anantara & Return to City',
+          emoji: '🏨',
+          voice: 'Crossing back to Anantara Riverside and heading toward Mommy and Daddy\'s house!'
+        }
+      }
+    ];
+
+    var trackOffset = 2.2;
+    var newDirectedEdges = [];
+
+    function createOffsetTrackCurve(pts, sideSign) {
+      var baseCurve = new THREE.CatmullRomCurve3(pts, false);
+      var samples = 28;
+      var offsetPts = [];
+      for (var i = 0; i <= samples; i++) {
+        var t = i / samples;
+        var p = baseCurve.getPointAt(t);
+        var tan = baseCurve.getTangentAt(t).normalize();
+        var right = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+        offsetPts.push(p.clone().addScaledVector(right, sideSign * trackOffset));
+      }
+      return new THREE.CatmullRomCurve3(offsetPts, false);
+    }
+
+    bkkBaseEdges.forEach(function(be) {
+      var fwdCurve = createOffsetTrackCurve(be.pts, -1);
+      var fwdParCurve = createOffsetTrackCurve(be.pts, 1);
+      var revPts = be.pts.slice().reverse();
+      var revCurve = createOffsetTrackCurve(revPts, -1);
+      var revParCurve = createOffsetTrackCurve(revPts, 1);
+
+      var fwdEdge = {
+        id: be.from + '->' + be.to,
+        from: be.from,
+        to: be.to,
+        curve: fwdCurve,
+        parallelCurve: fwdParCurve,
+        isSubway: false,
+        landmark: be.landmark,
+        station: be.station
+      };
+      var revEdge = {
+        id: be.to + '->' + be.from,
+        from: be.to,
+        to: be.from,
+        curve: revCurve,
+        parallelCurve: revParCurve,
+        isSubway: false,
+        landmark: be.landmark,
+        station: be.station
+      };
+
+      window.edges.push(fwdEdge, revEdge);
+      if (Array.isArray(window.physicalTracksToRender)) {
+        window.physicalTracksToRender.push(fwdEdge);
+      }
+      newDirectedEdges.push(fwdEdge, revEdge);
+    });
+
+    // Render physical ballast, wooden sleepers, and steel rails for all new Bangkok tracks
+    var sleeperMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.75 });
+    var railMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.3, metalness: 0.65 });
+    var ballastMat = new THREE.MeshStandardMaterial({ color: 0xe7e5e4, roughness: 0.9 });
+    var deckConcreteMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.6 });
+
+    function renderTrackGeometryForCurve(curve, startT, endT, includeEmbankment) {
+      var len = curve.getLength() * (endT - startT);
+      var steps = Math.max(8, Math.floor(len / 2.2));
+      for (var i = 0; i <= steps; i++) {
+        var t = startT + (i / steps) * (endT - startT);
+        var p = curve.getPointAt(t);
+        var tan = curve.getTangentAt(t).normalize();
+        var yaw = Math.atan2(tan.x, tan.z);
+
+        // Wooden sleeper
+        var slp = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.22, 0.62), sleeperMat);
+        slp.position.set(p.x, p.y + 0.10, p.z);
+        slp.rotation.y = yaw;
+        bkkRootGroup.add(slp);
+
+        // Left & right steel rails
+        var rightVec = new THREE.Vector3(tan.z, 0, -tan.x).normalize();
+        var segLen = (len / steps) * 1.08;
+        [-0.88, 0.88].forEach(function(rOff) {
+          var rl = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.26, segLen), railMat);
+          rl.position.set(p.x + rightVec.x * rOff, p.y + 0.26, p.z + rightVec.z * rOff);
+          rl.rotation.y = yaw;
+          bkkRootGroup.add(rl);
+        });
+
+        // Ballast bed or bridge concrete deck
+        if (includeEmbankment && i % 2 === 0) {
+          var terrH = window.getTerrainHeight(p.x, p.z);
+          var clearH = p.y - terrH;
+          if (clearH > 2.2) {
+            var deck = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.65, segLen * 2.05), deckConcreteMat);
+            deck.position.set(p.x, p.y - 0.32, p.z);
+            deck.rotation.y = yaw;
+            bkkRootGroup.add(deck);
+          } else {
+            var balH = Math.max(0.5, clearH + 0.35);
+            var bal = new THREE.Mesh(new THREE.BoxGeometry(4.6, balH, segLen * 2.05), ballastMat);
+            bal.position.set(p.x, p.y - balH * 0.5 + 0.04, p.z);
+            bal.rotation.y = yaw;
+            bkkRootGroup.add(bal);
+          }
+        }
+      }
+    }
+
+    newDirectedEdges.forEach(function(e) {
+      renderTrackGeometryForCurve(e.curve, 0.16, 0.84, true);
+    });
+
+    // Build smooth Hermite turnout curves (`window.turnoutCurves`) matching tracks.js schema
+    // (`isTurnout: true`, `sourceEdge`, `targetEdge`, `curve`, `parallelCurve`) for J_NW and Bangkok nodes!
+    var bkkNodesToConnect = ['J_NW', 'J_BKK_ANANTARA', 'J_BKK_ICONSIAM', 'J_BKK_WESTBANK'];
+    bkkNodesToConnect.forEach(function(jId) {
+      var incomingList = window.edges.filter(function(e) { return e.to === jId && !e.isTurnout; });
+      var outgoingList = window.edges.filter(function(e) { return e.from === jId && !e.isTurnout; });
+      var nodeObj = window.nodes[jId];
+      var nodePos = (nodeObj && nodeObj.pos) ? nodeObj.pos : new THREE.Vector3();
+
+      function buildFillet(cIn, cOut) {
+        var p0 = cIn.getPointAt(0.84);
+        var t0 = cIn.getTangentAt(0.84).normalize();
+        var p4 = cOut.getPointAt(0.16);
+        var t4 = cOut.getTangentAt(0.16).normalize();
+        var dist = p0.distanceTo(p4);
+        var handleLen = Math.max(4.0, dist * 0.35);
+
+        var c1 = p0.clone().addScaledVector(t0, handleLen);
+        var c3 = p4.clone().addScaledVector(t4, -handleLen);
+        var mid = c1.clone().lerp(c3, 0.5).lerp(nodePos, 0.20);
+        mid.y = 0.5 * (p0.y + p4.y);
+        return new THREE.CatmullRomCurve3([p0, c1, mid, c3, p4], false);
+      }
+
+      incomingList.forEach(function(inEdge) {
+        outgoingList.forEach(function(outEdge) {
+          if (inEdge.from === outEdge.to) return; // No U-turns
+          if (inEdge.isSubway && outEdge.isSubway) return;
+          var key = inEdge.id + '=>' + outEdge.id;
+          if (window.turnoutCurves[key]) return;
+
+          var tCurve = buildFillet(inEdge.curve, outEdge.curve);
+          var parCurve = buildFillet(inEdge.parallelCurve || inEdge.curve, outEdge.parallelCurve || outEdge.curve);
+          var isSubTurn = Boolean(inEdge.isSubway || outEdge.isSubway);
+
+          window.turnoutCurves[key] = {
+            id: 'TURNOUT_' + key,
+            from: inEdge.to,
+            to: outEdge.to,
+            isTurnout: true,
+            isSubway: false,
+            sourceEdge: inEdge,
+            targetEdge: outEdge,
+            curve: tCurve,
+            parallelCurve: parCurve,
+            station: isSubTurn ? (outEdge.isSubway ? outEdge.station : inEdge.station) : null
+          };
+
+          // Render physical turnout rails & sleepers
+          renderTrackGeometryForCurve(tCurve, 0.0, 1.0, false);
+        });
+      });
+    });
+
+    // Enhance `window.getBranches` so:
+    // - At J_NW coming from Eiffel Tower (`J_NORTH->J_NW`):
+    //     Left = Metro 1, Straight = Mom's House (`J_NW->J_WEST`), Right = Bangkok Chao Phraya (`J_NW->J_BKK_ANANTARA`)
+    // - Once on the Bangkok loop, leaving the switch on `straight` naturally guides the train
+    //   all the way around Anantara -> IconSiam -> Bridge -> Westbank -> Anantara -> back to Mom's House track (`J_NW->J_WEST`)!
+    var origGetBranches = window.getBranches;
+    window.getBranches = function(currentEdge) {
+      var res = origGetBranches ? origGetBranches(currentEdge) : { left: null, straight: null, right: null };
+      if (!currentEdge) return res;
+      var baseEdge = currentEdge.isTurnout ? currentEdge.targetEdge : currentEdge;
+      if (!baseEdge) return res;
+
+      function findEdge(id) {
+        for (var i = 0; i < window.edges.length; i++) {
+          if (window.edges[i].id === id) return window.edges[i];
+        }
+        return null;
+      }
+
+      // 1) Coming from Eiffel Tower (`J_NORTH->J_NW`) -> Right branch goes to Anantara & Chao Phraya River!
+      if (baseEdge.id === 'J_NORTH->J_NW') {
+        var eMetro = findEdge('METRO_J_NW->J_SE') || res.left;
+        var eMom = findEdge('J_NW->J_WEST') || res.straight;
+        var eBkk = findEdge('J_NW->J_BKK_ANANTARA') || res.right;
+        return { left: eMetro, straight: eMom, right: eBkk };
+      }
+      // 2) Coming from Mom's House (`J_WEST->J_NW`) -> Left branch goes to Anantara & Chao Phraya River!
+      if (baseEdge.id === 'J_WEST->J_NW') {
+        var eBkk2 = findEdge('J_NW->J_BKK_ANANTARA');
+        var eEiffel = findEdge('J_NW->J_NORTH') || res.straight;
+        var eMetro2 = findEdge('METRO_J_NW->J_SE') || res.right;
+        return { left: eBkk2 || eEiffel, straight: eEiffel, right: eMetro2 };
+      }
+      // 3) Returning from Anantara back to J_NW (`J_BKK_ANANTARA->J_NW`) -> Straight continues past Mom's House!
+      if (baseEdge.id === 'J_BKK_ANANTARA->J_NW') {
+        var eEif3 = findEdge('J_NW->J_NORTH');
+        var eMom3 = findEdge('J_NW->J_WEST');
+        var eMet3 = findEdge('METRO_J_NW->J_SE');
+        return { left: eEif3 || eMom3, straight: eMom3, right: eMet3 || eMom3 };
+      }
+      // 4) Arriving at Anantara Junction from J_NW (`J_NW->J_BKK_ANANTARA`):
+      //    Straight = 1km Riverside Track to IconSiam (`J_BKK_ANANTARA->J_BKK_ICONSIAM`)
+      //    Right = Northern River Bridge (`J_BKK_ANANTARA->J_BKK_WESTBANK`)
+      if (baseEdge.id === 'J_NW->J_BKK_ANANTARA') {
+        var eIcon = findEdge('J_BKK_ANANTARA->J_BKK_ICONSIAM');
+        var eWest = findEdge('J_BKK_ANANTARA->J_BKK_WESTBANK');
+        return { left: eIcon, straight: eIcon, right: eWest || eIcon };
+      }
+      // 5) Completing the loop from Opposite Bank (`J_BKK_WESTBANK->J_BKK_ANANTARA`):
+      //    Straight = Return behind Mom's House to main track (`J_BKK_ANANTARA->J_NW`)
+      //    Right = Repeat the riverside loop to IconSiam (`J_BKK_ANANTARA->J_BKK_ICONSIAM`)
+      if (baseEdge.id === 'J_BKK_WESTBANK->J_BKK_ANANTARA') {
+        var eRetNw = findEdge('J_BKK_ANANTARA->J_NW');
+        var eIcon2 = findEdge('J_BKK_ANANTARA->J_BKK_ICONSIAM');
+        return { left: eRetNw, straight: eRetNw, right: eIcon2 || eRetNw };
+      }
+      // 6) Reverse along East Bank (`J_BKK_ICONSIAM->J_BKK_ANANTARA`):
+      if (baseEdge.id === 'J_BKK_ICONSIAM->J_BKK_ANANTARA') {
+        var eWest2 = findEdge('J_BKK_ANANTARA->J_BKK_WESTBANK');
+        var eRetNw2 = findEdge('J_BKK_ANANTARA->J_NW');
+        return { left: eWest2 || eRetNw2, straight: eRetNw2, right: eRetNw2 };
+      }
+      return res;
+    };
+
+    // Extend `window.drawLandmarkPictogram` with custom child-friendly icons for Anantara, IconSiam & Bridge
+    var origDrawPictogram = window.drawLandmarkPictogram;
+    window.drawLandmarkPictogram = function(ctx, type, cx, cy, r) {
+      if (type === 'anantara') {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#0f172a';
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#fbbf24';
+        ctx.stroke();
+        // Golden Thai multi-tiered roof + 3-pyramid Anantara emblem
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - r * 0.65);
+        ctx.lineTo(cx - r * 0.62, cy + r * 0.05);
+        ctx.lineTo(cx + r * 0.62, cy + r * 0.05);
+        ctx.closePath();
+        ctx.fill();
+        // River waves below
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(cx - r * 0.55, cy + r * 0.42);
+        ctx.quadraticCurveTo(cx, cy + r * 0.22, cx + r * 0.55, cy + r * 0.42);
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
+      if (type === 'iconsiam') {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#1e1b4b';
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#f59e0b';
+        ctx.stroke();
+        // Golden pleated crown + cyan fountain jets
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.moveTo(cx - r * 0.55, cy + r * 0.15);
+        ctx.lineTo(cx - r * 0.25, cy - r * 0.55);
+        ctx.lineTo(cx, cy - r * 0.25);
+        ctx.lineTo(cx + r * 0.25, cy - r * 0.55);
+        ctx.lineTo(cx + r * 0.55, cy + r * 0.15);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#67e8f9';
+        ctx.lineWidth = 3.5;
+        for (var fj = -1; fj <= 1; fj++) {
+          ctx.beginPath();
+          ctx.moveTo(cx + fj * r * 0.28, cy + r * 0.58);
+          ctx.lineTo(cx + fj * r * 0.28, cy + r * 0.22);
+          ctx.stroke();
+        }
+        ctx.restore();
+        return;
+      }
+      if (type === 'bkk_bridge') {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#0284c7';
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+        // Tied-arch railway bridge silhouette
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(cx, cy + r * 0.18, r * 0.58, Math.PI, 0, false);
+        ctx.moveTo(cx - r * 0.68, cy + r * 0.18);
+        ctx.lineTo(cx + r * 0.68, cy + r * 0.18);
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
+      if (origDrawPictogram) {
+        return origDrawPictogram(ctx, type, cx, cy, r);
+      }
+    };
+
+    // Rebuild `window.junctionSignsGroup` so all 3D junction signposts (including J_NW -> Anantara!)
+    // use the unified pictorial arrow+badge sprites
+    if (window.junctionSignsGroup) {
+      while (window.junctionSignsGroup.children.length > 0) {
+        window.junctionSignsGroup.remove(window.junctionSignsGroup.children[0]);
+      }
+
+      function getBkkBranchInfo(bEdge) {
+        if (!bEdge) return { icon: 'fountain', badgeCol: '#0284c7' };
+        if (bEdge.isSubway) return { icon: 'metro', badgeCol: '#2563eb' };
+        if (bEdge.to === 'EXIT_ALPS') return { icon: 'alps', badgeCol: '#0284c7' };
+        if (bEdge.to === 'EXIT_EGYPT') return { icon: 'egypt', badgeCol: '#ca8a04' };
+        var stIcon = (bEdge.station && bEdge.station.icon)
+          ? bEdge.station.icon
+          : ((bEdge.landmark && bEdge.landmark.type) ? bEdge.landmark.type : '');
+        var badgeColors = {
+          eiffel: '#b45309',
+          grandma_house: '#be185d',
+          airport: '#0284c7',
+          jewel: '#0d9488',
+          colosseum: '#c2410c',
+          stadium: '#15803d',
+          bigben: '#a16207',
+          mom_house: '#e11d48',
+          skyscraper: '#1d4ed8',
+          fountain: '#0369a1',
+          anantara: '#0f766e',
+          iconsiam: '#b45309',
+          bkk_bridge: '#0369a1'
+        };
+        if (stIcon && badgeColors[stIcon]) {
+          return { icon: stIcon, badgeCol: badgeColors[stIcon] };
+        }
+        return { icon: 'fountain', badgeCol: '#0284c7' };
+      }
+
+      function drawBkkArrow(ctx, dirType, cx, cy, size) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        if (dirType === 'left') ctx.rotate(-Math.PI * 0.5);
+        else if (dirType === 'right') ctx.rotate(Math.PI * 0.5);
+        var s = size * 0.52;
+        ctx.fillStyle = '#fde047';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 10;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, -s);
+        ctx.lineTo(s * 0.92, -s * 0.05);
+        ctx.lineTo(s * 0.42, -s * 0.05);
+        ctx.lineTo(s * 0.42, s * 0.92);
+        ctx.lineTo(-s * 0.42, s * 0.92);
+        ctx.lineTo(-s * 0.42, -s * 0.05);
+        ctx.lineTo(-s * 0.92, -s * 0.05);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      var postMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.5, roughness: 0.4 });
+      var trimMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
+
+      window.edges.forEach(function(e) {
+        if (e.isSubway || e.isTurnout) return;
+        if (e.to.indexOf('EXIT_') === 0) return;
+
+        var br = window.getBranches(e);
+        if (!br) return;
+
+        var rows = [];
+        var usedIds = {};
+        if (br.left && (!br.straight || br.left.id !== br.straight.id)) {
+          usedIds[br.left.id] = true;
+          rows.push({ dirType: 'left', info: getBkkBranchInfo(br.left) });
+        }
+        if (br.straight && !usedIds[br.straight.id]) {
+          usedIds[br.straight.id] = true;
+          rows.push({ dirType: 'straight', info: getBkkBranchInfo(br.straight) });
+        }
+        if (br.right && !usedIds[br.right.id]) {
+          usedIds[br.right.id] = true;
+          rows.push({ dirType: 'right', info: getBkkBranchInfo(br.right) });
+        }
+        if (rows.length < 2) return;
+
+        var rowH = 168;
+        var padY = 20;
+        var c = document.createElement('canvas');
+        c.width = 520;
+        c.height = padY * 2 + rows.length * rowH;
+        var ctx = c.getContext('2d');
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 12;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(8, 8, c.width - 16, c.height - 16, 34);
+        else ctx.rect(8, 8, c.width - 16, c.height - 16);
+        ctx.fill();
+        ctx.stroke();
+
+        for (var rIdx = 0; rIdx < rows.length; rIdx++) {
+          var r = rows[rIdx];
+          var ry = padY + rIdx * rowH;
+          var cardH = rowH - 12;
+          var cy = ry + cardH * 0.5;
+          ctx.fillStyle = r.info.badgeCol;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(24, ry + 6, c.width - 48, cardH, 26);
+          else ctx.rect(24, ry + 6, c.width - 48, cardH);
+          ctx.fill();
+          ctx.stroke();
+          drawBkkArrow(ctx, r.dirType, 130, cy + 6, 98);
+          if (window.drawLandmarkPictogram) {
+            window.drawLandmarkPictogram(ctx, r.info.icon, 355, cy + 6, 68);
+          }
+        }
+
+        var uSign = 0.81;
+        var pt = e.curve.getPointAt(uSign);
+        var tan = e.curve.getTangentAt(uSign).normalize();
+        var rightVec = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+        var signPos = pt.clone().add(rightVec.clone().multiplyScalar(7.8));
+
+        var signG = new THREE.Group();
+        signG.position.copy(signPos);
+        var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.32, 9.6, 10), postMat);
+        pole.position.y = 1.4;
+        var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.35, 10), trimMat);
+        cap.position.y = 6.2;
+        signG.add(pole, cap);
+
+        var signTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new THREE.CanvasTexture(c);
+        var signSprite = new THREE.Sprite(
+          new THREE.SpriteMaterial({ map: signTex, transparent: true, depthTest: true })
+        );
+        var signH = 2.4 * rows.length;
+        signSprite.scale.set(7.4, signH, 1);
+        signSprite.position.set(0, 6.4 + signH * 0.45, 0);
+        signG.add(signSprite);
+
+        window.junctionSignsGroup.add(signG);
+      });
+    }
+  })();
+
+  // Helper to create crisp canvas signage textures (ANANTARA / ICONSIAM)
+  function createSignageTexture(titleText, subtitleText, drawAnantaraLogo, bgHex, borderHex, textHex) {
+    var c = document.createElement('canvas');
+    c.width = 512;
+    c.height = 192;
+    var ctx = c.getContext('2d');
+
+    ctx.fillStyle = bgHex || '#1c1917';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.strokeStyle = borderHex || '#fbbf24';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(6, 6, c.width - 12, c.height - 12);
+
+    ctx.fillStyle = textHex || '#fde68a';
+    if (drawAnantaraLogo) {
+      // Iconic Anantara triangle pyramid above 2 smaller triangles + horizontal bar
+      var cx = c.width * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, 22);
+      ctx.lineTo(cx - 22, 54);
+      ctx.lineTo(cx + 22, 54);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(cx - 24, 58);
+      ctx.lineTo(cx - 42, 82);
+      ctx.lineTo(cx - 6, 82);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(cx + 24, 58);
+      ctx.lineTo(cx + 6, 82);
+      ctx.lineTo(cx + 42, 82);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillRect(cx - 48, 86, 96, 4);
+
+      ctx.font = 'bold 44px Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(titleText, cx, 134);
+      if (subtitleText) {
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillText(subtitleText, cx, 164);
+      }
+    } else {
+      ctx.font = 'bold 64px Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(titleText, c.width * 0.5, subtitleText ? 84 : 96);
+      if (subtitleText) {
+        ctx.font = 'bold 22px sans-serif';
+        ctx.fillStyle = '#fef08a';
+        ctx.fillText(subtitleText, c.width * 0.5, 146);
+      }
+    }
+    var tex = new THREE.CanvasTexture(c);
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  // --------------------------------------------------------------------------
+  // 3. ANANTARA RIVERSIDE BANGKOK RESORT & BOAT PIER
+  //    - West Side (Riverfront): Main grand entrance portico with ANANTARA sign,
+  //      outdoor dining terraces with umbrellas, and wooden Thai boat pier.
+  //    - East Side (Railway view): Multi-story Thai resort wings with tiered
+  //      dark roofs & golden chofah finials, balconies, tropical garden & pool.
+  // --------------------------------------------------------------------------
+  window.anantaraWorldCenter = new THREE.Vector3(-396.0, 2.2, -42.0);
+  window.anantaraPierDockPos = new THREE.Vector3(-429.5, riverWaterY + 0.2, -42.0);
+  window.bangkokObstacles.push({ pos: window.anantaraWorldCenter, rad: 28.0, maxH: 26.0 });
+
+  (function buildAnantaraRiversideHotel() {
+    var hotelG = new THREE.Group();
+    hotelG.position.copy(window.anantaraWorldCenter);
+    bkkRootGroup.add(hotelG);
+
+    var creamWallMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.65 });
+    var teakWoodMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.7 });
+    var thaiRoofMat = new THREE.MeshStandardMaterial({ color: 0x292524, roughness: 0.5, metalness: 0.15 });
+    var goldTrimMat = new THREE.MeshStandardMaterial({
+      color: 0xfbbf24,
+      roughness: 0.3,
+      metalness: 0.7,
+      emissive: 0x78350f,
+      emissiveIntensity: 0.25
+    });
+    var winGlassMat = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      roughness: 0.2,
+      metalness: 0.3,
+      emissive: 0xfde68a,
+      emissiveIntensity: 0.22
+    });
+    bkkNightLights.push({ mat: winGlassMat, dayHex: 0x22d3ee, nightHex: 0xfef08a, dayInt: 0.18, nightInt: 1.15 });
+    bkkNightLights.push({ mat: goldTrimMat, dayHex: 0x78350f, nightHex: 0xf59e0b, dayInt: 0.2, nightInt: 0.85 });
+
+    // Helper to build a multi-story Thai resort wing with balconies & tiered Thai gable roof
+    function buildThaiResortWing(wx, wz, widthX, lengthZ, floors, rotY) {
+      var wg = new THREE.Group();
+      wg.position.set(wx, 0, wz);
+      wg.rotation.y = rotY || 0;
+
+      var floorH = 2.85;
+      var totalH = floors * floorH;
+
+      var core = new THREE.Mesh(new THREE.BoxGeometry(widthX, totalH, lengthZ), creamWallMat);
+      core.position.y = totalH * 0.5;
+      core.castShadow = true;
+      core.receiveShadow = true;
+      wg.add(core);
+
+      // Balconies & illuminated windows on every floor (both East railway side & West river side)
+      for (var f = 0; f < floors; f++) {
+        var fy = f * floorH + 0.2;
+        var slab = new THREE.Mesh(new THREE.BoxGeometry(widthX + 1.4, 0.28, lengthZ + 1.4), teakWoodMat);
+        slab.position.y = fy;
+        wg.add(slab);
+
+        var rail = new THREE.Mesh(new THREE.BoxGeometry(widthX + 1.5, 0.42, lengthZ + 1.5), goldTrimMat);
+        rail.position.y = fy + 0.55;
+        wg.add(rail);
+
+        var winBand = new THREE.Mesh(new THREE.BoxGeometry(widthX + 0.15, floorH * 0.58, lengthZ * 0.88), winGlassMat);
+        winBand.position.y = fy + floorH * 0.52;
+        wg.add(winBand);
+      }
+
+      // Two-tiered Thai pitched roof with golden ridge & chofah finials
+      for (var tier = 0; tier < 2; tier++) {
+        var tw = (widthX + 2.6) * (1.0 - tier * 0.24);
+        var tl = (lengthZ + 2.6) * (1.0 - tier * 0.18);
+        var th = 2.6 - tier * 0.45;
+        var ty = totalH + tier * 1.9 + th * 0.5;
+
+        var roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.hypot(tw, tl) * 0.54, th, 4), thaiRoofMat);
+        roofMesh.rotation.y = Math.PI / 4;
+        roofMesh.scale.set(tw / Math.hypot(tw, tl), 1.0, tl / Math.hypot(tw, tl));
+        roofMesh.position.y = ty;
+        roofMesh.castShadow = true;
+        wg.add(roofMesh);
+
+        // Golden roof trim & upward chofah spires at the corners
+        var trim = new THREE.Mesh(new THREE.BoxGeometry(tw * 0.72, 0.22, tl * 0.72), goldTrimMat);
+        trim.position.y = ty - th * 0.44;
+        wg.add(trim);
+
+        [-1, 1].forEach(function(sz) {
+          var spire = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.6, 6), goldTrimMat);
+          spire.position.set(0, ty + th * 0.45, sz * (tl * 0.34));
+          spire.rotation.x = sz * 0.25;
+          wg.add(spire);
+        });
+      }
+
+      hotelG.add(wg);
+    }
+
+    // Main Central Grand Pavilion + North & South Courtyards (visible from both river and railway!)
+    buildThaiResortWing(0, 0, 14.0, 28.0, 5, 0);
+    buildThaiResortWing(4.0, -22.0, 12.0, 20.0, 4, 0.18);
+    buildThaiResortWing(4.0, 22.0, 12.0, 20.0, 4, -0.18);
+    buildThaiResortWing(12.0, -11.0, 10.0, 16.0, 3, 0);
+    buildThaiResortWing(12.0, 11.0, 10.0, 16.0, 3, 0);
+
+    // Signboard texture with Anantara logo
+    var anantaraSignTex = createSignageTexture('ANANTARA', 'RIVERSIDE BANGKOK RESORT', true, '#1c1917', '#fbbf24', '#fde68a');
+    var signMat = new THREE.MeshBasicMaterial({ map: anantaraSignTex });
+
+    // 1) West Side (Riverfront Main Portico facing the Chao Phraya River)
+    var westPortico = new THREE.Mesh(new THREE.BoxGeometry(5.5, 7.2, 16.0), teakWoodMat);
+    westPortico.position.set(-8.5, 3.6, 0);
+    hotelG.add(westPortico);
+
+    var westSign = new THREE.Mesh(new THREE.PlaneGeometry(12.5, 4.6), signMat);
+    westSign.position.set(-11.35, 4.6, 0);
+    westSign.rotation.y = -Math.PI / 2;
+    hotelG.add(westSign);
+
+    // 2) East Side (Railway-facing Portico & Lagoon Pool so the train sees ANANTARA clearly too!)
+    var eastPortico = new THREE.Mesh(new THREE.BoxGeometry(5.2, 6.8, 15.0), teakWoodMat);
+    eastPortico.position.set(16.5, 3.4, 0);
+    hotelG.add(eastPortico);
+
+    var eastSign = new THREE.Mesh(new THREE.PlaneGeometry(11.8, 4.4), signMat);
+    eastSign.position.set(19.18, 4.5, 0);
+    eastSign.rotation.y = Math.PI / 2;
+    hotelG.add(eastSign);
+
+    // Turquoise Resort Lagoon Pool & Sun Umbrellas on the Railway Garden Side (East)
+    var poolWater = new THREE.Mesh(
+      new THREE.CylinderGeometry(8.5, 8.5, 0.25, 24),
+      new THREE.MeshStandardMaterial({ color: 0x06b6d4, roughness: 0.15, emissive: 0x0891b2, emissiveIntensity: 0.35 })
+    );
+    poolWater.position.set(24.0, 0.15, 0);
+    hotelG.add(poolWater);
+
+    // Riverfront Outdoor Dining Terrace with Cream Parasol Umbrellas (West side by the river)
+    var umbrellaMat = new THREE.MeshStandardMaterial({ color: 0xfef9c3, roughness: 0.5 });
+    for (var ui = -2; ui <= 2; ui++) {
+      var uz = ui * 7.5;
+      var uPole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.6, 8), teakWoodMat);
+      uPole.position.set(-15.5, 1.3, uz);
+      hotelG.add(uPole);
+      var uTop = new THREE.Mesh(new THREE.ConeGeometry(2.2, 0.85, 12), umbrellaMat);
+      uTop.position.set(-15.5, 2.65, uz);
+      hotelG.add(uTop);
+    }
+
+    // Wooden Anantara Boat Pier extending out into the Chao Phraya River (West side)
+    var pierG = new THREE.Group();
+    pierG.position.set(-20.0, 0, 0);
+    hotelG.add(pierG);
+
+    var deckPlankMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
+    var pierDeck = new THREE.Mesh(new THREE.BoxGeometry(16.0, 0.45, 7.2), deckPlankMat);
+    pierDeck.position.set(-6.0, -0.4, 0);
+    pierG.add(pierDeck);
+
+    // Wooden pilings in the water + dual Thai pavilion roofs over the pier
+    [-12.5, -7.5, -2.5].forEach(function(px) {
+      [-3.0, 3.0].forEach(function(pz) {
+        var piling = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 5.2, 8), teakWoodMat);
+        piling.position.set(px, -2.0, pz);
+        pierG.add(piling);
+      });
+    });
+
+    [-4.5, -10.5].forEach(function(px) {
+      var pavRoof = new THREE.Mesh(new THREE.ConeGeometry(3.8, 2.1, 4), thaiRoofMat);
+      pavRoof.rotation.y = Math.PI / 4;
+      pavRoof.position.set(px, 3.3, 0);
+      pierG.add(pavRoof);
+      var pavSpire = new THREE.Mesh(new THREE.ConeGeometry(0.2, 1.1, 6), goldTrimMat);
+      pavSpire.position.set(px, 4.6, 0);
+      pierG.add(pavSpire);
+    });
+
+    // Waving hotel guests & staff on the Anantara Pier and Railway Garden
+    var pierGuest1 = createBangkokPerson(0xf43f5e, 0xffffff, 0xfde047, 1.15);
+    pierGuest1.position.set(-11.5, -0.15, -1.8);
+    pierGuest1.rotation.y = -Math.PI / 2;
+    pierG.add(pierGuest1);
+
+    var pierGuest2 = createBangkokPerson(0x22c55e, 0x1e293b, null, 1.1);
+    pierGuest2.position.set(-11.5, -0.15, 1.8);
+    pierGuest2.rotation.y = -Math.PI / 2;
+    pierG.add(pierGuest2);
+
+    var gardenGreeter = createBangkokPerson(0xf59e0b, 0x451a03, 0xfbbf24, 1.2);
+    gardenGreeter.position.set(29.0, 0.1, -6.5);
+    gardenGreeter.rotation.y = Math.PI / 2;
+    hotelG.add(gardenGreeter);
+
+    // Surround Anantara with lush tropical coconut palms
+    var palmOffsets = [
+      [-14, -18], [-14, 18], [18, -28], [18, 28], [26, -14], [26, 14], [30, 0], [-16, -9], [-16, 9]
+    ];
+    palmOffsets.forEach(function(po, idx) {
+      createBangkokPalmTree(
+        window.anantaraWorldCenter.x + po[0],
+        window.anantaraWorldCenter.y,
+        window.anantaraWorldCenter.z + po[1],
+        0.95 + (idx % 3) * 0.15
+      );
+    });
+  })();
+
+  // --------------------------------------------------------------------------
+  // 4. ICONSIAM SHOPPING MEGACOMPLEX, RIVERFRONT FERRIS WHEEL, BANGKOK SKYLINE,
+  //    NIGHT ILLUMINATION & THE ICONIC MULTIMEDIA DANCING FOUNTAINS + MUSIC
+  // --------------------------------------------------------------------------
+  window.iconsiamWorldCenter = new THREE.Vector3(-404.0, 2.2, 142.0);
+  window.iconsiamPierDockPos = new THREE.Vector3(-429.5, riverWaterY + 0.2, 142.0);
+  window.bangkokObstacles.push({ pos: window.iconsiamWorldCenter, rad: 34.0, maxH: 48.0 });
+
+  var iconsiamFerrisWheelWheel = null;
+  var iconsiamFountainJets = [];
+  var iconsiamFountainLight = null;
+
+  (function buildIconSiamAndBangkokSkyline() {
+    var iconG = new THREE.Group();
+    iconG.position.copy(window.iconsiamWorldCenter);
+    bkkRootGroup.add(iconG);
+
+    var goldGlassMat = new THREE.MeshStandardMaterial({
+      color: 0xfde68a,
+      roughness: 0.16,
+      metalness: 0.55,
+      emissive: 0xd97706,
+      emissiveIntensity: 0.35
+    });
+    var champagneFrameMat = new THREE.MeshStandardMaterial({
+      color: 0xfbbf24,
+      roughness: 0.25,
+      metalness: 0.75,
+      emissive: 0x92400e,
+      emissiveIntensity: 0.28
+    });
+    var darkMarbleMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.45, metalness: 0.3 });
+    var roofGardenMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.75 });
+
+    bkkNightLights.push({ mat: goldGlassMat, dayHex: 0xb45309, nightHex: 0xfef08a, dayInt: 0.28, nightInt: 1.45 });
+    bkkNightLights.push({ mat: champagneFrameMat, dayHex: 0x78350f, nightHex: 0xf59e0b, dayInt: 0.22, nightInt: 1.10 });
+
+    // 5 Stepped Luxury Glass & Champagne-Gold Terraced Mall Levels
+    var levels = [
+      { w: 24.0, l: 58.0, h: 4.8 },
+      { w: 21.5, l: 52.0, h: 4.6 },
+      { w: 19.0, l: 46.0, h: 4.5 },
+      { w: 16.5, l: 38.0, h: 4.4 },
+      { w: 13.5, l: 30.0, h: 4.2 }
+    ];
+    var curY = 0;
+    levels.forEach(function(lv, idx) {
+      var glassBox = new THREE.Mesh(new THREE.BoxGeometry(lv.w, lv.h, lv.l), goldGlassMat);
+      glassBox.position.y = curY + lv.h * 0.5;
+      glassBox.castShadow = true;
+      glassBox.receiveShadow = true;
+      iconG.add(glassBox);
+
+      // Pleated diagonal golden facade mullions
+      for (var zi = -Math.floor(lv.l * 0.42); zi <= Math.floor(lv.l * 0.42); zi += 6) {
+        var finE = new THREE.Mesh(new THREE.BoxGeometry(0.45, lv.h, 0.45), champagneFrameMat);
+        finE.position.set(lv.w * 0.5 + 0.15, curY + lv.h * 0.5, zi);
+        finE.rotation.x = (idx % 2 === 0) ? 0.16 : -0.16;
+        iconG.add(finE);
+
+        var finW = new THREE.Mesh(new THREE.BoxGeometry(0.45, lv.h, 0.45), champagneFrameMat);
+        finW.position.set(-lv.w * 0.5 - 0.15, curY + lv.h * 0.5, zi);
+        finW.rotation.x = (idx % 2 === 0) ? -0.16 : 0.16;
+        iconG.add(finW);
+      }
+
+      // Lush green rooftop terrace slab
+      var slab = new THREE.Mesh(new THREE.BoxGeometry(lv.w + 1.8, 0.45, lv.l + 1.8), champagneFrameMat);
+      slab.position.y = curY + lv.h;
+      iconG.add(slab);
+
+      var gardenStrip = new THREE.Mesh(new THREE.BoxGeometry(lv.w + 1.0, 0.25, lv.l + 1.0), roofGardenMat);
+      gardenStrip.position.y = curY + lv.h + 0.26;
+      iconG.add(gardenStrip);
+
+      curY += lv.h;
+    });
+
+    // Iconic Golden Pleated "Sabai" Roof Crowns on top of IconSiam (matching concept art!)
+    [-8.5, 0, 8.5].forEach(function(cz, cIdx) {
+      var crownH = (cIdx === 1) ? 11.5 : 8.5;
+      var crownR = (cIdx === 1) ? 8.2 : 6.2;
+      var crown = new THREE.Mesh(new THREE.ConeGeometry(crownR, crownH, 4), champagneFrameMat);
+      crown.position.set(0, curY + crownH * 0.48, cz);
+      crown.rotation.y = Math.PI / 4;
+      crown.scale.set(0.75, 1.0, 1.25);
+      crown.castShadow = true;
+      iconG.add(crown);
+    });
+
+    // Giant Illuminated "ICONSIAM" Signboards on BOTH West (Riverfront) & East (Railway) Facades
+    var iconSignTex = createSignageTexture('ICONSIAM', 'CHAO PHRAYA RIVERFRONT', false, '#111827', '#fbbf24', '#fef08a');
+    var iconSignMat = new THREE.MeshBasicMaterial({ map: iconSignTex });
+
+    var westBannerBacking = new THREE.Mesh(new THREE.BoxGeometry(1.4, 5.6, 26.0), darkMarbleMat);
+    westBannerBacking.position.set(-10.8, 15.6, 0);
+    iconG.add(westBannerBacking);
+
+    var westBanner = new THREE.Mesh(new THREE.PlaneGeometry(24.8, 4.8), iconSignMat);
+    westBanner.position.set(-11.55, 15.6, 0);
+    westBanner.rotation.y = -Math.PI / 2;
+    iconG.add(westBanner);
+
+    var eastBannerBacking = new THREE.Mesh(new THREE.BoxGeometry(1.4, 5.6, 26.0), darkMarbleMat);
+    eastBannerBacking.position.set(10.8, 15.6, 0);
+    iconG.add(eastBannerBacking);
+
+    var eastBanner = new THREE.Mesh(new THREE.PlaneGeometry(24.8, 4.8), iconSignMat);
+    eastBanner.position.set(11.55, 15.6, 0);
+    eastBanner.rotation.y = Math.PI / 2;
+    iconG.add(eastBanner);
+
+    // IconSiam Waterfront Pier (West side on the Chao Phraya River)
+    var iconPier = new THREE.Group();
+    iconPier.position.set(-18.0, 0, 0);
+    iconG.add(iconPier);
+
+    var pierDeck = new THREE.Mesh(new THREE.BoxGeometry(14.0, 0.5, 18.0), darkMarbleMat);
+    pierDeck.position.set(-4.5, -0.35, 0);
+    iconPier.add(pierDeck);
+
+    var pierCanopy = new THREE.Mesh(new THREE.BoxGeometry(9.5, 0.45, 14.0), champagneFrameMat);
+    pierCanopy.position.set(-5.5, 3.4, 0);
+    iconPier.add(pierCanopy);
+
+    // Waving visitors on the IconSiam Promenade & Pier
+    [-12, -5, 4, 12].forEach(function(vz, vIdx) {
+      var colors = [0xec4899, 0x3b82f6, 0x10b981, 0xf97316];
+      var visitor = createBangkokPerson(colors[vIdx % colors.length], 0x1e293b, (vIdx % 2 === 0 ? 0xfef08a : null), 1.12);
+      visitor.position.set(14.5, 0.1, vz);
+      visitor.rotation.y = Math.PI / 2;
+      iconG.add(visitor);
+    });
+
+    // Riverfront Ferris Wheel ("Asiatique / Riverfront Eye" just north of IconSiam, matching concept art!)
+    var wheelBaseG = new THREE.Group();
+    wheelBaseG.position.set(-4.0, 0, -44.0);
+    iconG.add(wheelBaseG);
+
+    var strutMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3, metalness: 0.6 });
+    var wheelGlowMat = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      roughness: 0.2,
+      emissive: 0x0284c7,
+      emissiveIntensity: 0.55
+    });
+    bkkNightLights.push({ mat: wheelGlowMat, dayHex: 0x0284c7, nightHex: 0x38bdf8, dayInt: 0.35, nightInt: 1.65 });
+
+    [-2.4, 2.4].forEach(function(sx) {
+      var leg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 18.0, 8), strutMat);
+      leg1.position.set(sx, 8.5, -3.5);
+      leg1.rotation.x = 0.22;
+      wheelBaseG.add(leg1);
+
+      var leg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 18.0, 8), strutMat);
+      leg2.position.set(sx, 8.5, 3.5);
+      leg2.rotation.x = -0.22;
+      wheelBaseG.add(leg2);
+    });
+
+    iconsiamFerrisWheelWheel = new THREE.Group();
+    iconsiamFerrisWheelWheel.position.set(0, 17.0, 0);
+    wheelBaseG.add(iconsiamFerrisWheelWheel);
+
+    var wheelRadius = 11.5;
+    var rim = new THREE.Mesh(new THREE.TorusGeometry(wheelRadius, 0.32, 10, 32), wheelGlowMat);
+    rim.rotation.y = Math.PI / 2;
+    iconsiamFerrisWheelWheel.add(rim);
+
+    for (var sp = 0; sp < 12; sp++) {
+      var sAng = (sp / 12) * Math.PI * 2;
+      var spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, wheelRadius * 2, 6), strutMat);
+      spoke.rotation.x = sAng;
+      iconsiamFerrisWheelWheel.add(spoke);
+
+      var podMat = new THREE.MeshStandardMaterial({
+        color: (sp % 2 === 0) ? 0xf43f5e : 0xfacc15,
+        roughness: 0.3,
+        emissive: (sp % 2 === 0) ? 0xbe123c : 0xca8a04,
+        emissiveIntensity: 0.35
+      });
+      var pod = new THREE.Mesh(new THREE.SphereGeometry(0.82, 10, 10), podMat);
+      pod.position.set(0, Math.sin(sAng) * wheelRadius, Math.cos(sAng) * wheelRadius);
+      iconsiamFerrisWheelWheel.add(pod);
+    }
+
+    // Surrounding Bangkok High-Rise Skyscrapers (Magnolia Waterfront Residences & Mandarin Oriental Towers)
+    var towerSpecs = [
+      { dx: -2.0, dz: 44.0, w: 13.0, d: 13.0, h: 52.0, col: 0xe2e8f0, win: 0x38bdf8 },
+      { dx: 8.0, dz: 58.0, w: 11.5, d: 11.5, h: 42.0, col: 0xfef3c7, win: 0xfde047 },
+      { dx: 10.0, dz: -62.0, w: 12.0, d: 12.0, h: 38.0, col: 0xdbeafe, win: 0x60a5fa },
+      { dx: -175.0, dz: -35.0, w: 14.0, d: 14.0, h: 46.0, col: 0xf1f5f9, win: 0x38bdf8 },
+      { dx: -182.0, dz: 25.0, w: 15.0, d: 12.0, h: 54.0, col: 0xfef9c3, win: 0xfbbf24 },
+      { dx: -178.0, dz: 85.0, w: 13.0, d: 13.0, h: 40.0, col: 0xe0f2fe, win: 0x22d3ee }
+    ];
+    towerSpecs.forEach(function(ts) {
+      var tg = new THREE.Group();
+      tg.position.set(ts.dx, 0, ts.dz);
+      var tBody = new THREE.Mesh(
+        new THREE.BoxGeometry(ts.w, ts.h, ts.d),
+        new THREE.MeshStandardMaterial({ color: ts.col, roughness: 0.35, metalness: 0.35 })
+      );
+      tBody.position.y = ts.h * 0.5;
+      tBody.castShadow = true;
+      tg.add(tBody);
+
+      var tWinMat = new THREE.MeshStandardMaterial({
+        color: ts.win,
+        roughness: 0.2,
+        metalness: 0.5,
+        emissive: ts.win,
+        emissiveIntensity: 0.25
+      });
+      bkkNightLights.push({ mat: tWinMat, dayHex: ts.win, nightHex: 0xfef08a, dayInt: 0.2, nightInt: 1.25 });
+
+      var winCore = new THREE.Mesh(new THREE.BoxGeometry(ts.w + 0.16, ts.h * 0.88, ts.d * 0.82), tWinMat);
+      winCore.position.y = ts.h * 0.5;
+      tg.add(winCore);
+
+      var spire = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.9, 6.5, 8), champagneFrameMat);
+      spire.position.y = ts.h + 3.25;
+      tg.add(spire);
+      iconG.add(tg);
+    });
+
+    // THE ICONIC MULTIMEDIA DANCING FOUNTAIN SHOW (on both the East Railway Promenade & West Riverfront!)
+    var jetColors = [0x38bdf8, 0xf472b6, 0xfacc15, 0x4ade80, 0xc084fc, 0xfb923c];
+    for (var fi = 0; fi < 16; fi++) {
+      var fz = -26.0 + (fi / 15) * 52.0;
+      var colHex = jetColors[fi % jetColors.length];
+
+      // East Promenade Fountain Jet (right next to the railway track so the player sees it up close!)
+      var jetMatE = new THREE.MeshStandardMaterial({
+        color: colHex,
+        transparent: true,
+        opacity: 0.88,
+        roughness: 0.15,
+        emissive: colHex,
+        emissiveIntensity: 0.85
+      });
+      var jetMeshE = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.52, 5.5, 10), jetMatE);
+      jetMeshE.position.set(15.8, 2.75, fz);
+      iconG.add(jetMeshE);
+
+      // West Riverfront Fountain Jet (along the Chao Phraya pier)
+      var jetMeshW = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.58, 6.5, 10), jetMatE);
+      jetMeshW.position.set(-14.8, 3.25, fz);
+      iconG.add(jetMeshW);
+
+      iconsiamFountainJets.push({
+        meshE: jetMeshE,
+        meshW: jetMeshW,
+        mat: jetMatE,
+        index: fi,
+        baseZ: fz
+      });
+    }
+
+    iconsiamFountainLight = new THREE.PointLight(0xfbbf24, 1.4, 95);
+    iconsiamFountainLight.position.set(16.0, 14.0, 0);
+    iconG.add(iconsiamFountainLight);
+    bkkNightLights.push({ light: iconsiamFountainLight, dayInt: 0.6, nightInt: 2.6 });
+
+    // Tropical palms along the IconSiam railway avenue
+    for (var pi = -3; pi <= 3; pi++) {
+      if (pi === 0) continue;
+      createBangkokPalmTree(
+        window.iconsiamWorldCenter.x + 20.5,
+        window.iconsiamWorldCenter.y,
+        window.iconsiamWorldCenter.z + pi * 12.0,
+        1.05
+      );
+    }
+  })();
+
+  // --------------------------------------------------------------------------
+  // 5. GRAND CHAO PHRAYA TIED-ARCH RAILWAY BRIDGE & NORTHERN RETURN VIADUCT
+  // --------------------------------------------------------------------------
+  window.bkkBridgeWorldCenter = new THREE.Vector3(-474.0, 14.2, 260.0);
+
+  (function buildChaoPhrayaRailwayBridges() {
+    var whiteSteelMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3, metalness: 0.65 });
+    var pierConcreteMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.7 });
+    var lampGlowMat = new THREE.MeshStandardMaterial({
+      color: 0xfef08a,
+      emissive: 0xfacc15,
+      emissiveIntensity: 0.9
+    });
+    bkkNightLights.push({ mat: lampGlowMat, dayHex: 0xfef08a, nightHex: 0xfde047, dayInt: 0.35, nightInt: 1.8 });
+
+    function decorateBridgeSpan(edgeId, archPeakHeight, hasGrandTiedArch) {
+      var eObj = window.edges.find(function(x) { return x.id === edgeId; });
+      if (!eObj) return;
+      var curve = eObj.curve;
+      var steps = 32;
+
+      for (var i = 3; i <= steps - 3; i++) {
+        var t = i / steps;
+        var p = curve.getPointAt(t);
+        var tan = curve.getTangentAt(t).normalize();
+        var right = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+        var yaw = Math.atan2(tan.x, tan.z);
+
+        // Wide bridge deck slab spanning both tracks + safety parapets
+        var centerPt = p.clone().addScaledVector(right, -2.4);
+        var slab = new THREE.Mesh(new THREE.BoxGeometry(10.8, 0.9, 6.8), pierConcreteMat);
+        slab.position.set(centerPt.x, centerPt.y - 0.55, centerPt.z);
+        slab.rotation.y = yaw;
+        bkkRootGroup.add(slab);
+
+        [-5.1, 5.1].forEach(function(sideOff) {
+          var rail = new THREE.Mesh(new THREE.BoxGeometry(0.32, 1.35, 6.8), whiteSteelMat);
+          rail.position.set(centerPt.x + right.x * sideOff, centerPt.y + 0.55, centerPt.z + right.z * sideOff);
+          rail.rotation.y = yaw;
+          bkkRootGroup.add(rail);
+        });
+
+        // Bridge street lamps & tied-arch suspension ribs over the river channel
+        var normSpan = (t - 0.18) / 0.48;
+        if (hasGrandTiedArch && normSpan >= 0.0 && normSpan <= 1.0) {
+          var archH = Math.sin(normSpan * Math.PI) * archPeakHeight;
+          [-5.0, 5.0].forEach(function(sideOff) {
+            var archNode = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.85, 6.8), whiteSteelMat);
+            archNode.position.set(centerPt.x + right.x * sideOff, centerPt.y + archH + 0.8, centerPt.z + right.z * sideOff);
+            archNode.rotation.y = yaw;
+            bkkRootGroup.add(archNode);
+
+            if (archH > 1.8) {
+              var hanger = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, archH, 6), whiteSteelMat);
+              hanger.position.set(centerPt.x + right.x * sideOff, centerPt.y + archH * 0.5 + 0.4, centerPt.z + right.z * sideOff);
+              bkkRootGroup.add(hanger);
+            }
+          });
+
+          if (i % 3 === 0 && archH > 5.0) {
+            var crossBeam = new THREE.Mesh(new THREE.BoxGeometry(10.2, 0.5, 0.6), whiteSteelMat);
+            crossBeam.position.set(centerPt.x, centerPt.y + archH + 0.8, centerPt.z);
+            crossBeam.rotation.y = yaw;
+            bkkRootGroup.add(crossBeam);
+          }
+        }
+
+        // Glowing warm street lamps along the bridge
+        if (i % 3 === 0) {
+          [-5.1, 5.1].forEach(function(sideOff) {
+            var post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 3.4, 6), whiteSteelMat);
+            post.position.set(centerPt.x + right.x * sideOff, centerPt.y + 1.8, centerPt.z + right.z * sideOff);
+            bkkRootGroup.add(post);
+
+            var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 8), lampGlowMat);
+            bulb.position.set(centerPt.x + right.x * sideOff, centerPt.y + 3.6, centerPt.z + right.z * sideOff);
+            bkkRootGroup.add(bulb);
+          });
+        }
+
+        // Heavy river piers outside the main central navigation channel
+        if (i === 6 || i === 10 || i === 18 || i === 23) {
+          var pierH = centerPt.y + 4.5;
+          var pier = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2.4, pierH, 12), pierConcreteMat);
+          pier.position.set(centerPt.x, centerPt.y - pierH * 0.5 - 0.4, centerPt.z);
+          bkkRootGroup.add(pier);
+        }
+      }
+    }
+
+    // 1) Main Southern Grand Chao Phraya Tied-Arch Railway Bridge (after IconSiam)
+    decorateBridgeSpan('J_BKK_ICONSIAM->J_BKK_WESTBANK', 15.5, true);
+    // 2) Northern Return River Bridge (connecting Opposite Bank back behind Mom's House)
+    decorateBridgeSpan('J_BKK_WESTBANK->J_BKK_ANANTARA', 9.5, true);
+  })();
+
+  // --------------------------------------------------------------------------
+  // 6. ANANTARA HOTEL SHUTTLE BOAT (3D MODEL + SMOOTH SAILING + BRIDGE SYNC)
+  //    Matches both the concept art and the real Bangkok photo:
+  //    - Dark mahogany wooden hull with gold trim & "ANANTARA" on sides + bow
+  //    - Curved dark Thai gable roof with golden chofah finials & "ANANTARA" on roof
+  //    - Rooftop signboard ("ATTITUDE / ANANTARA RIVERSIDE")
+  //    - Orange life buoys along railings, Thai flag & Anantara pennant
+  //    - Captain + 6 waving passengers & trailing white water wake
+  // --------------------------------------------------------------------------
+  var anantaraBoatGroup = new THREE.Group();
+  window.anantaraBoatGroup = anantaraBoatGroup;
+  bkkRootGroup.add(anantaraBoatGroup);
+
+  var boatWakeMeshes = [];
+  var boatState = {
+    z: -42.0,
+    x: -446.0,
+    yaw: 0.0,
+    dir: 1, // +1 sailing South to IconSiam (+Z), -1 sailing North to Anantara (-Z)
+    dockPauseTimer: 0.0,
+    bridgeSyncActive: false,
+    lastSyncTriggerTime: -999.0,
+    lastHornTime: -999.0
+  };
+
+  (function buildAnantaraShuttleBoat() {
+    var hullWoodMat = new THREE.MeshStandardMaterial({ color: 0x4a1d0d, roughness: 0.45, metalness: 0.15 });
+    var deckTeakMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.65 });
+    var roofDarkMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.45, metalness: 0.2 });
+    var goldEdgeMat = new THREE.MeshStandardMaterial({
+      color: 0xfacc15,
+      roughness: 0.3,
+      metalness: 0.7,
+      emissive: 0x854d0e,
+      emissiveIntensity: 0.3
+    });
+
+    // Main Wooden Hull (16.5m long, 4.8m wide)
+    var hullCenter = new THREE.Mesh(new THREE.BoxGeometry(4.6, 1.45, 11.6), hullWoodMat);
+    hullCenter.position.y = 0.65;
+    hullCenter.castShadow = true;
+    anantaraBoatGroup.add(hullCenter);
+
+    // Tapered Bow (+Z front) & Stern (-Z rear)
+    var bowMesh = new THREE.Mesh(new THREE.ConeGeometry(3.25, 4.4, 4), hullWoodMat);
+    bowMesh.rotation.x = Math.PI / 2;
+    bowMesh.rotation.z = Math.PI / 4;
+    bowMesh.scale.set(1.0, 1.0, 0.45);
+    bowMesh.position.set(0, 0.72, 7.9);
+    anantaraBoatGroup.add(bowMesh);
+
+    var sternMesh = new THREE.Mesh(new THREE.BoxGeometry(4.4, 1.35, 2.4), hullWoodMat);
+    sternMesh.position.set(0, 0.65, -6.8);
+    anantaraBoatGroup.add(sternMesh);
+
+    // Golden hull pinstripe & wooden passenger deck
+    var goldBelt = new THREE.Mesh(new THREE.BoxGeometry(4.76, 0.18, 12.2), goldEdgeMat);
+    goldBelt.position.y = 1.18;
+    anantaraBoatGroup.add(goldBelt);
+
+    var deckFloor = new THREE.Mesh(new THREE.BoxGeometry(4.3, 0.2, 13.4), deckTeakMat);
+    deckFloor.position.y = 1.38;
+    anantaraBoatGroup.add(deckFloor);
+
+    // "ANANTARA" Signboards on Port, Starboard, and Front Bow
+    var hullSignTex = createSignageTexture('ANANTARA', 'RIVERSIDE SHUTTLE', false, '#3b1508', '#facc15', '#fef08a');
+    var hullSignMat = new THREE.MeshBasicMaterial({ map: hullSignTex });
+
+    [-2.36, 2.36].forEach(function(sx) {
+      var sideSign = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 0.88), hullSignMat);
+      sideSign.position.set(sx, 0.78, 0.4);
+      sideSign.rotation.y = sx > 0 ? Math.PI / 2 : -Math.PI / 2;
+      anantaraBoatGroup.add(sideSign);
+    });
+
+    var bowSign = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.72), hullSignMat);
+    bowSign.position.set(0, 1.05, 6.25);
+    anantaraBoatGroup.add(bowSign);
+
+    // Wooden balustrade railings + 6 Orange & White Life Buoys along the sides
+    var ringOrangeMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 });
+    [-2.05, 2.05].forEach(function(sx) {
+      var topRail = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 11.8), hullWoodMat);
+      topRail.position.set(sx, 2.15, -0.4);
+      anantaraBoatGroup.add(topRail);
+
+      for (var pIdx = -5; pIdx <= 4; pIdx++) {
+        var pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.4, 8), hullWoodMat);
+        pillar.position.set(sx, 2.55, pIdx * 1.15);
+        anantaraBoatGroup.add(pillar);
+      }
+
+      [-3.2, 0.0, 3.2].forEach(function(bz) {
+        var buoy = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.11, 8, 16), ringOrangeMat);
+        buoy.position.set(sx + (sx > 0 ? 0.1 : -0.1), 1.85, bz);
+        buoy.rotation.y = Math.PI / 2;
+        anantaraBoatGroup.add(buoy);
+      });
+    });
+
+    // Curved Traditional Dark Thai Gable Roof with Golden Trim & "ANANTARA" Roof Logo (matching real photo!)
+    var roofTex = createSignageTexture('ANANTARA', 'RIVERSIDE BANGKOK RESORT', true, '#27272a', '#facc15', '#fde047');
+    var roofLogoMat = new THREE.MeshBasicMaterial({ map: roofTex });
+
+    [-1, 1].forEach(function(sideSign) {
+      var slope = new THREE.Mesh(new THREE.BoxGeometry(2.85, 0.16, 12.2), roofDarkMat);
+      slope.position.set(sideSign * 1.15, 4.35, -0.2);
+      slope.rotation.z = -sideSign * 0.52;
+      slope.castShadow = true;
+      anantaraBoatGroup.add(slope);
+
+      var logoPanel = new THREE.Mesh(new THREE.PlaneGeometry(6.8, 2.2), roofLogoMat);
+      logoPanel.position.set(sideSign * 1.22, 4.46, -0.2);
+      logoPanel.rotation.x = -Math.PI / 2;
+      logoPanel.rotation.y = -sideSign * 0.52;
+      logoPanel.rotation.z = sideSign > 0 ? -Math.PI / 2 : Math.PI / 2;
+      anantaraBoatGroup.add(logoPanel);
+    });
+
+    var ridgeBeam = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.24, 12.6), goldEdgeMat);
+    ridgeBeam.position.set(0, 5.05, -0.2);
+    anantaraBoatGroup.add(ridgeBeam);
+
+    // Golden Chofah Finials at front & rear roof peaks + Rooftop Signboard ("ATTITUDE")
+    [-6.3, 5.9].forEach(function(rz) {
+      var chofah = new THREE.Mesh(new THREE.ConeGeometry(0.22, 1.15, 6), goldEdgeMat);
+      chofah.position.set(0, 5.55, rz);
+      anantaraBoatGroup.add(chofah);
+    });
+
+    var topBoard = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.85, 3.2), new THREE.MeshStandardMaterial({ color: 0x18181b }));
+    topBoard.position.set(0, 5.58, -0.2);
+    anantaraBoatGroup.add(topBoard);
+
+    // Thai Flag at the Stern + Dark Anantara Pennant Flag at the Bow
+    function createBoatFlag(zPos, flagHex) {
+      var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 2.6, 6), goldEdgeMat);
+      pole.position.set(0, 2.8, zPos);
+      anantaraBoatGroup.add(pole);
+      var cloth = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.3, 0.82),
+        new THREE.MeshBasicMaterial({ color: flagHex, side: THREE.DoubleSide })
+      );
+      cloth.position.set(0, 3.65, zPos - 0.65);
+      cloth.rotation.y = Math.PI / 2;
+      anantaraBoatGroup.add(cloth);
+    }
+    createBoatFlag(-7.5, 0x1d4ed8);
+    createBoatFlag(7.2, 0x1e293b);
+
+    // Captain at the Helm + 6 Seated & Standing Waving Passengers
+    var captain = createBangkokPerson(0x1e3a8a, 0x0f172a, 0xffffff, 1.05);
+    captain.position.set(0, 1.45, 4.6);
+    anantaraBoatGroup.add(captain);
+
+    var passColors = [0xf43f5e, 0x38bdf8, 0xfacc15, 0x4ade80, 0xa855f7, 0xfb923c];
+    for (var pi = 0; pi < 6; pi++) {
+      var px = (pi % 2 === 0) ? -1.15 : 1.15;
+      var pz = -3.4 + Math.floor(pi / 2) * 2.6;
+      var passenger = createBangkokPerson(passColors[pi], 0x1e293b, (pi % 3 === 0 ? 0xfde047 : null), 0.98);
+      passenger.position.set(px, 1.42, pz);
+      passenger.rotation.y = (px > 0) ? Math.PI / 2 : -Math.PI / 2;
+      anantaraBoatGroup.add(passenger);
+    }
+
+    // Warm Cabin Lantern Light for Night Cruises
+    var cabinLight = new THREE.PointLight(0xfef08a, 1.1, 28);
+    cabinLight.position.set(0, 3.8, 0);
+    anantaraBoatGroup.add(cabinLight);
+    bkkNightLights.push({ light: cabinLight, dayInt: 0.4, nightInt: 2.0 });
+
+    // Trailing White Water Wake Foams behind the boat
+    var wakeMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.68, side: THREE.DoubleSide });
+    for (var wi = 1; wi <= 4; wi++) {
+      var wakePlane = new THREE.Mesh(new THREE.PlaneGeometry(2.6 + wi * 1.1, 2.2), wakeMat);
+      wakePlane.rotation.x = -Math.PI / 2;
+      wakePlane.position.set(0, 0.08, -7.2 - wi * 2.5);
+      anantaraBoatGroup.add(wakePlane);
+      boatWakeMeshes.push({ mesh: wakePlane, idx: wi });
+    }
+  })();
+
+  // Procedural Web Audio Boat Horn & IconSiam Dancing Fountain Musical Chimes
+  function playAnantaraBoatHornSound() {
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      if (!window._bkkAudioCtx) window._bkkAudioCtx = new Ctx();
+      var ctx = window._bkkAudioCtx;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      var now = ctx.currentTime;
+      [185.0, 233.08].forEach(function(freq) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.11, now + 0.08);
+        gain.gain.setValueAtTime(0.11, now + 0.42);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.88);
+      });
+    } catch (e) {}
+  }
+
+  var lastFountainNoteMs = 0;
+  var fountainNoteIdx = 0;
+  var pentatonicScale = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 880.0, 783.99];
+
+  function playIconSiamFountainMusicStep(distToIconSiam, isEveningShow) {
+    if (distToIconSiam > 92.0) return;
+    var nowMs = performance.now();
+    var stepInterval = isEveningShow ? 340 : 520;
+    if (nowMs - lastFountainNoteMs < stepInterval) return;
+    lastFountainNoteMs = nowMs;
+
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      if (!window._bkkAudioCtx) window._bkkAudioCtx = new Ctx();
+      var ctx = window._bkkAudioCtx;
+      if (ctx.state === 'suspended') return;
+
+      var prox = Math.max(0.0, 1.0 - distToIconSiam / 92.0);
+      var vol = prox * (isEveningShow ? 0.065 : 0.035);
+      if (vol <= 0.003) return;
+
+      var now = ctx.currentTime;
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'sine';
+      var freq = pentatonicScale[fountainNoteIdx % pentatonicScale.length];
+      fountainNoteIdx++;
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(0.0005, now);
+      gain.gain.linearRampToValueAtTime(vol, now + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.36);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.38);
+    } catch (e) {}
+  }
+
+  // --------------------------------------------------------------------------
+  // 7. PANORAMIC CAMERA CANDIDATES & FRAME-BY-FRAME ANIMATION UPDATE
+  // --------------------------------------------------------------------------
+  window.appendBangkokCameraCandidates = function(candidates, buildLargeLandmarkCandidate) {
+    if (!Array.isArray(candidates) || typeof buildLargeLandmarkCandidate !== 'function') return;
+
+    // 1) Anantara Riverside Bangkok Resort & Boat Pier
+    var anantaraCand = buildLargeLandmarkCandidate({
+      id: 'anantara',
+      narrationId: 'anantara',
+      center: new THREE.Vector3(-402.0, 6.0, -42.0),
+      baseY: 2.2,
+      height: 22.0,
+      radius: 34.0,
+      approachDist: 98.0,
+      peakAheadDist: 24.0,
+      peakBehindDist: -14.0,
+      departDist: 52.0,
+      maxPerpDist: 92.0,
+      camBack: 56.0,
+      camOppositeSide: 24.0,
+      camHeight: 16.5,
+      lookShare: 0.56,
+      targetFov: 48.0,
+      priority: 1.12
+    });
+    if (anantaraCand) candidates.push(anantaraCand);
+
+    // 2) IconSiam Megacomplex, Ferris Wheel & Dancing Fountains
+    var iconsiamCand = buildLargeLandmarkCandidate({
+      id: 'iconsiam',
+      narrationId: 'iconsiam',
+      center: new THREE.Vector3(-406.0, 12.0, 142.0),
+      baseY: 2.2,
+      height: 36.0,
+      radius: 42.0,
+      approachDist: 112.0,
+      peakAheadDist: 28.0,
+      peakBehindDist: -16.0,
+      departDist: 56.0,
+      maxPerpDist: 96.0,
+      camBack: 64.0,
+      camOppositeSide: 28.0,
+      camHeight: 18.5,
+      lookShare: 0.58,
+      targetFov: 49.5,
+      priority: 1.18
+    });
+    if (iconsiamCand) candidates.push(iconsiamCand);
+
+    // 3) Grand Chao Phraya Tied-Arch Railway Bridge (+ Synchronized Anantara Boat on the River!)
+    var bridgeCand = buildLargeLandmarkCandidate({
+      id: 'bkk_bridge',
+      narrationId: 'bkk_bridge',
+      center: new THREE.Vector3(-472.0, 10.5, 250.0),
+      baseY: 0.0,
+      height: 28.0,
+      radius: 48.0,
+      approachDist: 108.0,
+      peakAheadDist: 26.0,
+      peakBehindDist: -18.0,
+      departDist: 54.0,
+      maxPerpDist: 96.0,
+      camBack: 62.0,
+      camOppositeSide: 26.0,
+      camHeight: 21.0,
+      lookShare: 0.54,
+      targetFov: 50.0,
+      priority: 1.15
+    });
+    if (bridgeCand) candidates.push(bridgeCand);
+
+    // 4) Anantara Shuttle Boat (when sailing along the open river between Anantara & IconSiam)
+    if (window.anantaraBoatGroup) {
+      var boatCand = buildLargeLandmarkCandidate({
+        id: 'anantara_boat',
+        narrationId: 'anantara_boat',
+        center: window.anantaraBoatGroup.position.clone().add(new THREE.Vector3(0, 3.0, 0)),
+        baseY: riverWaterY,
+        height: 8.0,
+        radius: 14.0,
+        approachDist: 75.0,
+        peakAheadDist: 16.0,
+        peakBehindDist: -10.0,
+        departDist: 38.0,
+        maxPerpDist: 105.0,
+        camBack: 50.0,
+        camOppositeSide: 20.0,
+        camHeight: 15.0,
+        lookShare: 0.48,
+        targetFov: 47.0,
+        priority: 1.02
+      });
+      if (boatCand) candidates.push(boatCand);
+    }
+  };
+
+  var lastBkkFrameMs = performance.now();
+
+  function updateBangkokChaoPhrayaWorld() {
+    var nowMs = performance.now();
+    var dt = Math.min(0.08, Math.max(0.001, (nowMs - lastBkkFrameMs) * 0.001));
+    lastBkkFrameMs = nowMs;
+    var tSec = nowMs * 0.001;
+
+    var trainPos = (typeof playerLoco !== 'undefined' && playerLoco)
+      ? playerLoco.position
+      : ((window.playerLoco && window.playerLoco.position) ? window.playerLoco.position : null);
+    var curEdgeId = (window.pState && window.pState.edge) ? window.pState.edge.id : '';
+    var curT = (window.pState && typeof window.pState.t === 'number') ? window.pState.t : 0.0;
+
+    // 1) Animate Chao Phraya River ripples
+    for (var ri = 0; ri < riverWaveStrips.length; ri++) {
+      var rw = riverWaveStrips[ri];
+      rw.mesh.position.z = rw.baseZ + Math.sin(tSec * 1.4 + rw.phase) * 1.8;
+      rw.mesh.material.opacity = 0.24 + 0.16 * Math.sin(tSec * 2.2 + rw.phase);
+    }
+
+    // 2) Rotate the IconSiam Riverfront Ferris Wheel smoothly
+    if (iconsiamFerrisWheelWheel) {
+      iconsiamFerrisWheelWheel.rotation.x = tSec * 0.28;
+    }
+
+    // 3) Day / Sunset / Night Detection for IconSiam Illumination & Dancing Fountains
+    var gTime = (typeof gameTimeSeconds === 'number')
+      ? ((gameTimeSeconds / 300.0) * 24.0)
+      : ((typeof window.gameTime === 'number') ? window.gameTime : 12.0);
+    var isEveningOrNight = (gTime >= 17.0 || gTime <= 6.5);
+
+    for (var ni = 0; ni < bkkNightLights.length; ni++) {
+      var nl = bkkNightLights[ni];
+      if (nl.mat) {
+        nl.mat.emissive.setHex(isEveningOrNight ? nl.nightHex : nl.dayHex);
+        nl.mat.emissiveIntensity = isEveningOrNight ? nl.nightInt : nl.dayInt;
+      } else if (nl.light) {
+        nl.light.intensity = isEveningOrNight ? nl.nightInt : nl.dayInt;
+      }
+    }
+
+    // 4) Animate IconSiam's "The ICONIC Multimedia Water Features" Dancing Fountains & Music
+    var distToIconSiam = (trainPos && window.iconsiamWorldCenter)
+      ? trainPos.distanceTo(window.iconsiamWorldCenter)
+      : 999.0;
+    var fountainEnergy = isEveningOrNight ? 1.35 : (distToIconSiam < 120.0 ? 1.0 : 0.55);
+
+    for (var fi = 0; fi < iconsiamFountainJets.length; fi++) {
+      var fj = iconsiamFountainJets[fi];
+      var wave = 0.45 + 0.55 * Math.abs(Math.sin(tSec * 3.4 + fj.index * 0.45));
+      var sy = Math.max(0.2, wave * fountainEnergy);
+      fj.meshE.scale.y = sy;
+      fj.meshE.position.y = 2.2 + sy * 2.75;
+      fj.meshW.scale.y = sy * 1.1;
+      fj.meshW.position.y = 2.2 + sy * 3.1;
+    }
+    if (trainPos) {
+      playIconSiamFountainMusicStep(distToIconSiam, isEveningOrNight);
+    }
+
+    // 5) Animate Waving People on Piers, Promenade & Anantara Boat
+    for (var wi = 0; wi < bkkWavingPeople.length; wi++) {
+      var wp = bkkWavingPeople[wi];
+      wp.armPivot.rotation.z = wp.baseZ + Math.sin(tSec * 6.5 + wp.phase) * 0.45;
+    }
+
+    // 6) Anantara Hotel Shuttle Boat Movement + Synchronized Bridge Departure Moment!
+    // Check if the player train is approaching IconSiam / the Grand Railway Bridge:
+    var approachingBridgeFromIconSiam = (
+      (curEdgeId === 'J_BKK_ANANTARA->J_BKK_ICONSIAM' && curT > 0.72) ||
+      (curEdgeId === 'J_BKK_ICONSIAM->J_BKK_WESTBANK' && curT < 0.65)
+    );
+
+    if (approachingBridgeFromIconSiam && !boatState.bridgeSyncActive && (tSec - boatState.lastSyncTriggerTime) > 18.0) {
+      // Trigger the live synchronized moment: Boat is at IconSiam Pier, blows its horn,
+      // and sails out toward the river & railway bridge alongside the train!
+      boatState.bridgeSyncActive = true;
+      boatState.lastSyncTriggerTime = tSec;
+      boatState.z = Math.max(138.0, Math.min(165.0, boatState.z));
+      boatState.dir = 1;
+      boatState.dockPauseTimer = 0.0;
+      playAnantaraBoatHornSound();
+    } else if (!approachingBridgeFromIconSiam && boatState.bridgeSyncActive && boatState.z > 228.0) {
+      boatState.bridgeSyncActive = false;
+    }
+
+    // Also toot the boat horn warmly if the player train passes close to the boat
+    if (trainPos && trainPos.distanceTo(anantaraBoatGroup.position) < 68.0 && (tSec - boatState.lastHornTime) > 16.0) {
+      boatState.lastHornTime = tSec;
+      playAnantaraBoatHornSound();
+    }
+
+    var minDockZ = -42.0; // Anantara Pier
+    var maxDockZ = boatState.bridgeSyncActive ? 236.0 : 142.0; // IconSiam Pier (or 236m out under the Bridge during sync!)
+
+    if (boatState.dockPauseTimer > 0) {
+      boatState.dockPauseTimer -= dt;
+    } else {
+      var cruiseSpeed = boatState.bridgeSyncActive ? 17.5 : 13.5; // m/s
+      boatState.z += boatState.dir * cruiseSpeed * dt;
+
+      if (boatState.z >= maxDockZ) {
+        boatState.z = maxDockZ;
+        boatState.dir = -1;
+        boatState.bridgeSyncActive = false;
+        boatState.dockPauseTimer = 2.6;
+      } else if (boatState.z <= minDockZ) {
+        boatState.z = minDockZ;
+        boatState.dir = 1;
+        boatState.dockPauseTimer = 2.6;
+      }
+    }
+
+    // Pull smoothly into the East Bank piers (`x = -433.5`) when near Anantara (`z = -42`) or IconSiam (`z = 142`),
+    // and cruise in the navigable river channel (`x ≈ -452`) in between
+    var distToAnantaraDock = Math.abs(boatState.z - (-42.0));
+    var distToIconSiamDock = Math.abs(boatState.z - 142.0);
+    var dockPull = 0.0;
+    if (distToAnantaraDock < 22.0) {
+      dockPull = 1.0 - (distToAnantaraDock / 22.0);
+    } else if (!boatState.bridgeSyncActive && distToIconSiamDock < 22.0) {
+      dockPull = 1.0 - (distToIconSiamDock / 22.0);
+    }
+    var channelX = getChaoPhrayaCenterX(boatState.z) + 18.0;
+    var pierSideX = -433.5;
+    var targetBoatX = channelX * (1.0 - dockPull) + pierSideX * dockPull;
+
+    var prevX = boatState.x;
+    boatState.x += (targetBoatX - boatState.x) * Math.min(1.0, dt * 3.5);
+
+    var targetYaw = (boatState.dir > 0) ? 0.0 : Math.PI;
+    var dxStep = boatState.x - prevX;
+    targetYaw += Math.max(-0.35, Math.min(0.35, dxStep * 2.5 * boatState.dir));
+
+    // Shortest-angle smooth yaw interpolation
+    var yawDiff = targetYaw - boatState.yaw;
+    while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
+    while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+    boatState.yaw += yawDiff * Math.min(1.0, dt * 4.2);
+
+    anantaraBoatGroup.position.set(
+      boatState.x,
+      riverWaterY + 0.12 + Math.sin(tSec * 2.6) * 0.08,
+      boatState.z
+    );
+    anantaraBoatGroup.rotation.y = boatState.yaw;
+    anantaraBoatGroup.rotation.z = Math.sin(tSec * 2.1) * 0.025;
+    anantaraBoatGroup.rotation.x = Math.cos(tSec * 1.8) * 0.018;
+
+    // Pulse water wake foam behind the boat when moving
+    var isBoatMoving = (boatState.dockPauseTimer <= 0.05);
+    for (var wki = 0; wki < boatWakeMeshes.length; wki++) {
+      var wm = boatWakeMeshes[wki];
+      wm.mesh.visible = isBoatMoving;
+      if (isBoatMoving) {
+        var pulse = 0.85 + 0.25 * Math.sin(tSec * 7.0 - wm.idx * 1.1);
+        wm.mesh.scale.set(pulse, pulse, 1.0);
+      }
+    }
+  }
+
+  // Hook into `renderer.render` so the Bangkok river, boat, Ferris wheel, and fountains animate every frame
+  if (typeof renderer !== 'undefined' && renderer && renderer.render) {
+    var prevRenderBkk = renderer.render.bind(renderer);
+    renderer.render = function(sceneArg, cameraArg) {
+      try {
+        updateBangkokChaoPhrayaWorld();
+      } catch (e) {}
+      return prevRenderBkk(sceneArg, cameraArg);
+    };
+  }
+})();
+
+
+
