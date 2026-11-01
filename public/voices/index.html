@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Happy Train – Complete Voice Pack (20 WAV Files)</title>
+  <title>Happy Train – Complete Google AI Studio Voice Pack (WAV Files)</title>
   <style>
     :root {
       --bg: #0f172a;
@@ -149,71 +149,127 @@
   <div class="container">
     <header>
       <div>
-        <h1>Happy Train – Complete Voice Pack (20 WAV Files)</h1>
-        <p class="subtitle">20 standalone WAV files (24 kHz, 16-bit mono RIFF WAV) integrated directly into Happy Train</p>
+        <h1>Happy Train – Google AI Studio Voice Pack (WAV Files)</h1>
+        <p class="subtitle">24 kHz, 16-bit mono RIFF WAV files generated via Google AI Studio (Aoede, Gacrux, Achird, Callirrhoe, Achernar, Sulafat, Zephyr, Leda, Puck)</p>
       </div>
-      <button class="btn-all" id="downloadAllBtn">Download All 20 WAV Files</button>
+      <button class="btn-all" id="downloadAllBtn">Download All WAV Files</button>
     </header>
 
-    <section class="group">
-      <div class="group-header">
-        <h2 class="group-title">1. Storyteller (9 WAV Clips)</h2>
-        <span class="group-meta">Voice: Achernar • Style: Empathetic • Pace: Natural • Accent: Neutral</span>
-      </div>
-      <div class="clip-list" id="list-storyteller"></div>
-    </section>
-
-    <section class="group">
-      <div class="group-header">
-        <h2 class="group-title">2. Daníček, the little train (8 WAV Clips)</h2>
-        <span class="group-meta">Voice: Sulafat • Style: Vocal Smile • Pace: Neutral • Accent: Neutral</span>
-      </div>
-      <div class="clip-list" id="list-danicek"></div>
-    </section>
-
-    <section class="group">
-      <div class="group-header">
-        <h2 class="group-title">3. Charlie, the helicopter (3 WAV Clips)</h2>
-        <span class="group-meta">Voice: Zephyr • Style: Promo/Hype • Pace: Rapid fire • Accent: Neutral</span>
-      </div>
-      <div class="clip-list" id="list-charlie"></div>
-    </section>
+    <div id="groups-root"></div>
   </div>
 
   <script>
-    var groups = {
-      storyteller: [
-        { file: 'storyteller-hello.wav', text: 'Hello, little explorer! Are you ready for an adventure?' },
-        { file: 'storyteller-discovery.wav', text: 'Look ahead. A magical world is waiting for us.' },
-        { file: 'storyteller-praise.wav', text: 'Wonderful! You found something new.' },
-        { file: 'storyteller-turn-left.wav', text: "Let's turn left and see where the tracks take us." },
-        { file: 'storyteller-turn-right.wav', text: "Let's turn right toward a new adventure." },
-        { file: 'storyteller-go-straight.wav', text: 'Going straight ahead along the railway line.' },
-        { file: 'storyteller-station.wav', text: 'Here we are at the station! Watch the happy passengers step aboard our train.' },
-        { file: 'storyteller-sheep.wav', text: "Oh look, fluffy white sheep are on the track! Let's honk gently so they step onto the grass." },
-        { file: 'storyteller-sunny.wav', text: 'The sun is shining brightly over our fairytale world!' }
-      ],
-      danicek: [
-        { file: 'danicek-ready.wav', text: "Hi, buddy! I'm ready to explore!" },
-        { file: 'danicek-crystals.wav', text: 'Wow! Look at those beautiful crystals!' },
-        { file: 'danicek-next-stop.wav', text: 'Where shall we go next?' },
-        { file: 'danicek-speed-up.wav', text: 'Chugga chugga! Going faster! Choo choo!' },
-        { file: 'danicek-slow-down.wav', text: 'Slowing down! Easy and steady!' },
-        { file: 'danicek-reverse.wav', text: 'Backing up! Beep beep, watch out behind me!' },
-        { file: 'danicek-tunnel.wav', text: 'Whoosh! Entering the dark tunnel! Turning on my bright headlight!' },
-        { file: 'danicek-metro.wav', text: 'Hooray! Into the underground metro tunnel we go! Look at the gnomes and waterfalls!' }
-      ],
-      charlie: [
-        { file: 'charlie-takeoff.wav', text: 'Hey, adventurers! Charlie is ready for takeoff!' },
-        { file: 'charlie-overview.wav', text: 'I can see something interesting from up here!' },
-        { file: 'charlie-explore.wav', text: "Come on, team! Let's take a closer look!" }
-      ]
-    };
+    var voiceGroups = [
+      {
+        title: '1. Rabbit & Cars (Aoede)',
+        meta: 'Voice: Aoede • Style: Vocal Smile • Pace: Rapid Fire • Accent: Neutral',
+        clips: [
+          { file: 'rabbit-hello.wav', text: 'Hop, hop, hello Train Dan! Look how high I can jump!' },
+          { file: 'car-hello.wav', text: 'Beep, beep! Hi Train Dan! We are waving at you from the crossing!' }
+        ]
+      },
+      {
+        title: '2. Owl & Grandma (Gacrux)',
+        meta: 'Voice: Gacrux • Style: Empathetic • Pace: Staccato • Accent: Neutral',
+        clips: [
+          { file: 'owl-hello.wav', text: 'Hoo-hoo! Hello Train Dan! Wise owl is waving from the tree branch!' },
+          { file: 'grandma-hello.wav', text: 'Hello darling Dan! Grandma is waving to you from our yellow house!' }
+        ]
+      },
+      {
+        title: '3. Dad & Grandpa (Achird)',
+        meta: 'Voice: Achird • Style: Empathetic • Pace: Rapid Fire • Accent: Neutral',
+        clips: [
+          { file: 'dad-hello.wav', text: 'Hey buddy Dan! Dad is waving to you by the swimming pool! Have a great ride!' },
+          { file: 'grandpa-hello.wav', text: 'Hello little driver Dan! Grandpa is cheering for your train from the garden!' }
+        ]
+      },
+      {
+        title: '4. Squirrel & AI Trains (Callirrhoe)',
+        meta: 'Voice: Callirrhoe • Style: Empathetic • Pace: Staccato • Accent: Neutral',
+        clips: [
+          { file: 'squirrel-hello.wav', text: 'Wheee! Hi Train Dan! Watch me spin and jump up onto the tree branch!' },
+          { file: 'aitrain-hello.wav', text: 'Toot, toot! Hello friend Dan! Passing you safely on the second track!' },
+          { file: 'aitrain-yield.wav', text: 'Choo, choo! After you, friend Dan! You have the right of way!' }
+        ]
+      },
+      {
+        title: '5. Mom & Mom Narrator (Achernar)',
+        meta: 'Voice: Achernar • Style: Empathetic • Pace: Natural • Accent: Neutral',
+        clips: [
+          { file: 'mom-house-hello.wav', text: 'Hello sweetie! Mommy is waving to you from our house and garden!' },
+          { file: 'mom-night.wav', text: 'Good evening! Night is falling and all the lights are glowing brightly!' },
+          { file: 'mom-anantara.wav', text: 'Now you are heading to the beautiful Anantara Hotel by the river in Bangkok!' },
+          { file: 'mom-iconsiam.wav', text: 'Look, now we are riding past IconSiam and the dancing fountains in Bangkok!' },
+          { file: 'storyteller-hello.wav', text: 'Hello, little explorer! Are you ready for an adventure?' },
+          { file: 'storyteller-discovery.wav', text: 'Look ahead. A magical world is waiting for us.' },
+          { file: 'storyteller-praise.wav', text: 'Wonderful! You found something new.' },
+          { file: 'storyteller-turn-left.wav', text: "Let's turn left and see where the tracks take us." },
+          { file: 'storyteller-turn-right.wav', text: "Let's turn right toward a new adventure." },
+          { file: 'storyteller-go-straight.wav', text: 'Going straight ahead along the railway line.' },
+          { file: 'storyteller-station.wav', text: 'Here we are at the station! Watch the happy passengers step aboard our train.' },
+          { file: 'storyteller-sheep.wav', text: "Oh look, fluffy white sheep are on the track! Let's honk gently so they step onto the grass." },
+          { file: 'storyteller-sunny.wav', text: 'The sun is shining brightly over our fairytale world!' }
+        ]
+      },
+      {
+        title: '6. Little Train Daníček (Sulafat)',
+        meta: 'Voice: Sulafat • Style: Vocal Smile • Pace: Natural • Accent: Neutral',
+        clips: [
+          { file: 'danicek-ready.wav', text: "Hi, buddy! I'm ready to explore!" },
+          { file: 'danicek-crystals.wav', text: 'Wow! Look at those beautiful crystals!' },
+          { file: 'danicek-next-stop.wav', text: 'Where shall we go next?' },
+          { file: 'danicek-speed-up.wav', text: 'Chugga chugga! Going faster! Choo choo!' },
+          { file: 'danicek-slow-down.wav', text: 'Slowing down! Easy and steady!' },
+          { file: 'danicek-reverse.wav', text: 'Backing up! Beep beep, watch out behind me!' },
+          { file: 'danicek-tunnel.wav', text: 'Whoosh! Entering the dark tunnel! Turning on my bright headlight!' },
+          { file: 'danicek-metro.wav', text: 'Hooray! Into the underground metro tunnel we go! Look at the gnomes and waterfalls!' },
+          { file: 'danicek-eiffel.wav', text: 'Look! That is the tall Eiffel Tower!' },
+          { file: 'danicek-colosseum.wav', text: 'Look! There is the Roman Colosseum!' },
+          { file: 'danicek-airport.wav', text: 'Look at the airplanes at the Airport!' },
+          { file: 'danicek-jewel.wav', text: 'Wow, look at the big waterfall inside Jewel!' },
+          { file: 'danicek-stadium.wav', text: 'Look! They are playing football in the Stadium!' },
+          { file: 'danicek-bigben.wav', text: 'Look at Big Ben, the golden clock tower!' },
+          { file: 'danicek-skyscraper.wav', text: 'Wow, look at that tall glass Skyscraper!' },
+          { file: 'danicek-fountain.wav', text: 'Look at the sparkling water Fountain!' },
+          { file: 'danicek-boat.wav', text: 'Look at the wooden Anantara boat on the river!' },
+          { file: 'danicek-landmarks.wav', text: 'Wow, look at that amazing landmark right next to our tracks!' }
+        ]
+      },
+      {
+        title: '7. Charlie the Helicopter (Zephyr)',
+        meta: 'Voice: Zephyr • Style: Promo/Hype • Pace: Rapid Fire • Accent: Neutral',
+        clips: [
+          { file: 'charlie-takeoff.wav', text: 'Hey, adventurers! Charlie is ready for takeoff!' },
+          { file: 'charlie-overview.wav', text: 'I can see something interesting from up here!' },
+          { file: 'charlie-explore.wav', text: "Come on, team! Let's take a closer look!" }
+        ]
+      },
+      {
+        title: '8. Cow & Sheep (Leda) + Track Monsters (Puck)',
+        meta: 'Voice: Leda (Vocal Smile) & Puck (Promo/Hype, Staccato)',
+        clips: [
+          { file: 'cow-hello.wav', text: 'Mooo! Hello Train Dan! Daisy the cow wishes you a happy journey!' },
+          { file: 'sheep-hello.wav', text: 'Baa, baa! Hi Train Dan! The fluffy white sheep are waving to you!' },
+          { file: 'monster-help.wav', text: 'Oh no, here comes the train! Help! Let us hide behind the tree!' },
+          { file: 'monster-bleh.wav', text: 'Peek-a-boo, Train Dan! Bleh, bleh, you cannot catch me!' }
+        ]
+      }
+    ];
 
     var allFiles = [];
-    Object.keys(groups).forEach(function (key) {
-      var container = document.getElementById('list-' + key);
-      groups[key].forEach(function (item) {
+    var root = document.getElementById('groups-root');
+    voiceGroups.forEach(function (grp) {
+      var sec = document.createElement('section');
+      sec.className = 'group';
+      sec.innerHTML =
+        '<div class="group-header">' +
+          '<h2 class="group-title">' + grp.title + '</h2>' +
+          '<span class="group-meta">' + grp.meta + '</span>' +
+        '</div>';
+      var list = document.createElement('div');
+      list.className = 'clip-list';
+      grp.clips.forEach(function (item) {
         allFiles.push(item.file);
         var card = document.createElement('div');
         card.className = 'clip-card';
@@ -226,8 +282,10 @@
             '<audio controls preload="metadata" src="/voices/' + item.file + '"></audio>' +
             '<a class="dl-link" href="/voices/' + item.file + '" download="' + item.file + '">Download WAV</a>' +
           '</div>';
-        container.appendChild(card);
+        list.appendChild(card);
       });
+      sec.appendChild(list);
+      root.appendChild(sec);
     });
 
     document.getElementById('downloadAllBtn').addEventListener('click', function () {

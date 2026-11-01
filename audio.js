@@ -1,7 +1,7 @@
 // ============================================================================
-// MODULE 1: AUDIO.JS (Web Audio API Voice Engine, Balanced Single-Speaker
-// Turn-Taking, Strict Camera-Frustum Visibility Filter, Smartphone Compact HUD,
-// Translucent Circular Remote D-Pad, Steam Whistle, Chimney Bubbles & Signage)
+// MODULE 1: AUDIO.JS (Google AI Studio Multi-Voice Engine, 5s–10s Turn-Taking
+// Cadence, Strict Camera-Frustum Visibility Filter, Mom/Dad & Grandma/Grandpa
+// Alternating House Greetings, Smartphone Compact HUD & Circular Remote D-Pad)
 // ============================================================================
 
 // --- PERSONALIZATION SETTINGS (Child Name, Train Name, Voice Addressing) ---
@@ -414,7 +414,6 @@ window.formatPersonalizedText = function(role, rawText) {
         })(buttons[bi]);
       }
 
-      // Highlight wheel segment when user presses hardware keyboard / TV remote keys
       window.addEventListener('keydown', function(e) {
         var k = e.key === ' ' ? 'Enter' : e.key;
         var matchBtn = wheel.querySelector('button[data-key="' + k + '"]');
@@ -907,13 +906,13 @@ window.makeStationSign = function(titleText, iconType, bgHex, w, h) {
 };
 
 // ============================================================================
-// BACKGROUND MUSIC PLAYER (Suno MP3)
+// BACKGROUND MUSIC PLAYER (song1.mp3, song2.mp3, song3.mp3, song4.mp3)
 // ============================================================================
-var sunoCandidateFiles = [
-  'song1.mp3',
-  'song2.mp3',
-  'Little Train Ride.mp3',
-  'Little Train Ride (1).mp3'
+var sunoTrackGroups = [
+  ['song1.mp3'],
+  ['song2.mp3'],
+  ['song3.mp3', 'assets/aistudio/Song3_6c8550f2.mp3', '/assets/aistudio/Song3_6c8550f2.mp3'],
+  ['song4.mp3', 'assets/aistudio/Song4_3a5fe458.mp3', '/assets/aistudio/Song4_3a5fe458.mp3']
 ];
 var currentSongIndex = 0;
 var isMusicPlaying = false;
@@ -921,18 +920,29 @@ var userMusicVolume = 0.45;
 var bgMusicAudio = new Audio();
 bgMusicAudio.volume = userMusicVolume;
 
-function playCurrentCandidate() {
+function playCurrentCandidate(fallbackUrlIdx, failedTrackCount) {
   if (!isMusicPlaying) return;
-  bgMusicAudio.src = sunoCandidateFiles[currentSongIndex % sunoCandidateFiles.length];
+  var groupIdx = currentSongIndex % sunoTrackGroups.length;
+  var candidates = sunoTrackGroups[groupIdx];
+  var uIdx = fallbackUrlIdx || 0;
+  var failCount = failedTrackCount || 0;
+
+  if (uIdx >= candidates.length) {
+    if (failCount + 1 >= sunoTrackGroups.length) return;
+    currentSongIndex = (currentSongIndex + 1) % sunoTrackGroups.length;
+    playCurrentCandidate(0, failCount + 1);
+    return;
+  }
+
+  bgMusicAudio.src = candidates[uIdx];
   bgMusicAudio.play().catch(function() {
-    currentSongIndex++;
-    if (currentSongIndex < sunoCandidateFiles.length * 2) playCurrentCandidate();
+    playCurrentCandidate(uIdx + 1, failCount);
   });
 }
 
 bgMusicAudio.addEventListener('ended', function() {
-  currentSongIndex = (currentSongIndex + 1) % sunoCandidateFiles.length;
-  playCurrentCandidate();
+  currentSongIndex = (currentSongIndex + 1) % sunoTrackGroups.length;
+  playCurrentCandidate(0, 0);
 });
 
 window.toggleMusic = function() {
@@ -954,15 +964,15 @@ window.toggleMusic = function() {
     var volEl = document.getElementById('music-vol');
     if (volEl) userMusicVolume = parseFloat(volEl.value);
     bgMusicAudio.volume = userMusicVolume;
-    playCurrentCandidate();
+    playCurrentCandidate(0, 0);
   }
 };
 
 window.nextMusicTrack = function() {
   window.initAudio();
-  currentSongIndex = (currentSongIndex + 1) % sunoCandidateFiles.length;
+  currentSongIndex = (currentSongIndex + 1) % sunoTrackGroups.length;
   if (!isMusicPlaying) window.toggleMusic();
-  else playCurrentCandidate();
+  else playCurrentCandidate(0, 0);
 };
 
 window.changeMusicVolume = function(val) {
@@ -971,173 +981,460 @@ window.changeMusicVolume = function(val) {
 };
 
 // ============================================================================
-// NATURAL CHARACTER VOICE PACK (Studio WAV Files in /voices/)
+// GOOGLE AI STUDIO VOICE PROFILES & STUDIO WAV PACK (/voices/*.wav)
+// 1. Rabbit & Cars:       Voice: Aoede,      Style: Vocal Smile, Pace: Rapid Fire, Accent: Neutral
+// 2. Owl & Grandma:       Voice: Gacrux,     Style: Empathetic,  Pace: Staccato,   Accent: Neutral
+// 3. Dad & Grandpa:       Voice: Achird,     Style: Empathetic,  Pace: Rapid Fire, Accent: Neutral
+// 4. Squirrel & AI Train: Voice: Callirrhoe, Style: Empathetic,  Pace: Staccato,   Accent: Neutral
+// 5. Mom / Mom Narrator:  Voice: Achernar,   Style: Empathetic,  Pace: Natural,    Accent: Neutral
+// 6. Little Train Dan:    Voice: Sulafat,    Style: Vocal Smile, Pace: Natural,    Accent: Neutral
+// 7. Helicopter Charlie:  Voice: Zephyr,     Style: Promo/Hype,  Pace: Rapid Fire, Accent: Neutral
+// 8. Cow & Sheep:         Voice: Leda,       Style: Vocal Smile, Pace: Natural,    Accent: Neutral
+// 9. Track Monsters:      Voice: Puck,       Style: Promo/Hype,  Pace: Staccato,   Accent: Neutral
 // ============================================================================
+window.AI_STUDIO_VOICE_PROFILES = {
+  rabbit:     { voiceName: 'Aoede',      style: 'Style: Vocal Smile, Pace: Rapid Fire, Accent: Neutral', fallbackClip: 'rabbit-hello' },
+  car:        { voiceName: 'Aoede',      style: 'Style: Vocal Smile, Pace: Rapid Fire, Accent: Neutral', fallbackClip: 'car-hello' },
+  owl:        { voiceName: 'Gacrux',     style: 'Style: Empathetic, Pace: Staccato, Accent: Neutral',    fallbackClip: 'owl-hello' },
+  grandma:    { voiceName: 'Gacrux',     style: 'Style: Empathetic, Pace: Staccato, Accent: Neutral',    fallbackClip: 'grandma-hello' },
+  dad:        { voiceName: 'Achird',     style: 'Style: Empathetic, Pace: Rapid Fire, Accent: Neutral',  fallbackClip: 'dad-hello' },
+  grandpa:    { voiceName: 'Achird',     style: 'Style: Empathetic, Pace: Rapid Fire, Accent: Neutral',  fallbackClip: 'grandpa-hello' },
+  squirrel:   { voiceName: 'Callirrhoe', style: 'Style: Empathetic, Pace: Staccato, Accent: Neutral',    fallbackClip: 'squirrel-hello' },
+  ai_train:   { voiceName: 'Callirrhoe', style: 'Style: Empathetic, Pace: Staccato, Accent: Neutral',    fallbackClip: 'aitrain-hello' },
+  mom:        { voiceName: 'Achernar',   style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',     fallbackClip: 'storyteller-hello' },
+  train:      { voiceName: 'Sulafat',    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',    fallbackClip: 'danicek-ready' },
+  charlie:    { voiceName: 'Zephyr',     style: 'Style: Promo/Hype, Pace: Rapid Fire, Accent: Neutral',  fallbackClip: 'charlie-takeoff' },
+  helicopter: { voiceName: 'Zephyr',     style: 'Style: Promo/Hype, Pace: Rapid Fire, Accent: Neutral',  fallbackClip: 'charlie-overview' },
+  cow:        { voiceName: 'Leda',       style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',    fallbackClip: 'cow-hello' },
+  sheep:      { voiceName: 'Leda',       style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',    fallbackClip: 'sheep-hello' },
+  monster:    { voiceName: 'Puck',       style: 'Style: Promo/Hype, Pace: Staccato, Accent: Neutral',    fallbackClip: 'monster-help' }
+};
+
 window.VOICE_PACK = {
+  // --- Rabbit & Cars (Aoede: Vocal Smile, Rapid Fire, Neutral) ---
+  'rabbit-hello': {
+    file: 'voices/rabbit-hello.wav',
+    fallbackClip: 'danicek-ready',
+    role: 'friend',
+    speakerType: 'rabbit',
+    voiceName: 'Aoede',
+    style: 'Style: Vocal Smile, Pace: Rapid Fire, Accent: Neutral',
+    text: 'Hop, hop, hello Train Dan! Look how high I can jump!'
+  },
+  'car-hello': {
+    file: 'voices/car-hello.wav',
+    fallbackClip: 'danicek-reverse',
+    role: 'friend',
+    speakerType: 'car',
+    voiceName: 'Aoede',
+    style: 'Style: Vocal Smile, Pace: Rapid Fire, Accent: Neutral',
+    text: 'Beep, beep! Hi Train Dan! We are waving at you from the crossing!'
+  },
+
+  // --- Owl & Grandma (Gacrux: Empathetic, Staccato, Neutral) ---
+  'owl-hello': {
+    file: 'voices/owl-hello.wav',
+    fallbackClip: 'storyteller-discovery',
+    role: 'friend',
+    speakerType: 'owl',
+    voiceName: 'Gacrux',
+    style: 'Style: Empathetic, Pace: Staccato, Accent: Neutral',
+    text: 'Hoo-hoo! Hello Train Dan! Wise owl is waving from the tree branch!'
+  },
+  'grandma-hello': {
+    file: 'voices/grandma-hello.wav',
+    fallbackClip: 'storyteller-praise',
+    role: 'mom',
+    speakerType: 'grandma',
+    voiceName: 'Gacrux',
+    style: 'Style: Empathetic, Pace: Staccato, Accent: Neutral',
+    text: 'Hello darling Dan! Grandma is waving to you from our yellow house!'
+  },
+
+  // --- Dad & Grandpa (Achird: Empathetic, Rapid Fire, Neutral) ---
+  'dad-hello': {
+    file: 'voices/dad-hello.wav',
+    fallbackClip: 'charlie-takeoff',
+    role: 'friend',
+    speakerType: 'dad',
+    voiceName: 'Achird',
+    style: 'Style: Empathetic, Pace: Rapid Fire, Accent: Neutral',
+    text: 'Hey buddy Dan! Dad is waving to you by the swimming pool! Have a great ride!'
+  },
+  'grandpa-hello': {
+    file: 'voices/grandpa-hello.wav',
+    fallbackClip: 'charlie-explore',
+    role: 'friend',
+    speakerType: 'grandpa',
+    voiceName: 'Achird',
+    style: 'Style: Empathetic, Pace: Rapid Fire, Accent: Neutral',
+    text: 'Hello little driver Dan! Grandpa is cheering for your train from the garden!'
+  },
+
+  // --- Squirrel & AI Trains (Callirrhoe: Empathetic, Staccato, Neutral) ---
+  'squirrel-hello': {
+    file: 'voices/squirrel-hello.wav',
+    fallbackClip: 'danicek-crystals',
+    role: 'friend',
+    speakerType: 'squirrel',
+    voiceName: 'Callirrhoe',
+    style: 'Style: Empathetic, Pace: Staccato, Accent: Neutral',
+    text: 'Wheee! Hi Train Dan! Watch me spin and jump up onto the tree branch!'
+  },
+  'aitrain-hello': {
+    file: 'voices/aitrain-hello.wav',
+    fallbackClip: 'danicek-speed-up',
+    role: 'friend',
+    speakerType: 'ai_train',
+    voiceName: 'Callirrhoe',
+    style: 'Style: Empathetic, Pace: Staccato, Accent: Neutral',
+    text: 'Toot, toot! Hello friend Dan! Passing you safely on the second track!'
+  },
+  'aitrain-yield': {
+    file: 'voices/aitrain-yield.wav',
+    fallbackClip: 'danicek-slow-down',
+    role: 'friend',
+    speakerType: 'ai_train',
+    voiceName: 'Callirrhoe',
+    style: 'Style: Empathetic, Pace: Staccato, Accent: Neutral',
+    text: 'Choo, choo! After you, friend Dan! You have the right of way!'
+  },
+
+  // --- Cow & Sheep (Leda: Vocal Smile, Natural, Neutral) ---
+  'cow-hello': {
+    file: 'voices/cow-hello.wav',
+    fallbackClip: 'storyteller-sunny',
+    role: 'friend',
+    speakerType: 'cow',
+    voiceName: 'Leda',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
+    text: 'Mooo! Hello Train Dan! Daisy the cow wishes you a happy journey!'
+  },
+  'sheep-hello': {
+    file: 'voices/sheep-hello.wav',
+    fallbackClip: 'storyteller-sheep',
+    role: 'friend',
+    speakerType: 'sheep',
+    voiceName: 'Leda',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
+    text: 'Baa, baa! Hi Train Dan! The fluffy white sheep are waving to you!'
+  },
+
+  // --- Track Monsters (Puck: Promo/Hype, Staccato, Neutral) ---
+  'monster-help': {
+    file: 'voices/monster-help.wav',
+    fallbackClip: 'charlie-overview',
+    role: 'friend',
+    speakerType: 'monster',
+    voiceName: 'Puck',
+    style: 'Style: Promo/Hype, Pace: Staccato, Accent: Neutral',
+    text: 'Oh no, here comes the train! Help! Let us hide behind the tree!'
+  },
+  'monster-bleh': {
+    file: 'voices/monster-bleh.wav',
+    fallbackClip: 'charlie-explore',
+    role: 'friend',
+    speakerType: 'monster',
+    voiceName: 'Puck',
+    style: 'Style: Promo/Hype, Pace: Staccato, Accent: Neutral',
+    text: 'Peek-a-boo, Train Dan! Bleh, bleh, you cannot catch me!'
+  },
+
+  // --- Mom at Mom's House & Mom Narrator (Achernar: Empathetic, Natural, Neutral) ---
+  'mom-house-hello': {
+    file: 'voices/mom-house-hello.wav',
+    fallbackClip: 'storyteller-hello',
+    role: 'mom',
+    speakerType: 'mom',
+    voiceName: 'Achernar',
+    style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',
+    text: 'Hello sweetie! Mommy is waving to you from our house and garden!'
+  },
+  'mom-night': {
+    file: 'voices/mom-night.wav',
+    fallbackClip: 'storyteller-discovery',
+    role: 'mom',
+    speakerType: 'mom',
+    voiceName: 'Achernar',
+    style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',
+    text: 'Good evening! Night is falling and all the lights are glowing brightly!'
+  },
+  'mom-anantara': {
+    file: 'voices/mom-anantara.wav',
+    fallbackClip: 'storyteller-turn-right',
+    role: 'mom',
+    speakerType: 'mom',
+    voiceName: 'Achernar',
+    style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',
+    text: 'Now you are heading to the beautiful Anantara Hotel by the river in Bangkok!'
+  },
+  'mom-iconsiam': {
+    file: 'voices/mom-iconsiam.wav',
+    fallbackClip: 'storyteller-praise',
+    role: 'mom',
+    speakerType: 'mom',
+    voiceName: 'Achernar',
+    style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',
+    text: 'Look, now we are riding past IconSiam and the dancing fountains in Bangkok!'
+  },
   'storyteller-hello': {
     file: 'voices/storyteller-hello.wav',
     role: 'mom',
-    speaker: '👩 Mom Narrator',
-    color: '#ec4899',
-    priority: 3,
+    speakerType: 'mom',
+    voiceName: 'Achernar',
+    style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',
     text: 'Hello, little explorer! Are you ready for an adventure?'
   },
   'storyteller-discovery': {
     file: 'voices/storyteller-discovery.wav',
     role: 'mom',
-    speaker: '👩 Mom Narrator',
-    color: '#ec4899',
-    priority: 2,
+    speakerType: 'mom',
+    voiceName: 'Achernar',
+    style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',
     text: 'Look ahead. A magical world is waiting for us.'
   },
   'storyteller-praise': {
     file: 'voices/storyteller-praise.wav',
     role: 'mom',
-    speaker: '👩 Mom Narrator',
-    color: '#ec4899',
-    priority: 2,
+    speakerType: 'mom',
+    voiceName: 'Achernar',
+    style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',
     text: 'Wonderful! You found something new.'
   },
   'storyteller-turn-left': {
     file: 'voices/storyteller-turn-left.wav',
     role: 'mom',
-    speaker: '👩 Mom Narrator',
-    color: '#facc15',
-    priority: 2,
+    speakerType: 'mom',
+    voiceName: 'Achernar',
+    style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',
     text: "Let's turn left and see where the tracks take us."
   },
   'storyteller-turn-right': {
     file: 'voices/storyteller-turn-right.wav',
     role: 'mom',
-    speaker: '👩 Mom Narrator',
-    color: '#f97316',
-    priority: 2,
+    speakerType: 'mom',
+    voiceName: 'Achernar',
+    style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',
     text: "Let's turn right toward a new adventure."
   },
   'storyteller-go-straight': {
     file: 'voices/storyteller-go-straight.wav',
     role: 'mom',
-    speaker: '👩 Mom Narrator',
-    color: '#4ade80',
-    priority: 2,
+    speakerType: 'mom',
+    voiceName: 'Achernar',
+    style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',
     text: 'Going straight ahead along the railway line.'
   },
   'storyteller-station': {
     file: 'voices/storyteller-station.wav',
     role: 'mom',
-    speaker: '👩 Mom Narrator',
-    color: '#ec4899',
-    priority: 3,
+    speakerType: 'mom',
+    voiceName: 'Achernar',
+    style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',
     text: 'Here we are at the station! Watch the happy passengers step aboard our train.'
   },
   'storyteller-sheep': {
     file: 'voices/storyteller-sheep.wav',
     role: 'mom',
-    speaker: '👩 Mom Narrator',
-    color: '#ec4899',
-    priority: 3,
+    speakerType: 'mom',
+    voiceName: 'Achernar',
+    style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',
     text: "Oh look, fluffy white sheep are on the track! Let's honk gently so they step onto the grass."
   },
   'storyteller-sunny': {
     file: 'voices/storyteller-sunny.wav',
     role: 'mom',
-    speaker: '👩 Mom Narrator',
-    color: '#ec4899',
-    priority: 2,
+    speakerType: 'mom',
+    voiceName: 'Achernar',
+    style: 'Style: Empathetic, Pace: Natural, Accent: Neutral',
     text: 'The sun is shining brightly over our fairytale world!'
   },
+
+  // --- Little Train Daníček (Sulafat: Vocal Smile, Natural, Neutral) ---
   'danicek-ready': {
     file: 'voices/danicek-ready.wav',
     role: 'train',
-    speaker: '🚂 Little Train Daníček',
-    color: '#0d9488',
-    priority: 2,
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
     text: "Hi, buddy! I'm ready to explore!"
   },
   'danicek-crystals': {
     file: 'voices/danicek-crystals.wav',
     role: 'train',
-    speaker: '🚇 Little Train Daníček',
-    color: '#a855f7',
-    priority: 3,
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
     text: 'Wow! Look at those beautiful crystals!'
   },
   'danicek-next-stop': {
     file: 'voices/danicek-next-stop.wav',
     role: 'train',
-    speaker: '🚂 Little Train Daníček',
-    color: '#0d9488',
-    priority: 2,
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
     text: 'Where shall we go next?'
   },
   'danicek-speed-up': {
     file: 'voices/danicek-speed-up.wav',
     role: 'train',
-    speaker: '🚂 Little Train Daníček',
-    color: '#0d9488',
-    priority: 1,
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
     text: 'Chugga chugga! Going faster! Choo choo!'
   },
   'danicek-slow-down': {
     file: 'voices/danicek-slow-down.wav',
     role: 'train',
-    speaker: '🚂 Little Train Daníček',
-    color: '#0d9488',
-    priority: 1,
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
     text: 'Slowing down! Easy and steady!'
   },
   'danicek-reverse': {
     file: 'voices/danicek-reverse.wav',
     role: 'train',
-    speaker: '🚂 Little Train Daníček',
-    color: '#0d9488',
-    priority: 2,
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
     text: 'Backing up! Beep beep, watch out behind me!'
   },
   'danicek-tunnel': {
     file: 'voices/danicek-tunnel.wav',
     role: 'train',
-    speaker: '🔦 Little Train Daníček',
-    color: '#facc15',
-    priority: 3,
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
     text: 'Whoosh! Entering the dark tunnel! Turning on my bright headlight!'
   },
   'danicek-metro': {
     file: 'voices/danicek-metro.wav',
     role: 'train',
-    speaker: '🚇 Little Train Daníček',
-    color: '#a855f7',
-    priority: 3,
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
     text: 'Hooray! Into the underground metro tunnel we go! Look at the gnomes and waterfalls!'
   },
+  'danicek-eiffel': {
+    file: 'voices/danicek-eiffel.wav',
+    fallbackClip: 'danicek-landmarks',
+    role: 'train',
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
+    text: 'Look! That is the tall Eiffel Tower!'
+  },
+  'danicek-colosseum': {
+    file: 'voices/danicek-colosseum.wav',
+    fallbackClip: 'danicek-landmarks',
+    role: 'train',
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
+    text: 'Look! There is the Roman Colosseum!'
+  },
+  'danicek-airport': {
+    file: 'voices/danicek-airport.wav',
+    fallbackClip: 'danicek-landmarks',
+    role: 'train',
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
+    text: 'Look at the airplanes at the Airport!'
+  },
+  'danicek-jewel': {
+    file: 'voices/danicek-jewel.wav',
+    fallbackClip: 'danicek-crystals',
+    role: 'train',
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
+    text: 'Wow, look at the big waterfall inside Jewel!'
+  },
+  'danicek-stadium': {
+    file: 'voices/danicek-stadium.wav',
+    fallbackClip: 'danicek-landmarks',
+    role: 'train',
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
+    text: 'Look! They are playing football in the Stadium!'
+  },
+  'danicek-bigben': {
+    file: 'voices/danicek-bigben.wav',
+    fallbackClip: 'danicek-landmarks',
+    role: 'train',
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
+    text: 'Look at Big Ben, the golden clock tower!'
+  },
+  'danicek-skyscraper': {
+    file: 'voices/danicek-skyscraper.wav',
+    fallbackClip: 'danicek-landmarks',
+    role: 'train',
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
+    text: 'Wow, look at that tall glass Skyscraper!'
+  },
+  'danicek-fountain': {
+    file: 'voices/danicek-fountain.wav',
+    fallbackClip: 'danicek-landmarks',
+    role: 'train',
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
+    text: 'Look at the sparkling water Fountain!'
+  },
+  'danicek-boat': {
+    file: 'voices/danicek-boat.wav',
+    fallbackClip: 'danicek-landmarks',
+    role: 'train',
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
+    text: 'Look at the wooden Anantara boat on the river!'
+  },
+  'danicek-landmarks': {
+    file: 'voices/danicek-landmarks.wav',
+    fallbackClip: 'danicek-ready',
+    role: 'train',
+    speakerType: 'train',
+    voiceName: 'Sulafat',
+    style: 'Style: Vocal Smile, Pace: Natural, Accent: Neutral',
+    text: 'Wow, look at that amazing landmark right next to our tracks!'
+  },
+
+  // --- Charlie the Helicopter (Zephyr: Promo/Hype, Rapid Fire, Neutral) ---
   'charlie-takeoff': {
     file: 'voices/charlie-takeoff.wav',
     role: 'charlie',
-    speaker: '🚁 Charlie the Helicopter',
-    color: '#f97316',
-    priority: 2,
+    speakerType: 'helicopter',
+    voiceName: 'Zephyr',
+    style: 'Style: Promo/Hype, Pace: Rapid Fire, Accent: Neutral',
     text: 'Hey, adventurers! Charlie is ready for takeoff!'
   },
   'charlie-overview': {
     file: 'voices/charlie-overview.wav',
     role: 'charlie',
-    speaker: '🚁 Charlie the Helicopter',
-    color: '#f97316',
-    priority: 1,
+    speakerType: 'helicopter',
+    voiceName: 'Zephyr',
+    style: 'Style: Promo/Hype, Pace: Rapid Fire, Accent: Neutral',
     text: 'I can see something interesting from up here!'
   },
   'charlie-explore': {
     file: 'voices/charlie-explore.wav',
     role: 'charlie',
-    speaker: '🚁 Charlie the Helicopter',
-    color: '#f97316',
-    priority: 1,
+    speakerType: 'helicopter',
+    voiceName: 'Zephyr',
+    style: 'Style: Promo/Hype, Pace: Rapid Fire, Accent: Neutral',
     text: "Come on, team! Let's take a closer look!"
   }
 };
 
 // ============================================================================
-// WEB AUDIO CONTEXT & DIRECT PCM WAV BUFFER DECODER
+// WEB AUDIO CONTEXT & DIRECT PCM WAV BUFFER DECODER (100% Google AI Studio WAVs)
 // ============================================================================
 var audioCtx = null;
 var hasUserGesture = false;
@@ -1236,8 +1533,37 @@ function fetchVoiceWavBuffer(clipKey) {
 
   function tryFetchIdx(idx) {
     if (idx >= candidateUrls.length) {
-      return Promise.reject(new Error('Voice WAV not found'));
+      // If static file not found, try generating on-the-fly via /api/tts (Google AI Studio server endpoint)
+      return fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: entry.text,
+          voiceName: entry.voiceName || 'Aoede',
+          style: entry.style || 'Style: Vocal Smile, Pace: Natural, Accent: Neutral'
+        })
+      }).then(function(resp) {
+        if (!resp.ok) throw new Error('TTS API ' + resp.status);
+        return resp.arrayBuffer();
+      }).then(function(arrBuf) {
+        if (!arrBuf || arrBuf.byteLength < 100) throw new Error('Empty TTS WAV');
+        rawWavArrayBuffers[clipKey] = arrBuf;
+        if (audioCtx) {
+          var pcmBuf = parsePcm16WavToAudioBuffer(audioCtx, arrBuf);
+          if (pcmBuf) {
+            decodedVoiceBuffers[clipKey] = pcmBuf;
+            return pcmBuf;
+          }
+        }
+        return null;
+      }).catch(function(err) {
+        if (entry.fallbackClip && entry.fallbackClip !== clipKey) {
+          return fetchVoiceWavBuffer(entry.fallbackClip);
+        }
+        throw err;
+      });
     }
+
     return fetch(candidateUrls[idx]).then(function(resp) {
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       return resp.arrayBuffer();
@@ -1273,33 +1599,15 @@ function fetchVoiceWavBuffer(clipKey) {
   });
 })();
 
-// --- ENGLISH SPEECH SYNTHESIS ENGINE (Distinct Voices for Mom, Train Dan, Animals & Friends) ---
-var verifiedEnVoices = [];
-function loadEnglishVoices() {
-  if (!('speechSynthesis' in window)) return;
-  var all = window.speechSynthesis.getVoices() || [];
-  verifiedEnVoices = all.filter(function(v) {
-    var l = (v.lang || '').toLowerCase();
-    var n = (v.name || '').toLowerCase();
-    if (l.indexOf('cs') !== -1 || l.indexOf('cz') !== -1 || n.indexOf('zuzana') !== -1) return false;
-    return l.indexOf('en') === 0;
-  });
-}
-if ('speechSynthesis' in window) {
-  loadEnglishVoices();
-  window.speechSynthesis.onvoiceschanged = loadEnglishVoices;
-}
-
 // ============================================================================
 // STRICT CAMERA FRUSTUM VISIBILITY HELPER
-// ("Pravidlem je, že mluví jen ty zvířátka, mašinky a autíčka, atd. která jsou
-//  právě zobrazena a mluví vždy jen jeden objekt. Troubit a blikat může i více
-//  objektů najednou, ale jen ty, které jsou zobrazeny.")
+// ("Prosím, aby prodlevy mezi mluveným slovem byly alespoň 5s, maximálně 10 sekund,
+//  ale mluví jen objekt, který je aktuálně v záběru.")
 // ============================================================================
 window.isWorldPosVisibleOnScreen = function(worldPos, maxDistFromTrain) {
   if (!worldPos || !window.camera || !window.playerLoco || !window.playerLoco.position) return false;
   if (window.pState && window.pState.inSubway) return false;
-  var maxD = maxDistFromTrain || 58.0;
+  var maxD = maxDistFromTrain || 68.0;
   if (window.playerLoco.position.distanceTo(worldPos) > maxD) return false;
   var ndc = worldPos.clone().project(window.camera);
   return (
@@ -1310,17 +1618,31 @@ window.isWorldPosVisibleOnScreen = function(worldPos, maxDistFromTrain) {
 };
 
 // ============================================================================
-// STRICT SINGLE-SPEAKER VOICE ENGINE (NO TEXT BANNER, NO OVERLAPPING SPEECH)
+// STRICT SINGLE-SPEAKER VOICE ENGINE WITH 5s–10s CADENCE LOCK
+// (100% Google AI Studio WAVs — No Browser SpeechSynthesis, No Text Boxes)
 // ============================================================================
+var MIN_SPEECH_PAUSE_MS = 5000;
+var MAX_SPEECH_PAUSE_MS = 10000;
+
 var activeBufferSource = null;
 var activeVoiceKey = null;
 var activeVoiceEndTime = 0;
 var activeWatchdogTimer = null;
+var lastVoiceFinishedTime = 0;
+var nextScheduledSpeechGapMs = 6000;
 
 window.isVoiceCurrentlyPlaying = function() {
   if (!hasUserGesture) return false;
-  var ttsSpeaking = Boolean('speechSynthesis' in window && window.speechSynthesis && window.speechSynthesis.speaking);
-  return Date.now() < activeVoiceEndTime || ttsSpeaking;
+  return Date.now() < activeVoiceEndTime || Boolean(activeBufferSource);
+};
+
+window.canStartNewSpeechNow = function() {
+  if (!hasUserGesture) return false;
+  if (window.isVoiceCurrentlyPlaying()) return false;
+  if (lastVoiceFinishedTime > 0 && (Date.now() - lastVoiceFinishedTime) < MIN_SPEECH_PAUSE_MS) {
+    return false;
+  }
+  return true;
 };
 
 // Requirement 1: Never show top speech frame (#face-cam-card)
@@ -1338,90 +1660,12 @@ function onCurrentVoiceFinished() {
   activeBufferSource = null;
   activeVoiceKey = null;
   activeVoiceEndTime = 0;
+  lastVoiceFinishedTime = Date.now();
+  // Next speech pause strictly between 5.2s and 9.2s (min 5s, max 10s!)
+  nextScheduledSpeechGapMs = 5200 + Math.floor(Math.random() * 4000);
   if (isMusicPlaying && bgMusicAudio) {
     bgMusicAudio.volume = userMusicVolume;
   }
-}
-
-function speakDynamicUtterance(role, speakerType, rawText) {
-  if (!hasUserGesture) return false;
-  if (window.isVoiceCurrentlyPlaying()) return false;
-
-  var resolvedText = window.formatPersonalizedText(role, rawText);
-  if (!resolvedText) return false;
-
-  window.initAudio();
-  if (!verifiedEnVoices.length) loadEnglishVoices();
-
-  var estDurationMs = Math.max(1700, Math.min(4600, resolvedText.length * 64));
-  activeVoiceEndTime = Date.now() + estDurationMs;
-
-  if (isMusicPlaying && bgMusicAudio) {
-    bgMusicAudio.volume = Math.max(0.08, userMusicVolume * 0.35);
-  }
-
-  clearTimeout(activeWatchdogTimer);
-  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, estDurationMs + 350);
-
-  if (verifiedEnVoices.length > 0 && 'speechSynthesis' in window) {
-    try {
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.resume();
-      var u = new SpeechSynthesisUtterance(resolvedText);
-
-      var femalePrefs = ['Samantha', 'Victoria', 'Karen', 'Google US English', 'Microsoft Aria', 'Microsoft Jenny', 'Moira'];
-      var chosen = verifiedEnVoices[0];
-      for (var i = 0; i < femalePrefs.length; i++) {
-        var found = verifiedEnVoices.find(function(v) { return v.name.indexOf(femalePrefs[i]) !== -1; });
-        if (found) { chosen = found; break; }
-      }
-      u.voice = chosen;
-      u.lang = 'en-US';
-
-      if (role === 'mom') {
-        u.pitch = 1.05;
-        u.rate = 0.95;
-      } else if (role === 'train') {
-        u.pitch = 1.36;
-        u.rate = 1.04;
-      } else if (speakerType === 'squirrel' || speakerType === 'rabbit') {
-        u.pitch = 1.68;
-        u.rate = 1.12;
-      } else if (speakerType === 'owl') {
-        u.pitch = 0.92;
-        u.rate = 0.94;
-      } else if (speakerType === 'cow') {
-        u.pitch = 0.88;
-        u.rate = 0.92;
-      } else if (speakerType === 'sheep') {
-        u.pitch = 1.48;
-        u.rate = 1.06;
-      } else if (speakerType === 'monster') {
-        u.pitch = 1.52;
-        u.rate = 1.08;
-      } else if (speakerType === 'ai_train') {
-        u.pitch = 1.20;
-        u.rate = 1.04;
-      } else {
-        u.pitch = 1.28;
-        u.rate = 1.06;
-      }
-
-      u.onend = function() {
-        onCurrentVoiceFinished();
-      };
-      u.onerror = function() {
-        onCurrentVoiceFinished();
-      };
-      window.speechSynthesis.speak(u);
-      return true;
-    } catch (e) {}
-  }
-
-  // Fallback to studio WAV buffer if device has no TTS voices
-  var fallbackClip = (role === 'mom') ? 'storyteller-turn-right' : 'danicek-ready';
-  startVoiceClipImmediate(fallbackClip);
-  return true;
 }
 
 function playDecodedWebAudioBuffer(audioBuf) {
@@ -1438,10 +1682,10 @@ function playDecodedWebAudioBuffer(audioBuf) {
     activeBufferSource = null;
   }
 
-  var durMs = Math.ceil(audioBuf.duration * 1000) + 120;
+  var durMs = Math.ceil(audioBuf.duration * 1000) + 80;
   activeVoiceEndTime = Date.now() + durMs;
   clearTimeout(activeWatchdogTimer);
-  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, durMs + 400);
+  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, durMs + 350);
 
   var src = audioCtx.createBufferSource();
   src.buffer = audioBuf;
@@ -1473,7 +1717,7 @@ function startVoiceClipImmediate(clipKey) {
     bgMusicAudio.volume = Math.max(0.08, userMusicVolume * 0.35);
   }
 
-  var estDurMs = 3000;
+  var estDurMs = 3200;
   activeVoiceKey = clipKey;
   activeVoiceEndTime = Date.now() + estDurMs;
   clearTimeout(activeWatchdogTimer);
@@ -1508,273 +1752,484 @@ function startVoiceClipImmediate(clipKey) {
 
 window.playVoicePackClip = function(clipKey) {
   var entry = window.VOICE_PACK[clipKey];
-  if (!entry || !hasUserGesture) return false;
-  // Strict single-speaker rule: never interrupt or queue overlapping voices
-  if (window.isVoiceCurrentlyPlaying()) return false;
+  if (!entry || !window.canStartNewSpeechNow()) return false;
   return startVoiceClipImmediate(clipKey);
 };
 
+// Dynamic Google AI Studio TTS helper (uses pre-generated studio WAV clip first, or /api/tts)
+var dynamicTtsCache = {};
+function speakAiStudioVoice(speakerType, clipKey, customText) {
+  if (!window.canStartNewSpeechNow()) return false;
+
+  if (clipKey && window.VOICE_PACK[clipKey]) {
+    return startVoiceClipImmediate(clipKey);
+  }
+
+  var profile = window.AI_STUDIO_VOICE_PROFILES[speakerType] || window.AI_STUDIO_VOICE_PROFILES.train;
+  var resolvedText = window.formatPersonalizedText(speakerType, customText || '');
+  if (!resolvedText) {
+    return startVoiceClipImmediate(profile.fallbackClip);
+  }
+
+  var cacheId = profile.voiceName + '|' + resolvedText;
+  if (dynamicTtsCache[cacheId] && audioCtx) {
+    window.initAudio();
+    if (isMusicPlaying && bgMusicAudio) {
+      bgMusicAudio.volume = Math.max(0.08, userMusicVolume * 0.35);
+    }
+    return playDecodedWebAudioBuffer(dynamicTtsCache[cacheId]);
+  }
+
+  // Try server-side Google AI Studio /api/tts endpoint, with instant fallback to studio WAV pack
+  window.initAudio();
+  if (isMusicPlaying && bgMusicAudio) {
+    bgMusicAudio.volume = Math.max(0.08, userMusicVolume * 0.35);
+  }
+  activeVoiceKey = cacheId;
+  activeVoiceEndTime = Date.now() + 3500;
+  clearTimeout(activeWatchdogTimer);
+  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, 4200);
+
+  fetch('/api/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text: resolvedText,
+      voiceName: profile.voiceName,
+      style: profile.style
+    })
+  }).then(function(resp) {
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    return resp.arrayBuffer();
+  }).then(function(arrBuf) {
+    if (activeVoiceKey !== cacheId) return;
+    var decoded = parsePcm16WavToAudioBuffer(audioCtx, arrBuf);
+    if (decoded) {
+      dynamicTtsCache[cacheId] = decoded;
+      playDecodedWebAudioBuffer(decoded);
+    } else {
+      startVoiceClipImmediate(profile.fallbackClip);
+    }
+  }).catch(function() {
+    if (activeVoiceKey === cacheId) {
+      startVoiceClipImmediate(profile.fallbackClip);
+    }
+  });
+  return true;
+}
+
 // ============================================================================
-// VOICE BALANCING & TURN-TAKING CONTROLLER (Requirement 4):
-// - Storyteller: 0% (completely disabled)
-// - Mom Narrator: ~10% (comments on Day/Night transitions & where train is heading, e.g. Anantara in Bangkok)
-// - Train Dan: ~20% (short 1-sentence comments on landmarks/objects passed)
-// - Animals (Squirrel, Owl, Rabbit, Cow, Sheep, Monsters): short greetings when visible & passing
-// - AI Trains: honk & greet train ONLY when visible on screen
-// - Road Cars: honk & blink lights at train when stopped at crossing AND visible on screen
-// - Strict Rule: ONLY visible objects speak/honk/blink, and ONLY 1 object speaks at a time!
+// HOUSE PASS-BY ALTERNATION STATE & OBJECT COOLDOWNS
+// - Mom's House (`mom_house`): alternates 1st pass = Mom (`Achernar`), 2nd pass = Dad (`Achird`)
+// - Grandma's House (`grandma_house`): alternates 1st pass = Grandma (`Gacrux`), 2nd pass = Grandpa (`Achird`)
 // ============================================================================
-var lastMomRouteSpeechMs = 0;
-var lastTrainDanSpeechMs = 0;
-var animalGreetCooldownMap = {};
+var momHousePassTurn = 0;      // even -> Mom ('mom-house-hello'), odd -> Dad ('dad-hello')
+var momHouseInZone = false;
+var momHouseSpokenThisPass = false;
 
-// Short greetings spoken by the animals themselves when passing by in camera view
-var ANIMAL_SHORT_GREETINGS = {
-  squirrel: [
-    'Hi Dan! Wheee, look at me jump!',
-    'Hello train Dan! Wheee!'
-  ],
-  owl: [
-    'Hoo-hoo! Hello train Dan!',
-    'Hoo-hoo! Nice to see you, Dan!'
-  ],
-  rabbit: [
-    'Hi Dan! Hop, hop, hello!',
-    'Hello little train! Hop, hop!'
-  ],
-  cow: [
-    'Mooo! Hello train Dan!',
-    'Mooo! Have a nice ride, Dan!'
-  ],
-  sheep_0: [
-    'Baa, baa! Hello train Dan!',
-    'Baa! Hi little train!'
-  ],
-  sheep_1: [
-    'Baa, baa! Hi train Dan!',
-    'Baa! Wave hello to the sheep!'
-  ],
-  monster_0: [
-    'Oh no, here comes the train! Help!',
-    'Eek! Watch out for the train!'
-  ],
-  monster_1: [
-    'Whoa, the train is coming! Help!',
-    'Peek-a-boo, little train Dan!'
-  ]
+var grandmaHousePassTurn = 0;  // even -> Grandma ('grandma-hello'), odd -> Grandpa ('grandpa-hello')
+var grandmaHouseInZone = false;
+var grandmaHouseSpokenThisPass = false;
+
+var charlieClipIdx = 0;
+var charlieClipKeys = ['charlie-takeoff', 'charlie-overview', 'charlie-explore'];
+
+var trainDanIdleIdx = 0;
+var trainDanIdleKeys = ['danicek-ready', 'danicek-next-stop', 'danicek-speed-up'];
+
+var objectLastSpokenMs = {};
+
+function canObjectSpeakAgain(objId, minCooldownMs) {
+  var last = objectLastSpokenMs[objId] || 0;
+  return (Date.now() - last) >= (minCooldownMs || 14000);
+}
+
+function markObjectSpoken(objId) {
+  objectLastSpokenMs[objId] = Date.now();
+}
+
+function triggerMomOrDadAtMomHouse() {
+  if (!window.canStartNewSpeechNow()) return false;
+  var clipKey = (momHousePassTurn % 2 === 0) ? 'mom-house-hello' : 'dad-hello';
+  momHousePassTurn++;
+  momHouseSpokenThisPass = true;
+  markObjectSpoken('mom_house');
+  return startVoiceClipImmediate(clipKey);
+}
+
+function triggerGrandmaOrGrandpaAtGrandmaHouse() {
+  if (!window.canStartNewSpeechNow()) return false;
+  var clipKey = (grandmaHousePassTurn % 2 === 0) ? 'grandma-hello' : 'grandpa-hello';
+  grandmaHousePassTurn++;
+  grandmaHouseSpokenThisPass = true;
+  markObjectSpoken('grandma_house');
+  return startVoiceClipImmediate(clipKey);
+}
+
+// Map showcase narration focusId to Google AI Studio WAV clips
+var LANDMARK_CLIP_MAP = {
+  eiffel: 'danicek-eiffel',
+  colosseum: 'danicek-colosseum',
+  airport: 'danicek-airport',
+  jewel: 'danicek-jewel',
+  stadium: 'danicek-stadium',
+  bigben: 'danicek-bigben',
+  skyscraper: 'danicek-skyscraper',
+  fountain: 'danicek-fountain',
+  anantara_boat: 'danicek-boat',
+  anantara: 'mom-anantara',
+  iconsiam: 'mom-iconsiam',
+  bkk_bridge: 'storyteller-go-straight'
 };
-
-// Mom Narrator (~10%): comments where the train is heading (e.g. Anantara in Bangkok)
-var MOM_DESTINATION_LINES = {
-  anantara: 'Now you are arriving at the Anantara Hotel in Bangkok!',
-  iconsiam: 'Now you are riding past IconSiam by the river in Bangkok!',
-  bkk_bridge: 'Now you are crossing the big railway bridge in Bangkok!',
-  mom_house: 'Now you are passing Mommy and Daddy\'s house!'
-};
-
-// Train Dan (~20%): short, crisp comments on objects & occasionally animals
-var TRAIN_DAN_SHORT_COMMENTS = {
-  eiffel: 'Look! That is the tall Eiffel Tower!',
-  colosseum: 'Look! There is the Roman Colosseum!',
-  grandma_house: 'Look! Here is Grandma and Grandpa\'s house!',
-  airport: 'Look at the airplanes at the Airport!',
-  jewel: 'Wow, look at the big waterfall inside Jewel!',
-  stadium: 'Look! They are playing football in the Stadium!',
-  bigben: 'Look at Big Ben, the golden clock tower!',
-  skyscraper: 'Wow, look at that tall glass Skyscraper!',
-  fountain: 'Look at the sparkling water Fountain!',
-  anantara_boat: 'Look at the wooden Anantara boat on the river!'
-};
-
-var animalGreetingCounter = 0;
 
 function handleShowcaseNarrationBalanced(focusId) {
-  if (!focusId || !hasUserGesture) return false;
-  if (window.isVoiceCurrentlyPlaying()) return false;
+  if (!focusId || !window.canStartNewSpeechNow()) return false;
 
-  var nowMs = Date.now();
+  // Priority 1: Mom & Dad's House (alternating Mom / Dad)
+  if (focusId === 'mom_house') {
+    if (!window.momHouseWorldCenter || !window.isWorldPosVisibleOnScreen(window.momHouseWorldCenter, 82)) return false;
+    if (momHouseSpokenThisPass && !canObjectSpeakAgain('mom_house', 12000)) return false;
+    return triggerMomOrDadAtMomHouse();
+  }
 
-  // 1) Animals & Monsters (70% priority): the visible animal calls out a short greeting!
-  //    (20% of the time, Train Dan briefly comments on the animal instead)
-  if (ANIMAL_SHORT_GREETINGS[focusId]) {
-    var lastAnimMs = animalGreetCooldownMap[focusId] || 0;
-    if (nowMs - lastAnimMs < 9000) return false;
-    animalGreetCooldownMap[focusId] = nowMs;
-    animalGreetingCounter++;
+  // Priority 2: Grandma & Grandpa's House (alternating Grandma / Grandpa)
+  if (focusId === 'grandma_house') {
+    if (!window.grandmaHouseWorldCenter || !window.isWorldPosVisibleOnScreen(window.grandmaHouseWorldCenter, 82)) return false;
+    if (grandmaHouseSpokenThisPass && !canObjectSpeakAgain('grandma_house', 12000)) return false;
+    return triggerGrandmaOrGrandpaAtGrandmaHouse();
+  }
 
-    // 1 in 5 times (~20%), Train Dan makes a short remark about the animal
-    if (animalGreetingCounter % 5 === 0) {
-      var shortDanAnimal = {
-        squirrel: 'Look! A cute orange squirrel in the tree!',
-        owl: 'Look up! A wise brown owl on the branch!',
-        rabbit: 'Look! A little white rabbit hopping by the track!',
-        cow: 'Look! Our friend Daisy the cow!',
-        sheep_0: 'Look at the fluffy white sheep!',
-        sheep_1: 'Look! White sheep waving by the tracks!',
-        monster_0: 'Haha! Look at the funny purple monster!',
-        monster_1: 'Haha! That fuzzy monster hid behind the tree!'
-      }[focusId];
-      if (shortDanAnimal) {
-        lastTrainDanSpeechMs = nowMs;
-        return speakDynamicUtterance('train', 'train', shortDanAnimal);
+  // Priority 3: Squirrel (Callirrhoe: empathetic, staccato, neutral)
+  if (focusId === 'squirrel') {
+    if (!canObjectSpeakAgain('squirrel', 12000)) return false;
+    markObjectSpoken('squirrel');
+    return startVoiceClipImmediate('squirrel-hello');
+  }
+
+  // Priority 4: Owl (Gacrux: empathetic, staccato, neutral)
+  if (focusId === 'owl') {
+    if (!canObjectSpeakAgain('owl', 12000)) return false;
+    markObjectSpoken('owl');
+    return startVoiceClipImmediate('owl-hello');
+  }
+
+  // Priority 5: Rabbit (Aoede: vocal smile, rapid fire, neutral)
+  if (focusId === 'rabbit') {
+    if (!canObjectSpeakAgain('rabbit', 12000)) return false;
+    markObjectSpoken('rabbit');
+    return startVoiceClipImmediate('rabbit-hello');
+  }
+
+  // Cow & Sheep (Leda: vocal smile, natural, neutral)
+  if (focusId === 'cow') {
+    if (!canObjectSpeakAgain('cow', 14000)) return false;
+    markObjectSpoken('cow');
+    return startVoiceClipImmediate('cow-hello');
+  }
+  if (focusId === 'sheep_0' || focusId === 'sheep_1') {
+    if (!canObjectSpeakAgain('sheep', 14000)) return false;
+    markObjectSpoken('sheep');
+    return startVoiceClipImmediate('sheep-hello');
+  }
+
+  // Track Monsters (Puck: promo/hype, staccato, neutral)
+  if (focusId === 'monster_0' || focusId === 'monster_1') {
+    if (!canObjectSpeakAgain(focusId, 12000)) return false;
+    markObjectSpoken(focusId);
+    return startVoiceClipImmediate('monster-help');
+  }
+
+  // Landmarks
+  if (LANDMARK_CLIP_MAP[focusId]) {
+    if (!canObjectSpeakAgain(focusId, 15000)) return false;
+    markObjectSpoken(focusId);
+    return startVoiceClipImmediate(LANDMARK_CLIP_MAP[focusId]);
+  }
+
+  return false;
+}
+
+// ============================================================================
+// VISIBLE OBJECT PRIORITY SCANNER (Enforces 5s–10s Speech Cadence!)
+// Scans objects currently visible on screen in the user's exact priority order:
+// 1. Mom's House (alternating Mom [Achernar] / Dad [Achird])
+// 2. Grandma's House (alternating Grandma [Gacrux] / Grandpa [Achird])
+// 3. Squirrel (Callirrhoe)
+// 4. Owl (Gacrux)
+// 5. Rabbit (Aoede)
+// 6. AI Trains / Mašinky (Callirrhoe)
+// 7. Cars / Autíčka (Aoede)
+// 8. Helicopter / Vrtulník (Zephyr)
+// 9. Cow, Sheep, Track Monsters, Visible Landmarks
+// 10. Train Dan (Sulafat) — always visible on screen so pause never exceeds 10s!
+// ============================================================================
+function scanAndSpeakVisiblePriorityObject(forceFallbackToTrainDan) {
+  if (!window.canStartNewSpeechNow()) return false;
+  if (!window.playerLoco || !window.pState) return false;
+
+  // Inside underground Metro cavern: Train Dan comments on underground crystals/metro
+  if (window.pState.inSubway) {
+    if (forceFallbackToTrainDan && canObjectSpeakAgain('subway_dan', 8000)) {
+      markObjectSpoken('subway_dan');
+      var subClip = (trainDanIdleIdx++ % 2 === 0) ? 'danicek-crystals' : 'danicek-metro';
+      return startVoiceClipImmediate(subClip);
+    }
+    return false;
+  }
+
+  var pPos = window.playerLoco.position;
+
+  // 1. Mom & Dad's House (alternating Mom / Dad on each pass)
+  if (window.momHouseWorldCenter) {
+    var dMom = pPos.distanceTo(window.momHouseWorldCenter);
+    if (dMom < 76.0 && window.isWorldPosVisibleOnScreen(window.momHouseWorldCenter, 78.0)) {
+      if (!momHouseSpokenThisPass || canObjectSpeakAgain('mom_house', 14000)) {
+        return triggerMomOrDadAtMomHouse();
       }
     }
-
-    var lines = ANIMAL_SHORT_GREETINGS[focusId];
-    var chosenLine = lines[animalGreetingCounter % lines.length];
-    var aType = focusId.indexOf('sheep') === 0 ? 'sheep' : (focusId.indexOf('monster') === 0 ? 'monster' : focusId);
-    return speakDynamicUtterance('friend', aType, chosenLine);
   }
 
-  // 2) Mom Narrator (~10%): comments where the train is heading (e.g. Anantara in Bangkok)
-  if (MOM_DESTINATION_LINES[focusId]) {
-    if (nowMs - lastMomRouteSpeechMs < 14000) return false;
-    lastMomRouteSpeechMs = nowMs;
-    return speakDynamicUtterance('mom', 'mom', MOM_DESTINATION_LINES[focusId]);
+  // 2. Grandma & Grandpa's House (alternating Grandma / Grandpa on each pass)
+  if (window.grandmaHouseWorldCenter) {
+    var dGma = pPos.distanceTo(window.grandmaHouseWorldCenter);
+    if (dGma < 76.0 && window.isWorldPosVisibleOnScreen(window.grandmaHouseWorldCenter, 78.0)) {
+      if (!grandmaHouseSpokenThisPass || canObjectSpeakAgain('grandma_house', 14000)) {
+        return triggerGrandmaOrGrandpaAtGrandmaHouse();
+      }
+    }
   }
 
-  // 3) Train Dan (~20%): short 1-sentence comment on objects/landmarks passed
-  if (TRAIN_DAN_SHORT_COMMENTS[focusId]) {
-    if (nowMs - lastTrainDanSpeechMs < 11000) return false;
-    lastTrainDanSpeechMs = nowMs;
-    return speakDynamicUtterance('train', 'train', TRAIN_DAN_SHORT_COMMENTS[focusId]);
+  var sbChars = window.storybookInteractiveCharacters;
+
+  // 3. Squirrel (Callirrhoe: empathetic, staccato, neutral)
+  if (sbChars && sbChars.squirrel && sbChars.squirrel.worldPos) {
+    if (window.isWorldPosVisibleOnScreen(sbChars.squirrel.worldPos, 54.0) && canObjectSpeakAgain('squirrel', 12000)) {
+      markObjectSpoken('squirrel');
+      return startVoiceClipImmediate('squirrel-hello');
+    }
+  }
+
+  // 4. Owl (Gacrux: empathetic, staccato, neutral)
+  if (sbChars && sbChars.owl && sbChars.owl.worldPos) {
+    if (window.isWorldPosVisibleOnScreen(sbChars.owl.worldPos, 54.0) && canObjectSpeakAgain('owl', 12000)) {
+      markObjectSpoken('owl');
+      return startVoiceClipImmediate('owl-hello');
+    }
+  }
+
+  // 5. Rabbit (Aoede: vocal smile, rapid fire, neutral)
+  if (sbChars && sbChars.rabbit && sbChars.rabbit.worldPos) {
+    if (window.isWorldPosVisibleOnScreen(sbChars.rabbit.worldPos, 54.0) && canObjectSpeakAgain('rabbit', 12000)) {
+      markObjectSpoken('rabbit');
+      return startVoiceClipImmediate('rabbit-hello');
+    }
+  }
+
+  // 6. AI Trains / Mašinky (Callirrhoe: empathetic, staccato, neutral)
+  if (window.aiTrains) {
+    for (var aiIdx = 0; aiIdx < window.aiTrains.length; aiIdx++) {
+      var ai = window.aiTrains[aiIdx];
+      if (ai && ai.loco && window.isWorldPosVisibleOnScreen(ai.loco.position, 52.0)) {
+        if (canObjectSpeakAgain('ai_train_' + aiIdx, 11000)) {
+          markObjectSpoken('ai_train_' + aiIdx);
+          if (typeof window.playFriendTrainGreetingHorn === 'function') {
+            window.playFriendTrainGreetingHorn(aiIdx);
+          }
+          var aiClip = (ai.currentSpeed !== undefined && ai.currentSpeed < 0.05) ? 'aitrain-yield' : 'aitrain-hello';
+          return startVoiceClipImmediate(aiClip);
+        }
+      }
+    }
+  }
+
+  // 7. Road Cars / Autíčka (Aoede: vocal smile, rapid fire, neutral)
+  if (window.livingVehicles) {
+    // First check stopped cars at crossings in view, then any close visible car
+    for (var pass = 0; pass < 2; pass++) {
+      for (var vi = 0; vi < window.livingVehicles.length; vi++) {
+        var lv = window.livingVehicles[vi];
+        if (!lv || !lv.mesh) continue;
+        if (pass === 0 && !lv.isStopped) continue;
+        if (window.isWorldPosVisibleOnScreen(lv.mesh.position, 48.0) && canObjectSpeakAgain('car', 11000)) {
+          markObjectSpoken('car');
+          return startVoiceClipImmediate('car-hello');
+        }
+      }
+    }
+  }
+
+  // 8. Helicopter Charlie (Zephyr: promo/hype, rapid fire, neutral)
+  if (window.airportFlyingHelis) {
+    for (var hi = 0; hi < window.airportFlyingHelis.length; hi++) {
+      var fh = window.airportFlyingHelis[hi];
+      if (fh && fh.mesh && window.isWorldPosVisibleOnScreen(fh.mesh.position, 105.0)) {
+        if (canObjectSpeakAgain('helicopter', 13000)) {
+          markObjectSpoken('helicopter');
+          var hClip = charlieClipKeys[charlieClipIdx % charlieClipKeys.length];
+          charlieClipIdx++;
+          return startVoiceClipImmediate(hClip);
+        }
+      }
+    }
+  }
+
+  // 9. Track Monsters, Daisy the Cow & Sheep Flocks (if visible on screen)
+  if (sbChars && sbChars.monsters) {
+    for (var mi = 0; mi < sbChars.monsters.length; mi++) {
+      var m = sbChars.monsters[mi];
+      if (m && m.model && m.model.root && window.isWorldPosVisibleOnScreen(m.model.root.position, 52.0)) {
+        if (canObjectSpeakAgain('monster_' + mi, 11000)) {
+          markObjectSpoken('monster_' + mi);
+          var mClip = (m.state === 'HIDING_PEEKING') ? 'monster-bleh' : 'monster-help';
+          return startVoiceClipImmediate(mClip);
+        }
+      }
+    }
+  }
+
+  if (window.daisyTheCow && window.isWorldPosVisibleOnScreen(window.daisyTheCow.position, 48.0)) {
+    if (canObjectSpeakAgain('cow', 13000)) {
+      markObjectSpoken('cow');
+      return startVoiceClipImmediate('cow-hello');
+    }
+  }
+
+  if (window.trackSheepFlocks) {
+    for (var sfi = 0; sfi < window.trackSheepFlocks.length; sfi++) {
+      var fl = window.trackSheepFlocks[sfi];
+      var shPos = (fl && fl.group) ? fl.group.position : (fl ? fl.basePos : null);
+      if (shPos && window.isWorldPosVisibleOnScreen(shPos, 48.0) && canObjectSpeakAgain('sheep', 13000)) {
+        markObjectSpoken('sheep');
+        return startVoiceClipImmediate('sheep-hello');
+      }
+    }
+  }
+
+  // 10. Currently focused Landmark in camera view
+  if (window._camSysState && window._camSysState.activePoiId && window._camSysState.poiWeight > 0.35) {
+    var activeFocus = window._camSysState.activePoiId;
+    if (handleShowcaseNarrationBalanced(activeFocus)) {
+      return true;
+    }
+  }
+
+  // 11. Guarantee Max 10s Pause: Player's Train Dan (always visible on screen) speaks!
+  if (forceFallbackToTrainDan) {
+    markObjectSpoken('train_dan_idle');
+    var danKey = trainDanIdleKeys[trainDanIdleIdx % trainDanIdleKeys.length];
+    trainDanIdleIdx++;
+    return startVoiceClipImmediate(danKey);
   }
 
   return false;
 }
 
 window.speakCharacter = function(role, speakerName, avatarColorHex, text, explicitClipKey) {
-  if (!hasUserGesture) return false;
-  // Strict single-speaker rule: if anyone is speaking, do not overlap or queue
-  if (window.isVoiceCurrentlyPlaying()) return false;
+  if (!window.canStartNewSpeechNow()) return false;
 
   var sp = String(speakerName || '').toLowerCase();
   var s = String(text || '').toLowerCase();
-  var nowMs = Date.now();
 
-  // Rule: Storyteller = 0% (never speak as Storyteller)
+  // Storyteller 0%
   if (sp.indexOf('storyteller') !== -1) {
     return false;
   }
 
-  // Filter out repetitive speed/slowdown/horn button chatter so Train Dan stays ~20%
-  if (role === 'train' || role === 'toby') {
-    if (
-      s.indexOf('speed ') !== -1 ||
-      s.indexOf('faster') !== -1 ||
-      s.indexOf('slowing down') !== -1 ||
-      s.indexOf('brakes') !== -1 ||
-      s.indexOf('slower now') !== -1 ||
-      s.indexOf('hi friends!') !== -1
-    ) {
-      return false;
-    }
-    if (s.indexOf('gnome cavern') !== -1 || s.indexOf('underground') !== -1) {
-      return window.playVoicePackClip('danicek-metro');
-    }
-    if (s.indexOf('dark mountain tunnel') !== -1 || s.indexOf('dark tunnel') !== -1) {
-      return window.playVoicePackClip('danicek-tunnel');
-    }
-    if (s.indexOf('backing up') !== -1 || s.indexOf('reverse') !== -1) {
-      if (nowMs - lastTrainDanSpeechMs < 10000) return false;
-      lastTrainDanSpeechMs = nowMs;
-      return window.playVoicePackClip('danicek-reverse');
-    }
-    if (s.indexOf('new wagon') !== -1) {
-      lastTrainDanSpeechMs = nowMs;
-      return speakDynamicUtterance('train', 'train', 'Yay! We got a new wagon!');
-    }
-    if (nowMs - lastTrainDanSpeechMs < 9000) return false;
-    lastTrainDanSpeechMs = nowMs;
-    return speakDynamicUtterance('train', 'train', text);
+  if (explicitClipKey && window.VOICE_PACK[explicitClipKey]) {
+    return startVoiceClipImmediate(explicitClipKey);
   }
 
-  // Mom Narrator (~10%): Day/Night transitions & destination direction announcements
+  // Train Dan (Sulafat)
+  if (role === 'train' || role === 'toby') {
+    if (s.indexOf('gnome cavern') !== -1 || s.indexOf('underground') !== -1) {
+      return startVoiceClipImmediate('danicek-metro');
+    }
+    if (s.indexOf('dark mountain tunnel') !== -1 || s.indexOf('dark tunnel') !== -1) {
+      return startVoiceClipImmediate('danicek-tunnel');
+    }
+    if (s.indexOf('backing up') !== -1 || s.indexOf('reverse') !== -1) {
+      return startVoiceClipImmediate('danicek-reverse');
+    }
+    if (s.indexOf('faster') !== -1 || s.indexOf('speed ') !== -1) {
+      if (!canObjectSpeakAgain('train_speed', 8000)) return false;
+      markObjectSpoken('train_speed');
+      return startVoiceClipImmediate('danicek-speed-up');
+    }
+    if (s.indexOf('slow') !== -1 || s.indexOf('brakes') !== -1) {
+      if (!canObjectSpeakAgain('train_slow', 8000)) return false;
+      markObjectSpoken('train_slow');
+      return startVoiceClipImmediate('danicek-slow-down');
+    }
+    return startVoiceClipImmediate('danicek-ready');
+  }
+
+  // Mom Narrator (Achernar)
   if (role === 'mom') {
-    // Sheep on track is handled by the sheep greeting itself
     if (s.indexOf('sheep') !== -1) {
       if (window.trackSheepFlocks && window.playerLoco) {
         for (var si = 0; si < window.trackSheepFlocks.length; si++) {
           var fl = window.trackSheepFlocks[si];
           var shPos = (fl && fl.group) ? fl.group.position : (fl ? fl.basePos : null);
-          if (shPos && window.isWorldPosVisibleOnScreen(shPos, 42)) {
-            return speakDynamicUtterance('friend', 'sheep', 'Baa, baa! Hello train Dan!');
+          if (shPos && window.isWorldPosVisibleOnScreen(shPos, 48.0)) {
+            markObjectSpoken('sheep');
+            return startVoiceClipImmediate('sheep-hello');
           }
         }
       }
       return false;
     }
-
-    // Direction switch ("Turning left/right toward...") — throttled so Mom stays ~10%
-    if (s.indexOf('turning ') === 0) {
-      if (nowMs - lastMomRouteSpeechMs < 15000) return false;
-      lastMomRouteSpeechMs = nowMs;
-      var cleanDest = String(text || '')
-        .replace(/^Turning\s+(left|right|straight)\s+toward\s+/i, '')
-        .replace(/^[^\wA-Za-z]+/, '')
-        .trim();
-      if (cleanDest.toLowerCase().indexOf('anantara') !== -1) {
-        return speakDynamicUtterance('mom', 'mom', 'Now heading to the Anantara Hotel in Bangkok!');
-      }
-      if (cleanDest) {
-        return speakDynamicUtterance('mom', 'mom', 'Heading toward ' + cleanDest + '!');
-      }
-      return false;
+    if (s.indexOf('turning left') === 0) {
+      return startVoiceClipImmediate('storyteller-turn-left');
     }
-
-    // Station stop announcement
-    if (nowMs - lastMomRouteSpeechMs < 14000) return false;
-    lastMomRouteSpeechMs = nowMs;
-    return window.playVoicePackClip('storyteller-station');
+    if (s.indexOf('turning right') === 0) {
+      if (s.indexOf('anantara') !== -1) return startVoiceClipImmediate('mom-anantara');
+      return startVoiceClipImmediate('storyteller-turn-right');
+    }
+    if (s.indexOf('turning straight') === 0) {
+      return startVoiceClipImmediate('storyteller-go-straight');
+    }
+    return startVoiceClipImmediate('storyteller-station');
   }
 
-  // Friends (Animals, AI Trains, Stopped Crossing Cars) — MUST be visible on screen!
+  // Friends (Cow, AI Trains, Cars) — ONLY when visible on screen!
   if (role === 'friend') {
-    // 1) Cow greeting (Daisy the Cow)
     if (sp.indexOf('cow') !== -1 || sp.indexOf('daisy') !== -1) {
-      if (!window.daisyTheCow || !window.isWorldPosVisibleOnScreen(window.daisyTheCow.position, 42)) {
-        return false;
-      }
-      return speakDynamicUtterance('friend', 'cow', 'Mooo! Hello train Dan!');
+      if (!window.daisyTheCow || !window.isWorldPosVisibleOnScreen(window.daisyTheCow.position, 48.0)) return false;
+      markObjectSpoken('cow');
+      return startVoiceClipImmediate('cow-hello');
     }
-
-    // 2) AI Train greeting (Bullet Bob / Rusty Steam Friend)
     if (sp.indexOf('bullet') !== -1 || sp.indexOf('rusty') !== -1 || sp.indexOf('shinkansen') !== -1 || sp.indexOf('steam') !== -1) {
       var visibleAi = false;
       if (window.aiTrains) {
         for (var aiIdx = 0; aiIdx < window.aiTrains.length; aiIdx++) {
           var ai = window.aiTrains[aiIdx];
-          if (ai && ai.loco && window.isWorldPosVisibleOnScreen(ai.loco.position, 38)) {
+          if (ai && ai.loco && window.isWorldPosVisibleOnScreen(ai.loco.position, 48.0)) {
             visibleAi = true;
             break;
           }
         }
       }
       if (!visibleAi) return false;
-      var shortTrainGreet = (sp.indexOf('bullet') !== -1)
-        ? 'Choo choo! Hi train Dan!'
-        : 'Toot toot! Hello friend Dan!';
-      return speakDynamicUtterance('friend', 'ai_train', shortTrainGreet);
+      markObjectSpoken('ai_train');
+      var clip = (s.indexOf('right-of-way') !== -1) ? 'aitrain-yield' : 'aitrain-hello';
+      return startVoiceClipImmediate(clip);
     }
 
-    // 3) Road Car greeting — ONLY if stopped at a crossing AND visible on screen!
-    var visibleStoppedCar = false;
+    var visibleCar = false;
     if (window.livingVehicles) {
       for (var vi = 0; vi < window.livingVehicles.length; vi++) {
         var lv = window.livingVehicles[vi];
-        if (lv && lv.isStopped && lv.mesh && window.isWorldPosVisibleOnScreen(lv.mesh.position, 42)) {
-          visibleStoppedCar = true;
+        if (lv && lv.mesh && window.isWorldPosVisibleOnScreen(lv.mesh.position, 48.0)) {
+          visibleCar = true;
           break;
         }
       }
     }
-    if (!visibleStoppedCar) return false;
-    return speakDynamicUtterance('friend', 'car', 'Beep beep! Hi train Dan!');
+    if (!visibleCar) return false;
+    markObjectSpoken('car');
+    return startVoiceClipImmediate('car-hello');
   }
 
-  if (explicitClipKey && window.VOICE_PACK[explicitClipKey]) {
-    return window.playVoicePackClip(explicitClipKey);
-  }
   return false;
 };
 var balancedSpeakCharacter = window.speakCharacter;
@@ -1788,6 +2243,10 @@ window.speakPureEnglish = function(emoji, text) {
 // ============================================================================
 function unlockAudioOnFirstGesture() {
   window.initAudio();
+  if (lastVoiceFinishedTime === 0) {
+    // Allow first greeting ~1.5s after first user gesture
+    lastVoiceFinishedTime = Date.now() - (MIN_SPEECH_PAUSE_MS - 1200);
+  }
 }
 
 window.addEventListener('keydown', function() {
@@ -1994,7 +2453,7 @@ window.playTrainHorn = function() {
   } catch (e) {}
 };
 
-// Collectible chime ONLY (Storyteller 0% — no voice praise on every item pickup)
+// Collectible chime ONLY (Storyteller 0%)
 window.playCollectSound = function() {
   playTone([587.33, 880.0, 1174.66], 0.26, 'sine');
 };
@@ -2023,17 +2482,16 @@ window.playCowMoo = function() {
 };
 
 window.playCarBeepBeep = function(pitchOffset) {
-  // Only allow car horn if at least one car stopped at a railway crossing is currently visible on screen!
   if (window.livingVehicles) {
-    var hasVisibleStoppedCar = false;
+    var hasVisibleCar = false;
     for (var i = 0; i < window.livingVehicles.length; i++) {
       var lv = window.livingVehicles[i];
-      if (lv && lv.isStopped && lv.mesh && window.isWorldPosVisibleOnScreen(lv.mesh.position, 48)) {
-        hasVisibleStoppedCar = true;
+      if (lv && lv.mesh && window.isWorldPosVisibleOnScreen(lv.mesh.position, 48)) {
+        hasVisibleCar = true;
         break;
       }
     }
-    if (!hasVisibleStoppedCar) return;
+    if (!hasVisibleCar) return;
   }
   var p = pitchOffset || 0;
   playTone([480 + p, 620 + p], 0.16, 'square');
@@ -2064,10 +2522,12 @@ window.playCzechCrossingBell = function() {
 // ============================================================================
 // POST-LOAD SCENE COORDINATOR:
 // 1. Permanently hides all 3D animal/monster speech bubbles (renderOrder === 999)
-// 2. Replaces models.js showcase narration with balanced Mom (10%) / Train Dan (20%) / Animals (70%)
-// 3. Filters automatic train horn calls so off-screen AI trains never honk, and animals greet instead
-// 4. Makes visible stopped cars at railway crossings blink headlights & honk at the passing train
-// 5. Triggers Mom Narrator on Day <-> Night clock transitions and Anantara Bangkok entry
+// 2. Enforces 5s–10s pause between utterances & prioritizes visible objects:
+//    - Mom's house (alternating Mom [Achernar] / Dad [Achird])
+//    - Grandma's house (alternating Grandma [Gacrux] / Grandpa [Achird])
+//    - Squirrel (Callirrhoe), Owl (Gacrux), Rabbit (Aoede)
+//    - AI Trains (Callirrhoe), Cars (Aoede), Helicopter (Zephyr)
+// 3. Makes visible stopped cars at railway crossings blink lights & honk
 // ============================================================================
 (function installPostLoadSceneCoordinator() {
   function setupCoordinator() {
@@ -2077,7 +2537,7 @@ window.playCzechCrossingBell = function() {
     }
     var THREE = window.THREE;
 
-    // 1) Permanently hide all 3D comic speech bubble sprites above animals & monsters (Requirement 1)
+    // 1) Permanently hide all 3D comic speech bubble sprites above animals & monsters
     window.scene.traverse(function(node) {
       if (node && node.isSprite && node.renderOrder === 999) {
         node.visible = false;
@@ -2092,7 +2552,7 @@ window.playCzechCrossingBell = function() {
       }
     });
 
-    // 2) Override window.triggerEnglishShowcaseNarration (created by models.js) with balanced voice router
+    // 2) Override window.triggerEnglishShowcaseNarration (created by models.js)
     window.triggerEnglishShowcaseNarration = function(focusId) {
       handleShowcaseNarrationBalanced(focusId);
     };
@@ -2102,9 +2562,8 @@ window.playCzechCrossingBell = function() {
       window.speakCharacter = balancedSpeakCharacter;
     }
 
-    // 4) Wrap window.playTrainHorn (after models.js overwrote it) so:
-    //    - Off-screen AI trains never blow the horn
-    //    - Rabbit / Squirrel / Owl proximity triggers their short greeting instead of a train whistle
+    // 4) Wrap window.playTrainHorn so off-screen AI trains never blow the horn,
+    //    and Rabbit / Squirrel / Owl proximity triggers their Google AI Studio voice greeting
     var modelsPlayTrainHorn = window.playTrainHorn;
     var userHornWindowUntil = 0;
 
@@ -2121,12 +2580,10 @@ window.playCzechCrossingBell = function() {
 
     window.playTrainHorn = function() {
       var now = Date.now();
-      // Always allow user-initiated horn (OK / Enter)
       if (now <= userHornWindowUntil) {
         return modelsPlayTrainHorn.apply(this, arguments);
       }
 
-      // Check if called by game.js AI train pass-by (game.js sets lastFriendChatTime = Date.now() right before playTrainHorn)
       if (typeof window.lastFriendChatTime === 'number' && Math.abs(now - window.lastFriendChatTime) <= 12) {
         var anyVisibleAiNear = false;
         if (window.aiTrains && window.playerLoco) {
@@ -2135,7 +2592,7 @@ window.playCzechCrossingBell = function() {
             if (
               ai && ai.loco &&
               ai.loco.position.distanceTo(window.playerLoco.position) < 30 &&
-              window.isWorldPosVisibleOnScreen(ai.loco.position, 38)
+              window.isWorldPosVisibleOnScreen(ai.loco.position, 44)
             ) {
               anyVisibleAiNear = true;
               break;
@@ -2143,15 +2600,12 @@ window.playCzechCrossingBell = function() {
           }
         }
         if (!anyVisibleAiNear) {
-          // AI train is off-screen -> block horn and reset cooldown
           window.lastFriendChatTime = 0;
           return;
         }
         return modelsPlayTrainHorn.apply(this, arguments);
       }
 
-      // Check if called by Rabbit, Squirrel, or Owl proximity in models.js:
-      // Instead of blowing the train whistle, let the visible animal call out its short greeting!
       if (window._storybookCharId === 'rabbit' || window._storybookCharId === 'squirrel' || window._storybookCharId === 'owl') {
         handleShowcaseNarrationBalanced(window._storybookCharId);
         return;
@@ -2160,10 +2614,11 @@ window.playCzechCrossingBell = function() {
       return modelsPlayTrainHorn.apply(this, arguments);
     };
 
-    // 5) Per-frame observer for:
-    //    - Day / Night transitions (Mom Narrator 10%)
-    //    - Entering Bangkok Anantara / IconSiam track edges (Mom Narrator 10%)
-    //    - Visible stopped cars at railway crossings: blinking lights + multi-car honking + single-speaker greeting
+    // 5) Per-frame coordinator for:
+    //    - Mom's House (Mom/Dad alternation) & Grandma's House (Grandma/Grandpa alternation)
+    //    - 5s–10s speech cadence across visible objects in camera frustum
+    //    - Day/Night transitions & Bangkok Anantara / IconSiam announcements
+    //    - Visible stopped cars blinking & honking at crossings
     var wasNightState = null;
     var lastAnnouncedEdgeId = null;
     var blinkerGeo = new THREE.SphereGeometry(0.26, 8, 8);
@@ -2193,8 +2648,30 @@ window.playCzechCrossingBell = function() {
       if (!window.playerLoco || !window.pState) return;
 
       var now = Date.now();
+      var pPos = window.playerLoco.position;
 
-      // A) Mom Narrator comments on Day <-> Night change
+      // Track pass-by zone entry/exit for Mom's House & Grandma's House so each pass alternates speaker!
+      if (window.momHouseWorldCenter) {
+        var distMom = pPos.distanceTo(window.momHouseWorldCenter);
+        if (distMom < 76.0) {
+          momHouseInZone = true;
+        } else if (distMom > 92.0 && momHouseInZone) {
+          momHouseInZone = false;
+          momHouseSpokenThisPass = false;
+        }
+      }
+
+      if (window.grandmaHouseWorldCenter) {
+        var distGma = pPos.distanceTo(window.grandmaHouseWorldCenter);
+        if (distGma < 76.0) {
+          grandmaHouseInZone = true;
+        } else if (distGma > 92.0 && grandmaHouseInZone) {
+          grandmaHouseInZone = false;
+          grandmaHouseSpokenThisPass = false;
+        }
+      }
+
+      // A) Day <-> Night change announcement (Mom Narrator: Achernar)
       if (typeof window.gameTimeSeconds === 'number') {
         var hoursFloat = (window.gameTimeSeconds / 300) * 24;
         var isNightNow = (hoursFloat >= 20.0 || hoursFloat < 5.5);
@@ -2202,34 +2679,34 @@ window.playCzechCrossingBell = function() {
           wasNightState = isNightNow;
         } else if (isNightNow !== wasNightState) {
           wasNightState = isNightNow;
-          if (!window.pState.inSubway && !window.isVoiceCurrentlyPlaying()) {
-            lastMomRouteSpeechMs = now;
-            if (isNightNow) {
-              speakDynamicUtterance('mom', 'mom', 'Good evening! Night is falling and the lights are glowing!');
-            } else {
-              speakDynamicUtterance('mom', 'mom', 'Good morning! A bright sunny day is starting!');
-            }
+          if (!window.pState.inSubway && window.canStartNewSpeechNow()) {
+            startVoiceClipImmediate(isNightNow ? 'mom-night' : 'storyteller-sunny');
           }
         }
       }
 
-      // B) Mom Narrator comments when entering major destination tracks (e.g. Anantara in Bangkok)
+      // B) Entering Bangkok Anantara / IconSiam track edges (Mom Narrator: Achernar)
       var curEdge = window.pState.edge;
       if (curEdge && !curEdge.isTurnout && curEdge.id !== lastAnnouncedEdgeId) {
         lastAnnouncedEdgeId = curEdge.id;
-        if (curEdge.id === 'J_NW->J_BKK_ANANTARA' && !window.isVoiceCurrentlyPlaying()) {
-          lastMomRouteSpeechMs = now;
-          speakDynamicUtterance('mom', 'mom', 'Now you are heading to the Anantara Hotel in Bangkok!');
-        } else if (curEdge.id === 'J_BKK_ANANTARA->J_BKK_BRIDGE_E' && !window.isVoiceCurrentlyPlaying() && now - lastMomRouteSpeechMs > 12000) {
-          lastMomRouteSpeechMs = now;
-          speakDynamicUtterance('mom', 'mom', 'Riding along the river toward IconSiam in Bangkok!');
+        if (curEdge.id === 'J_NW->J_BKK_ANANTARA' && window.canStartNewSpeechNow()) {
+          startVoiceClipImmediate('mom-anantara');
+        } else if (curEdge.id === 'J_BKK_ANANTARA->J_BKK_BRIDGE_E' && window.canStartNewSpeechNow()) {
+          startVoiceClipImmediate('mom-iconsiam');
         }
       }
 
-      // C) Visible Animals Greeting when in camera view (< 22m)
-      if (!window.pState.inSubway && !window.isVoiceCurrentlyPlaying()) {
-        if (window._storybookCharId && ANIMAL_SHORT_GREETINGS[window._storybookCharId]) {
-          handleShowcaseNarrationBalanced(window._storybookCharId);
+      // C) 5s–10s Visible Object Priority Director
+      if (hasUserGesture && window.canStartNewSpeechNow()) {
+        var elapsedSinceLastSpeech = (lastVoiceFinishedTime > 0)
+          ? (now - lastVoiceFinishedTime)
+          : MIN_SPEECH_PAUSE_MS;
+
+        // As soon as >= 5s has elapsed, let high-priority visible objects (Mom/Dad house, Grandma/Grandpa house,
+        // Squirrel, Owl, Rabbit, AI Train, Car, Helicopter) speak immediately when in view!
+        if (elapsedSinceLastSpeech >= MIN_SPEECH_PAUSE_MS) {
+          var forceFallback = (elapsedSinceLastSpeech >= nextScheduledSpeechGapMs || elapsedSinceLastSpeech >= 9500);
+          scanAndSpeakVisiblePriorityObject(forceFallback);
         }
       }
 
@@ -2244,7 +2721,7 @@ window.playCzechCrossingBell = function() {
           var isStoppedAndVisible = Boolean(
             lv.isStopped &&
             window.isWorldPosVisibleOnScreen(lv.mesh.position, 48) &&
-            window.playerLoco.position.distanceTo(lv.mesh.position) < 44
+            pPos.distanceTo(lv.mesh.position) < 44
           );
 
           var blinkerGrp = lv._crossingBlinkerGroup;
