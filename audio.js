@@ -1,7 +1,7 @@
 // ============================================================================
-// MODULE 1: AUDIO.JS (Web Audio API Voice Pack Engine, Conversational Turn-Taking
-// Queue, Authentic Steam Locomotive Whistle, Glossy Chimney Bubbles, Prague Metro
-// Entrance Emblem, Illustrated Station Signboards & Personalization State)
+// MODULE 1: AUDIO.JS (Web Audio API Voice Engine, Balanced Single-Speaker
+// Turn-Taking, Strict Camera-Frustum Visibility Filter, Smartphone Compact HUD,
+// Translucent Circular Remote D-Pad, Steam Whistle, Chimney Bubbles & Signage)
 // ============================================================================
 
 // --- PERSONALIZATION SETTINGS (Child Name, Train Name, Voice Addressing) ---
@@ -93,7 +93,8 @@ window.savePersonalizationSettings = function(newChildName, newTrainName, newVoi
 window.formatPersonalizedText = function(role, rawText) {
   var tName = window.getTrainName();
   var text = String(rawText || '')
-    .replace(/Little Train Toby/g, 'Little Train ' + tName)
+    .replace(/Little Train Toby/g, 'Train ' + tName)
+    .replace(/Little Train Daníček/g, 'Train ' + tName)
     .replace(/\bToby\b/g, tName);
 
   if (!window.isVoiceAddressingEnabled()) {
@@ -106,46 +107,333 @@ window.formatPersonalizedText = function(role, rawText) {
   }
 
   if (text.indexOf('Hello, little explorer!') === 0) {
-    return 'Hello, ' + cName + '! Are you ready for an adventure?';
+    return 'Hello, ' + cName + '! Ready for a train ride?';
   }
-  if (text.indexOf('Hi, buddy!') === 0) {
-    return 'Hi, ' + cName + '! I\'m ready to explore!';
+  if (text.indexOf('Good morning!') === 0) {
+    return 'Good morning, ' + cName + '! ' + text.slice(14);
   }
-  if (text.indexOf('Hey, adventurers!') === 0) {
-    return 'Hey, ' + cName + '! Charlie is ready for takeoff!';
+  if (text.indexOf('Good evening!') === 0) {
+    return 'Good evening, ' + cName + '! ' + text.slice(14);
   }
-  if (text.indexOf('Welcome to our') === 0) {
-    return 'Hello ' + cName + '! ' + text;
-  }
-  if (text.indexOf('Wow! Welcome') === 0) {
-    return 'Wow, ' + cName + '! ' + text.slice(5);
-  }
-  if (text.indexOf('Yay!') === 0) {
-    return 'Yay, ' + cName + '!' + text.slice(4);
-  }
-  if (text.indexOf('Hooray!') === 0) {
-    return 'Hooray, ' + cName + '!' + text.slice(7);
-  }
-  if (text.indexOf('Hi friends!') === 0) {
-    return 'Hi ' + cName + ' and friends!' + text.slice(11);
-  }
-  if (text.indexOf('Entering the Metro') === 0) {
-    return 'Hold on tight, ' + cName + '! ' + text;
-  }
-  if (text.indexOf('Whoosh!') === 0) {
-    return 'Whoosh, ' + cName + '!' + text.slice(7);
-  }
-  if (text.indexOf('Chugga chugga!') === 0) {
-    return 'Chugga chugga, ' + cName + '!' + text.slice(14);
-  }
-  if (text.indexOf('Wonderful!') === 0) {
-    return 'Wonderful, ' + cName + '!' + text.slice(10);
-  }
-  if (text.indexOf('Welcome to ') === 0) {
-    return 'Look, ' + cName + '! ' + text;
+  if (text.indexOf('Now you are arriving') === 0 || text.indexOf('Now heading') === 0) {
+    return cName + ', ' + text.charAt(0).toLowerCase() + text.slice(1);
   }
   return text;
 };
+
+// ============================================================================
+// MOBILE & TOUCH UI ENHANCER:
+// 1. Completely hides speech text boxes (#face-cam-card) & 3D animal text bubbles
+// 2. Compacts #top-bar on smartphones to 1 slim row (Player Name, Clock, Score, Music ON/OFF)
+// 3. Replaces bottom buttons with a Translucent Circular Remote D-Pad Wheel (UP/DOWN/LEFT/RIGHT + OK)
+// ============================================================================
+(function installCleanUiAndCircularRemoteWheel() {
+  function injectStylesAndRemoteWheel() {
+    if (!document.getElementById('happy-train-mobile-remote-styles')) {
+      var styleEl = document.createElement('style');
+      styleEl.id = 'happy-train-mobile-remote-styles';
+      styleEl.textContent = [
+        '/* 1. Never show top speech text box */',
+        '#face-cam-card, #face-cam-card.visible, #face-cam-card.talking {',
+        '  display: none !important;',
+        '  opacity: 0 !important;',
+        '  visibility: hidden !important;',
+        '  pointer-events: none !important;',
+        '}',
+        '',
+        '/* 2. Hide legacy wide bottom button bar and show translucent circular remote wheel */',
+        '#hud {',
+        '  display: none !important;',
+        '}',
+        '',
+        '#remote-wheel-hud {',
+        '  position: fixed;',
+        '  bottom: 14px;',
+        '  left: 50%;',
+        '  transform: translateX(-50%);',
+        '  width: 158px;',
+        '  height: 158px;',
+        '  border-radius: 50%;',
+        '  background: radial-gradient(circle, rgba(30, 41, 59, 0.34) 0%, rgba(15, 23, 42, 0.56) 72%, rgba(56, 189, 248, 0.28) 100%);',
+        '  border: 2.5px solid rgba(125, 211, 252, 0.85);',
+        '  box-shadow: 0 0 18px rgba(56, 189, 248, 0.50), inset 0 0 18px rgba(56, 189, 248, 0.28), 0 8px 22px rgba(0, 0, 0, 0.45);',
+        '  backdrop-filter: blur(4px);',
+        '  -webkit-backdrop-filter: blur(4px);',
+        '  z-index: 25;',
+        '  user-select: none;',
+        '  -webkit-user-select: none;',
+        '  touch-action: manipulation;',
+        '}',
+        '',
+        '/* Diagonal divider lines matching remote wheel reference */',
+        '#remote-wheel-hud .wheel-diag {',
+        '  position: absolute;',
+        '  top: 50%;',
+        '  left: 8%;',
+        '  width: 84%;',
+        '  height: 1.5px;',
+        '  background: linear-gradient(90deg, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0.12) 30%, transparent 32%, transparent 68%, rgba(255,255,255,0.12) 70%, rgba(255,255,255,0.32) 100%);',
+        '  pointer-events: none;',
+        '}',
+        '#remote-wheel-hud .wheel-diag.d1 { transform: translateY(-50%) rotate(45deg); }',
+        '#remote-wheel-hud .wheel-diag.d2 { transform: translateY(-50%) rotate(-45deg); }',
+        '',
+        '/* Directional D-pad buttons */',
+        '#remote-wheel-hud .wheel-dir-btn {',
+        '  position: absolute;',
+        '  display: flex;',
+        '  align-items: center;',
+        '  justify-content: center;',
+        '  background: transparent;',
+        '  border: none;',
+        '  color: #f8fafc;',
+        '  cursor: pointer;',
+        '  padding: 0;',
+        '  outline: none;',
+        '  -webkit-tap-highlight-color: transparent;',
+        '  transition: transform 0.1s ease, filter 0.1s ease;',
+        '}',
+        '#remote-wheel-hud .wheel-dir-btn svg {',
+        '  width: 28px;',
+        '  height: 28px;',
+        '  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.65));',
+        '  pointer-events: none;',
+        '}',
+        '#remote-wheel-hud .wheel-dir-btn:active,',
+        '#remote-wheel-hud .wheel-dir-btn.active-press {',
+        '  filter: brightness(1.35) drop-shadow(0 0 8px rgba(56, 189, 248, 0.95));',
+        '}',
+        '',
+        '#remote-wheel-hud .wheel-up {',
+        '  top: 2px; left: 50%; transform: translateX(-50%);',
+        '  width: 68px; height: 46px; border-radius: 28px 28px 10px 10px;',
+        '}',
+        '#remote-wheel-hud .wheel-up:active, #remote-wheel-hud .wheel-up.active-press {',
+        '  transform: translateX(-50%) scale(1.12);',
+        '}',
+        '',
+        '#remote-wheel-hud .wheel-down {',
+        '  bottom: 2px; left: 50%; transform: translateX(-50%);',
+        '  width: 68px; height: 46px; border-radius: 10px 10px 28px 28px;',
+        '}',
+        '#remote-wheel-hud .wheel-down:active, #remote-wheel-hud .wheel-down.active-press {',
+        '  transform: translateX(-50%) scale(1.12);',
+        '}',
+        '',
+        '#remote-wheel-hud .wheel-left {',
+        '  left: 2px; top: 50%; transform: translateY(-50%);',
+        '  width: 46px; height: 68px; border-radius: 28px 10px 10px 28px;',
+        '}',
+        '#remote-wheel-hud .wheel-left:active, #remote-wheel-hud .wheel-left.active-press {',
+        '  transform: translateY(-50%) scale(1.12);',
+        '}',
+        '',
+        '#remote-wheel-hud .wheel-right {',
+        '  right: 2px; top: 50%; transform: translateY(-50%);',
+        '  width: 46px; height: 68px; border-radius: 10px 28px 28px 10px;',
+        '}',
+        '#remote-wheel-hud .wheel-right:active, #remote-wheel-hud .wheel-right.active-press {',
+        '  transform: translateY(-50%) scale(1.12);',
+        '}',
+        '',
+        '/* Center OK / Enter button */',
+        '#remote-wheel-hud .wheel-ok-btn {',
+        '  position: absolute;',
+        '  top: 50%; left: 50%;',
+        '  transform: translate(-50%, -50%);',
+        '  width: 62px; height: 62px;',
+        '  border-radius: 50%;',
+        '  background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, rgba(15, 23, 42, 0.62) 100%);',
+        '  border: 2px solid rgba(255, 255, 255, 0.48);',
+        '  box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.25), 0 3px 10px rgba(0, 0, 0, 0.45);',
+        '  color: #ffffff;',
+        '  font-size: 19px;',
+        '  font-weight: 900;',
+        '  letter-spacing: 0.5px;',
+        '  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.65);',
+        '  display: flex;',
+        '  align-items: center;',
+        '  justify-content: center;',
+        '  cursor: pointer;',
+        '  outline: none;',
+        '  -webkit-tap-highlight-color: transparent;',
+        '  transition: transform 0.1s ease, background 0.1s ease, box-shadow 0.1s ease;',
+        '}',
+        '#remote-wheel-hud .wheel-ok-btn:active,',
+        '#remote-wheel-hud .wheel-ok-btn.active-press {',
+        '  transform: translate(-50%, -50%) scale(1.09);',
+        '  background: radial-gradient(circle, rgba(56, 189, 248, 0.55) 0%, rgba(15, 23, 42, 0.75) 100%);',
+        '  border-color: #7dd3fc;',
+        '  box-shadow: 0 0 14px rgba(56, 189, 248, 0.85);',
+        '}',
+        '',
+        '/* 3. Smartphone compact single-row top menu (shows only Player Name, Clock, Score, Music ON/OFF) */',
+        '@media (max-width: 920px), (pointer: coarse) and (max-width: 1024px) {',
+        '  #top-bar {',
+        '    top: 6px !important;',
+        '    width: 96vw !important;',
+        '    padding: 4px 8px !important;',
+        '    border-radius: 14px !important;',
+        '    border-width: 2px !important;',
+        '    flex-wrap: nowrap !important;',
+        '    justify-content: space-between !important;',
+        '    gap: 4px !important;',
+        '  }',
+        '  /* Hide place badge pin & text, weather button, extra music controls, speed bar & giant direction card on mobile */',
+        '  #top-bar > .hud-box:first-child > span:first-child,',
+        '  #place-label,',
+        '  #weather-btn,',
+        '  .music-panel button:not(#music-toggle-btn),',
+        '  .music-panel span,',
+        '  #music-vol,',
+        '  .wagon-bar-wrap,',
+        '  #top-bar > .hud-box:last-child,',
+        '  #giant-direction-card {',
+        '    display: none !important;',
+        '  }',
+        '  .train-settings-btn {',
+        '    padding: 4px 8px !important;',
+        '    font-size: 12px !important;',
+        '    border-radius: 10px !important;',
+        '    gap: 3px !important;',
+        '    white-space: nowrap !important;',
+        '  }',
+        '  .clock-panel {',
+        '    padding: 2px 7px !important;',
+        '    gap: 5px !important;',
+        '    border-radius: 10px !important;',
+        '    flex-shrink: 0 !important;',
+        '  }',
+        '  #analog-clock {',
+        '    width: 26px !important;',
+        '    height: 26px !important;',
+        '    border-width: 2px !important;',
+        '  }',
+        '  #time-phase-label {',
+        '    font-size: 11px !important;',
+        '    white-space: nowrap !important;',
+        '  }',
+        '  .music-panel {',
+        '    padding: 0 !important;',
+        '    background: transparent !important;',
+        '    border: none !important;',
+        '    flex-shrink: 0 !important;',
+        '  }',
+        '  #music-toggle-btn {',
+        '    padding: 5px 8px !important;',
+        '    font-size: 11px !important;',
+        '    border-radius: 10px !important;',
+        '    white-space: nowrap !important;',
+        '  }',
+        '  .score-pill {',
+        '    padding: 4px 8px !important;',
+        '    font-size: 12px !important;',
+        '    border-radius: 10px !important;',
+        '    gap: 5px !important;',
+        '    white-space: nowrap !important;',
+        '  }',
+        '  #remote-wheel-hud {',
+        '    width: 146px;',
+        '    height: 146px;',
+        '    bottom: 10px;',
+        '  }',
+        '  #remote-wheel-hud .wheel-ok-btn {',
+        '    width: 56px;',
+        '    height: 56px;',
+        '    font-size: 17px;',
+        '  }',
+        '}',
+        '',
+        '@media (max-width: 420px) {',
+        '  #time-phase-label {',
+        '    display: none !important;',
+        '  }',
+        '}'
+      ].join('\n');
+      (document.head || document.documentElement).appendChild(styleEl);
+    }
+
+    var faceCard = document.getElementById('face-cam-card');
+    if (faceCard) {
+      faceCard.classList.remove('visible', 'talking');
+      faceCard.style.display = 'none';
+    }
+
+    if (!document.getElementById('remote-wheel-hud') && document.body) {
+      var wheel = document.createElement('div');
+      wheel.id = 'remote-wheel-hud';
+      wheel.setAttribute('aria-label', 'Train Remote Controller');
+      wheel.innerHTML = [
+        '<div class="wheel-diag d1"></div>',
+        '<div class="wheel-diag d2"></div>',
+        '<button type="button" class="wheel-dir-btn wheel-up" data-key="ArrowUp" aria-label="Faster (Up)">',
+        '  <svg viewBox="0 0 32 32"><path d="M16 6 L27 22 Q28 24 25.5 24 L6.5 24 Q4 24 5 22 Z" fill="#f8fafc" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/></svg>',
+        '</button>',
+        '<button type="button" class="wheel-dir-btn wheel-down" data-key="ArrowDown" aria-label="Slower / Reverse (Down)">',
+        '  <svg viewBox="0 0 32 32"><path d="M16 26 L27 10 Q28 8 25.5 8 L6.5 8 Q4 8 5 10 Z" fill="#f8fafc" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/></svg>',
+        '</button>',
+        '<button type="button" class="wheel-dir-btn wheel-left" data-key="ArrowLeft" aria-label="Turn Left">',
+        '  <svg viewBox="0 0 32 32"><path d="M6 16 L22 5 Q24 4 24 6.5 L24 25.5 Q24 28 22 27 Z" fill="#f8fafc" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/></svg>',
+        '</button>',
+        '<button type="button" class="wheel-dir-btn wheel-right" data-key="ArrowRight" aria-label="Turn Right">',
+        '  <svg viewBox="0 0 32 32"><path d="M26 16 L10 5 Q8 4 8 6.5 L8 25.5 Q8 28 10 27 Z" fill="#f8fafc" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/></svg>',
+        '</button>',
+        '<button type="button" class="wheel-ok-btn" data-key="Enter" aria-label="OK / Effects">OK</button>'
+      ].join('');
+      document.body.appendChild(wheel);
+
+      var lastTouchInvokeMs = 0;
+      function triggerWheelKey(btnEl, keyName) {
+        if (!keyName) return;
+        btnEl.classList.add('active-press');
+        setTimeout(function() {
+          btnEl.classList.remove('active-press');
+        }, 160);
+        if (typeof window.handleInput === 'function') {
+          window.handleInput(keyName);
+        }
+      }
+
+      var buttons = wheel.querySelectorAll('button[data-key]');
+      for (var bi = 0; bi < buttons.length; bi++) {
+        (function(btn) {
+          var keyName = btn.getAttribute('data-key');
+          btn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            lastTouchInvokeMs = Date.now();
+            triggerWheelKey(btn, keyName);
+          }, { passive: false });
+
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (Date.now() - lastTouchInvokeMs < 420) return;
+            triggerWheelKey(btn, keyName);
+          });
+        })(buttons[bi]);
+      }
+
+      // Highlight wheel segment when user presses hardware keyboard / TV remote keys
+      window.addEventListener('keydown', function(e) {
+        var k = e.key === ' ' ? 'Enter' : e.key;
+        var matchBtn = wheel.querySelector('button[data-key="' + k + '"]');
+        if (matchBtn) {
+          matchBtn.classList.add('active-press');
+          setTimeout(function() {
+            matchBtn.classList.remove('active-press');
+          }, 160);
+        }
+      });
+    }
+  }
+
+  if (document.body) {
+    injectStylesAndRemoteWheel();
+  } else {
+    window.addEventListener('DOMContentLoaded', injectStylesAndRemoteWheel);
+  }
+})();
 
 // ============================================================================
 // OFFICIAL PRAGUE METRO SYMBOL (ZNAK PRAŽSKÉHO METRA) — ONLY FOR METRO
@@ -254,7 +542,6 @@ window.createPragueMetroEntranceSign = function(themeHexStr) {
 
 // ============================================================================
 // DISNEY-STORYBOOK LANDMARK PICTOGRAM PAINTER & STATION SIGN GENERATOR
-// Used on both Station Platform Signs AND Junction Direction Signposts!
 // ============================================================================
 window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
   ctx.save();
@@ -273,7 +560,6 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
   if (iconType === 'metro') {
     window.drawPragueMetroSymbol(ctx, cx, cy, r, '#d9261c');
   } else if (iconType === 'eiffel') {
-    // Sunset Parisian sky + Golden-Bronze Eiffel Tower lattice silhouette
     var eGrad = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
     eGrad.addColorStop(0, '#38bdf8');
     eGrad.addColorStop(1, '#fef08a');
@@ -296,7 +582,6 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
     ctx.fill();
     ctx.stroke();
 
-    // Observation decks & top beacon
     ctx.fillStyle = '#facc15';
     ctx.fillRect(cx - r * 0.36, cy + r * 0.15, r * 0.72, r * 0.11);
     ctx.fillRect(cx - r * 0.22, cy - r * 0.22, r * 0.44, r * 0.10);
@@ -304,7 +589,6 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
     ctx.arc(cx, cy - r * 0.80, r * 0.11, 0, Math.PI * 2);
     ctx.fill();
   } else if (iconType === 'bigben') {
-    // Sky + Golden Sandstone Big Ben Clock Tower with white clock dial
     ctx.fillStyle = '#7dd3fc';
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
     ctx.fillStyle = '#d97706';
@@ -313,7 +597,6 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
     ctx.fillRect(cx - r * 0.36, cy - r * 0.32, r * 0.72, r * 1.25);
     ctx.strokeRect(cx - r * 0.36, cy - r * 0.32, r * 0.72, r * 1.25);
 
-    // Spire roof
     ctx.fillStyle = '#1e293b';
     ctx.beginPath();
     ctx.moveTo(cx - r * 0.40, cy - r * 0.32);
@@ -322,7 +605,6 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
     ctx.closePath();
     ctx.fill();
 
-    // Clock face
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#facc15';
     ctx.lineWidth = 5;
@@ -339,7 +621,6 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
     ctx.lineTo(cx + r * 0.14, cy + r * 0.04);
     ctx.stroke();
   } else if (iconType === 'colosseum') {
-    // Sunny Roman sky + Tiered Golden Travertine Colosseum with Arches
     ctx.fillStyle = '#bae6fd';
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
     ctx.fillStyle = '#4ade80';
@@ -359,7 +640,6 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
     ctx.fill();
     ctx.stroke();
 
-    // Rows of dark Roman arches
     ctx.fillStyle = '#451a03';
     [-0.52, -0.18, 0.16, 0.50].forEach(function(ax) {
       ctx.beginPath();
@@ -375,13 +655,11 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
       ctx.fill();
     });
   } else if (iconType === 'airport') {
-    // Control tower + soaring white airplane
     ctx.fillStyle = '#38bdf8';
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
     ctx.fillStyle = '#4ade80';
     ctx.fillRect(cx - r, cy + r * 0.52, r * 2, r * 0.50);
 
-    // Control Tower on left
     ctx.fillStyle = '#f8fafc';
     ctx.fillRect(cx - r * 0.65, cy - r * 0.20, r * 0.24, r * 0.75);
     ctx.fillStyle = '#0284c7';
@@ -389,7 +667,6 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
     ctx.fillStyle = '#ef4444';
     ctx.fillRect(cx - r * 0.70, cy - r * 0.52, r * 0.34, r * 0.08);
 
-    // White Airplane soaring up-right
     ctx.save();
     ctx.translate(cx + r * 0.18, cy - r * 0.08);
     ctx.rotate(-0.35);
@@ -411,11 +688,9 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
     ctx.stroke();
     ctx.restore();
   } else if (iconType === 'jewel') {
-    // Jewel Changi Glass Dome + Giant Turquoise Rain Vortex Waterfall
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 
-    // Glass dome arch
     ctx.fillStyle = '#0284c7';
     ctx.strokeStyle = '#bae6fd';
     ctx.lineWidth = 5;
@@ -425,14 +700,12 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
     ctx.fill();
     ctx.stroke();
 
-    // Lush green indoor forest terraces on left & right
     ctx.fillStyle = '#16a34a';
     ctx.beginPath();
     ctx.arc(cx - r * 0.48, cy + r * 0.35, r * 0.35, 0, Math.PI * 2);
     ctx.arc(cx + r * 0.48, cy + r * 0.35, r * 0.35, 0, Math.PI * 2);
     ctx.fill();
 
-    // Central cascading Rain Vortex Waterfall
     var wfGrad = ctx.createLinearGradient(cx, cy - r * 0.45, cx, cy + r * 0.65);
     wfGrad.addColorStop(0, '#ffffff');
     wfGrad.addColorStop(0.5, '#67e8f9');
@@ -446,7 +719,6 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
     ctx.closePath();
     ctx.fill();
   } else if (iconType === 'skyscraper') {
-    // Gleaming Futuristic Glass Skyscraper with Golden Spire
     ctx.fillStyle = '#1e3a8a';
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
     ctx.fillStyle = '#38bdf8';
@@ -457,7 +729,6 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
     ctx.fillRect(cx - r * 0.28, cy - r * 0.52, r * 0.56, r * 0.38);
     ctx.strokeRect(cx - r * 0.28, cy - r * 0.52, r * 0.56, r * 0.38);
 
-    // Golden Spire & glowing windows
     ctx.fillStyle = '#facc15';
     ctx.beginPath();
     ctx.moveTo(cx - r * 0.08, cy - r * 0.52);
@@ -471,7 +742,6 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
       ctx.fillRect(cx + r * 0.08, cy + r * wy, r * 0.18, r * 0.12);
     }
   } else if (iconType === 'mom_house' || iconType === 'grandma_house') {
-    // Cozy Storybook Family House with Red/Warm Roof, Garden & Heart
     ctx.fillStyle = '#bae6fd';
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
     ctx.fillStyle = '#4ade80';
@@ -498,7 +768,6 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
     ctx.fillRect(cx - r * 0.42, cy + r * 0.06, r * 0.20, r * 0.20);
     ctx.fillRect(cx + r * 0.22, cy + r * 0.06, r * 0.20, r * 0.20);
   } else if (iconType === 'fountain' || iconType === 'city') {
-    // Sparkling Blue Tiered Water Fountain in City Square
     ctx.fillStyle = '#bae6fd';
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
     ctx.fillStyle = '#0284c7';
@@ -590,7 +859,6 @@ window.drawLandmarkPictogram = function(ctx, iconType, cx, cy, r) {
   ctx.restore();
 };
 
-// Creates an Illustrated Station Signboard (Large Picture Badge on Left + Simple Bold Name on Right!)
 window.makeStationSign = function(titleText, iconType, bgHex, w, h) {
   var c = document.createElement('canvas');
   c.width = 640;
@@ -606,10 +874,8 @@ window.makeStationSign = function(titleText, iconType, bgHex, w, h) {
   ctx.fill();
   ctx.stroke();
 
-  // Draw the landmark illustration badge on the left
   window.drawLandmarkPictogram(ctx, iconType || 'city', 102, 90, 68);
 
-  // Draw the clean, bold station name on the right
   var cleanLabel = String(titleText || '')
     .replace(/^[^\wA-Za-z]+/, '')
     .trim()
@@ -670,19 +936,19 @@ bgMusicAudio.addEventListener('ended', function() {
 });
 
 window.toggleMusic = function() {
-  initAudio();
+  window.initAudio();
   var btn = document.getElementById('music-toggle-btn');
   if (isMusicPlaying) {
     isMusicPlaying = false;
     bgMusicAudio.pause();
     if (btn) {
-      btn.textContent = '🎵 Music: OFF (M)';
+      btn.textContent = '🎵 Music: OFF';
       btn.classList.remove('playing');
     }
   } else {
     isMusicPlaying = true;
     if (btn) {
-      btn.textContent = '🎵 Music: ON (M)';
+      btn.textContent = '🎵 Music: ON';
       btn.classList.add('playing');
     }
     var volEl = document.getElementById('music-vol');
@@ -693,11 +959,10 @@ window.toggleMusic = function() {
 };
 
 window.nextMusicTrack = function() {
-  initAudio();
+  window.initAudio();
   currentSongIndex = (currentSongIndex + 1) % sunoCandidateFiles.length;
   if (!isMusicPlaying) window.toggleMusic();
   else playCurrentCandidate();
-  window.playVoicePackClip('danicek-ready', null, null, 2);
 };
 
 window.changeMusicVolume = function(val) {
@@ -706,13 +971,13 @@ window.changeMusicVolume = function(val) {
 };
 
 // ============================================================================
-// NATURAL CHARACTER VOICE PACK (20 Authentic Studio WAV Files in /voices/)
+// NATURAL CHARACTER VOICE PACK (Studio WAV Files in /voices/)
 // ============================================================================
 window.VOICE_PACK = {
   'storyteller-hello': {
     file: 'voices/storyteller-hello.wav',
     role: 'mom',
-    speaker: '📖 Storyteller',
+    speaker: '👩 Mom Narrator',
     color: '#ec4899',
     priority: 3,
     text: 'Hello, little explorer! Are you ready for an adventure?'
@@ -720,7 +985,7 @@ window.VOICE_PACK = {
   'storyteller-discovery': {
     file: 'voices/storyteller-discovery.wav',
     role: 'mom',
-    speaker: '📖 Storyteller',
+    speaker: '👩 Mom Narrator',
     color: '#ec4899',
     priority: 2,
     text: 'Look ahead. A magical world is waiting for us.'
@@ -728,7 +993,7 @@ window.VOICE_PACK = {
   'storyteller-praise': {
     file: 'voices/storyteller-praise.wav',
     role: 'mom',
-    speaker: '📖 Storyteller',
+    speaker: '👩 Mom Narrator',
     color: '#ec4899',
     priority: 2,
     text: 'Wonderful! You found something new.'
@@ -736,7 +1001,7 @@ window.VOICE_PACK = {
   'storyteller-turn-left': {
     file: 'voices/storyteller-turn-left.wav',
     role: 'mom',
-    speaker: '📖 Storyteller',
+    speaker: '👩 Mom Narrator',
     color: '#facc15',
     priority: 2,
     text: "Let's turn left and see where the tracks take us."
@@ -744,7 +1009,7 @@ window.VOICE_PACK = {
   'storyteller-turn-right': {
     file: 'voices/storyteller-turn-right.wav',
     role: 'mom',
-    speaker: '📖 Storyteller',
+    speaker: '👩 Mom Narrator',
     color: '#f97316',
     priority: 2,
     text: "Let's turn right toward a new adventure."
@@ -752,7 +1017,7 @@ window.VOICE_PACK = {
   'storyteller-go-straight': {
     file: 'voices/storyteller-go-straight.wav',
     role: 'mom',
-    speaker: '📖 Storyteller',
+    speaker: '👩 Mom Narrator',
     color: '#4ade80',
     priority: 2,
     text: 'Going straight ahead along the railway line.'
@@ -760,7 +1025,7 @@ window.VOICE_PACK = {
   'storyteller-station': {
     file: 'voices/storyteller-station.wav',
     role: 'mom',
-    speaker: '📖 Storyteller',
+    speaker: '👩 Mom Narrator',
     color: '#ec4899',
     priority: 3,
     text: 'Here we are at the station! Watch the happy passengers step aboard our train.'
@@ -768,7 +1033,7 @@ window.VOICE_PACK = {
   'storyteller-sheep': {
     file: 'voices/storyteller-sheep.wav',
     role: 'mom',
-    speaker: '📖 Storyteller',
+    speaker: '👩 Mom Narrator',
     color: '#ec4899',
     priority: 3,
     text: "Oh look, fluffy white sheep are on the track! Let's honk gently so they step onto the grass."
@@ -776,7 +1041,7 @@ window.VOICE_PACK = {
   'storyteller-sunny': {
     file: 'voices/storyteller-sunny.wav',
     role: 'mom',
-    speaker: '📖 Storyteller',
+    speaker: '👩 Mom Narrator',
     color: '#ec4899',
     priority: 2,
     text: 'The sun is shining brightly over our fairytale world!'
@@ -1008,7 +1273,7 @@ function fetchVoiceWavBuffer(clipKey) {
   });
 })();
 
-// --- ENGLISH SPEECH SYNTHESIS FALLBACK ENGINE ---
+// --- ENGLISH SPEECH SYNTHESIS ENGINE (Distinct Voices for Mom, Train Dan, Animals & Friends) ---
 var verifiedEnVoices = [];
 function loadEnglishVoices() {
   if (!('speechSynthesis' in window)) return;
@@ -1026,58 +1291,45 @@ if ('speechSynthesis' in window) {
 }
 
 // ============================================================================
-// CONVERSATIONAL TURN-TAKING QUEUE WITH WEB AUDIO API PLAYBACK
+// STRICT CAMERA FRUSTUM VISIBILITY HELPER
+// ("Pravidlem je, že mluví jen ty zvířátka, mašinky a autíčka, atd. která jsou
+//  právě zobrazena a mluví vždy jen jeden objekt. Troubit a blikat může i více
+//  objektů najednou, ale jen ty, které jsou zobrazeny.")
+// ============================================================================
+window.isWorldPosVisibleOnScreen = function(worldPos, maxDistFromTrain) {
+  if (!worldPos || !window.camera || !window.playerLoco || !window.playerLoco.position) return false;
+  if (window.pState && window.pState.inSubway) return false;
+  var maxD = maxDistFromTrain || 58.0;
+  if (window.playerLoco.position.distanceTo(worldPos) > maxD) return false;
+  var ndc = worldPos.clone().project(window.camera);
+  return (
+    ndc.z >= -1.0 && ndc.z <= 1.0 &&
+    ndc.x >= -0.96 && ndc.x <= 0.96 &&
+    ndc.y >= -0.96 && ndc.y <= 0.96
+  );
+};
+
+// ============================================================================
+// STRICT SINGLE-SPEAKER VOICE ENGINE (NO TEXT BANNER, NO OVERLAPPING SPEECH)
 // ============================================================================
 var activeBufferSource = null;
 var activeVoiceKey = null;
 var activeVoiceEndTime = 0;
 var activeWatchdogTimer = null;
-var pendingVoiceItem = null;
-var nextVoiceTimer = null;
-var deferredWelcomeClip = 'storyteller-hello';
-var faceCardTimer = null;
-var stationAlternateIdx = 0;
-var hornCycleIdx = 0;
-var charlieCycleIdx = 0;
-var metroCycleIdx = 0;
 
 window.isVoiceCurrentlyPlaying = function() {
-  return hasUserGesture && Date.now() < activeVoiceEndTime;
+  if (!hasUserGesture) return false;
+  var ttsSpeaking = Boolean('speechSynthesis' in window && window.speechSynthesis && window.speechSynthesis.speaking);
+  return Date.now() < activeVoiceEndTime || ttsSpeaking;
 };
 
-function showFaceCamBanner(role, speakerName, avatarColorHex, displayText, durationMs) {
+// Requirement 1: Never show top speech frame (#face-cam-card)
+function showFaceCamBanner() {
   var card = document.getElementById('face-cam-card');
-  var avatar = document.getElementById('face-avatar');
-  var tag = document.getElementById('speaker-tag');
-  var txtEl = document.getElementById('speech-text');
-
-  var tName = window.getTrainName();
-  var resolvedSpeaker = String(speakerName || '')
-    .replace(/Little Train Toby/g, 'Little Train ' + tName)
-    .replace(/Little Train Daníček/g, 'Little Train ' + tName)
-    .replace(/\bToby\b/g, tName);
-  var resolvedText = window.formatPersonalizedText(role, displayText);
-  var resolvedColor = (role === 'train' && (!avatarColorHex || avatarColorHex === '#ef4444'))
-    ? '#0d9488'
-    : (avatarColorHex || '#0d9488');
-
   if (card) {
-    if (avatar) avatar.style.background = resolvedColor;
-    if (tag) tag.textContent = resolvedSpeaker;
-    if (txtEl) txtEl.textContent = resolvedText;
-    card.classList.add('visible', 'talking');
-    clearTimeout(faceCardTimer);
-    faceCardTimer = setTimeout(function() {
-      card.classList.remove('talking');
-      setTimeout(function() {
-        if (!window.isVoiceCurrentlyPlaying() && !pendingVoiceItem) {
-          card.classList.remove('visible');
-        }
-      }, 750);
-    }, durationMs || 3800);
+    card.classList.remove('visible', 'talking');
+    card.style.display = 'none';
   }
-
-  if (window.triggerFaceCamHighlight) window.triggerFaceCamHighlight(110);
 }
 
 function onCurrentVoiceFinished() {
@@ -1086,40 +1338,30 @@ function onCurrentVoiceFinished() {
   activeBufferSource = null;
   activeVoiceKey = null;
   activeVoiceEndTime = 0;
-
-  var card = document.getElementById('face-cam-card');
-  if (card) {
-    card.classList.remove('talking');
-  }
-
-  if (pendingVoiceItem) {
-    var nextItem = pendingVoiceItem;
-    pendingVoiceItem = null;
-    clearTimeout(nextVoiceTimer);
-    nextVoiceTimer = setTimeout(function() {
-      nextVoiceTimer = null;
-      startVoiceClipImmediate(nextItem.clipKey, nextItem.customSubtitleText, nextItem.customSpeaker);
-    }, 280);
-  } else {
-    if (isMusicPlaying && bgMusicAudio) {
-      bgMusicAudio.volume = userMusicVolume;
-    }
-    if (card) {
-      setTimeout(function() {
-        if (!window.isVoiceCurrentlyPlaying() && !pendingVoiceItem) {
-          card.classList.remove('visible');
-        }
-      }, 650);
-    }
+  if (isMusicPlaying && bgMusicAudio) {
+    bgMusicAudio.volume = userMusicVolume;
   }
 }
 
-function speakFallbackTTS(role, textToSpeak, estDurationMs) {
-  var resolvedText = window.formatPersonalizedText(role, textToSpeak);
+function speakDynamicUtterance(role, speakerType, rawText) {
+  if (!hasUserGesture) return false;
+  if (window.isVoiceCurrentlyPlaying()) return false;
+
+  var resolvedText = window.formatPersonalizedText(role, rawText);
+  if (!resolvedText) return false;
+
+  window.initAudio();
   if (!verifiedEnVoices.length) loadEnglishVoices();
 
+  var estDurationMs = Math.max(1700, Math.min(4600, resolvedText.length * 64));
+  activeVoiceEndTime = Date.now() + estDurationMs;
+
+  if (isMusicPlaying && bgMusicAudio) {
+    bgMusicAudio.volume = Math.max(0.08, userMusicVolume * 0.35);
+  }
+
   clearTimeout(activeWatchdogTimer);
-  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, estDurationMs + 400);
+  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, estDurationMs + 350);
 
   if (verifiedEnVoices.length > 0 && 'speechSynthesis' in window) {
     try {
@@ -1137,14 +1379,32 @@ function speakFallbackTTS(role, textToSpeak, estDurationMs) {
       u.lang = 'en-US';
 
       if (role === 'mom') {
-        u.pitch = 1.06;
-        u.rate = 0.92;
+        u.pitch = 1.05;
+        u.rate = 0.95;
       } else if (role === 'train') {
-        u.pitch = 1.42;
-        u.rate = 1.02;
-      } else {
-        u.pitch = 1.18;
+        u.pitch = 1.36;
+        u.rate = 1.04;
+      } else if (speakerType === 'squirrel' || speakerType === 'rabbit') {
+        u.pitch = 1.68;
+        u.rate = 1.12;
+      } else if (speakerType === 'owl') {
+        u.pitch = 0.92;
+        u.rate = 0.94;
+      } else if (speakerType === 'cow') {
+        u.pitch = 0.88;
+        u.rate = 0.92;
+      } else if (speakerType === 'sheep') {
+        u.pitch = 1.48;
+        u.rate = 1.06;
+      } else if (speakerType === 'monster') {
+        u.pitch = 1.52;
         u.rate = 1.08;
+      } else if (speakerType === 'ai_train') {
+        u.pitch = 1.20;
+        u.rate = 1.04;
+      } else {
+        u.pitch = 1.28;
+        u.rate = 1.06;
       }
 
       u.onend = function() {
@@ -1154,14 +1414,17 @@ function speakFallbackTTS(role, textToSpeak, estDurationMs) {
         onCurrentVoiceFinished();
       };
       window.speechSynthesis.speak(u);
-      return;
+      return true;
     } catch (e) {}
   }
 
-  onCurrentVoiceFinished();
+  // Fallback to studio WAV buffer if device has no TTS voices
+  var fallbackClip = (role === 'mom') ? 'storyteller-turn-right' : 'danicek-ready';
+  startVoiceClipImmediate(fallbackClip);
+  return true;
 }
 
-function playDecodedWebAudioBuffer(audioBuf, entry, subtitleToShow, speakerToShow) {
+function playDecodedWebAudioBuffer(audioBuf) {
   if (!audioCtx || !audioBuf) return false;
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
@@ -1175,11 +1438,10 @@ function playDecodedWebAudioBuffer(audioBuf, entry, subtitleToShow, speakerToSho
     activeBufferSource = null;
   }
 
-  var durMs = Math.ceil(audioBuf.duration * 1000) + 150;
+  var durMs = Math.ceil(audioBuf.duration * 1000) + 120;
   activeVoiceEndTime = Date.now() + durMs;
   clearTimeout(activeWatchdogTimer);
-  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, durMs + 500);
-  showFaceCamBanner(entry.role, speakerToShow, entry.color, subtitleToShow, durMs);
+  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, durMs + 400);
 
   var src = audioCtx.createBufferSource();
   src.buffer = audioBuf;
@@ -1201,20 +1463,9 @@ function playDecodedWebAudioBuffer(audioBuf, entry, subtitleToShow, speakerToSho
   return true;
 }
 
-function startVoiceClipImmediate(clipKey, customSubtitleText, customSpeaker) {
+function startVoiceClipImmediate(clipKey) {
   var entry = window.VOICE_PACK[clipKey];
-  if (!entry) return false;
-
-  var subtitleToShow = customSubtitleText || entry.text;
-  var speakerToShow = customSpeaker || entry.speaker;
-  var estDurMs = Math.max(2600, Math.min(5800, subtitleToShow.length * 68));
-
-  showFaceCamBanner(entry.role, speakerToShow, entry.color, subtitleToShow, estDurMs);
-
-  if (!hasUserGesture) {
-    deferredWelcomeClip = clipKey;
-    return false;
-  }
+  if (!entry || !hasUserGesture) return false;
 
   window.initAudio();
 
@@ -1222,16 +1473,17 @@ function startVoiceClipImmediate(clipKey, customSubtitleText, customSpeaker) {
     bgMusicAudio.volume = Math.max(0.08, userMusicVolume * 0.35);
   }
 
+  var estDurMs = 3000;
   activeVoiceKey = clipKey;
   activeVoiceEndTime = Date.now() + estDurMs;
   clearTimeout(activeWatchdogTimer);
-  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, estDurMs + 900);
+  activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, estDurMs + 700);
 
   if (audioCtx && rawWavArrayBuffers[clipKey] && !decodedVoiceBuffers[clipKey]) {
     decodedVoiceBuffers[clipKey] = parsePcm16WavToAudioBuffer(audioCtx, rawWavArrayBuffers[clipKey]);
   }
   if (audioCtx && decodedVoiceBuffers[clipKey]) {
-    return playDecodedWebAudioBuffer(decodedVoiceBuffers[clipKey], entry, subtitleToShow, speakerToShow);
+    return playDecodedWebAudioBuffer(decodedVoiceBuffers[clipKey]);
   }
 
   fetchVoiceWavBuffer(clipKey).then(function(buf) {
@@ -1241,223 +1493,314 @@ function startVoiceClipImmediate(clipKey, customSubtitleText, customSpeaker) {
       if (buf) decodedVoiceBuffers[clipKey] = buf;
     }
     if (audioCtx && buf) {
-      playDecodedWebAudioBuffer(buf, entry, subtitleToShow, speakerToShow);
+      playDecodedWebAudioBuffer(buf);
     } else {
-      speakFallbackTTS(entry.role, subtitleToShow, estDurMs);
+      onCurrentVoiceFinished();
     }
   }).catch(function() {
     if (activeVoiceKey === clipKey) {
-      speakFallbackTTS(entry.role, subtitleToShow, estDurMs);
+      onCurrentVoiceFinished();
     }
   });
 
   return true;
 }
 
-window.playVoicePackClip = function(clipKey, customSubtitleText, customSpeaker, overridePriority) {
+window.playVoicePackClip = function(clipKey) {
   var entry = window.VOICE_PACK[clipKey];
-  if (!entry) return false;
+  if (!entry || !hasUserGesture) return false;
+  // Strict single-speaker rule: never interrupt or queue overlapping voices
+  if (window.isVoiceCurrentlyPlaying()) return false;
+  return startVoiceClipImmediate(clipKey);
+};
 
-  if (!hasUserGesture) {
-    showFaceCamBanner(entry.role, customSpeaker || entry.speaker, entry.color, customSubtitleText || entry.text, 3800);
-    deferredWelcomeClip = clipKey;
-    return false;
+// ============================================================================
+// VOICE BALANCING & TURN-TAKING CONTROLLER (Requirement 4):
+// - Storyteller: 0% (completely disabled)
+// - Mom Narrator: ~10% (comments on Day/Night transitions & where train is heading, e.g. Anantara in Bangkok)
+// - Train Dan: ~20% (short 1-sentence comments on landmarks/objects passed)
+// - Animals (Squirrel, Owl, Rabbit, Cow, Sheep, Monsters): short greetings when visible & passing
+// - AI Trains: honk & greet train ONLY when visible on screen
+// - Road Cars: honk & blink lights at train when stopped at crossing AND visible on screen
+// - Strict Rule: ONLY visible objects speak/honk/blink, and ONLY 1 object speaks at a time!
+// ============================================================================
+var lastMomRouteSpeechMs = 0;
+var lastTrainDanSpeechMs = 0;
+var animalGreetCooldownMap = {};
+
+// Short greetings spoken by the animals themselves when passing by in camera view
+var ANIMAL_SHORT_GREETINGS = {
+  squirrel: [
+    'Hi Dan! Wheee, look at me jump!',
+    'Hello train Dan! Wheee!'
+  ],
+  owl: [
+    'Hoo-hoo! Hello train Dan!',
+    'Hoo-hoo! Nice to see you, Dan!'
+  ],
+  rabbit: [
+    'Hi Dan! Hop, hop, hello!',
+    'Hello little train! Hop, hop!'
+  ],
+  cow: [
+    'Mooo! Hello train Dan!',
+    'Mooo! Have a nice ride, Dan!'
+  ],
+  sheep_0: [
+    'Baa, baa! Hello train Dan!',
+    'Baa! Hi little train!'
+  ],
+  sheep_1: [
+    'Baa, baa! Hi train Dan!',
+    'Baa! Wave hello to the sheep!'
+  ],
+  monster_0: [
+    'Oh no, here comes the train! Help!',
+    'Eek! Watch out for the train!'
+  ],
+  monster_1: [
+    'Whoa, the train is coming! Help!',
+    'Peek-a-boo, little train Dan!'
+  ]
+};
+
+// Mom Narrator (~10%): comments where the train is heading (e.g. Anantara in Bangkok)
+var MOM_DESTINATION_LINES = {
+  anantara: 'Now you are arriving at the Anantara Hotel in Bangkok!',
+  iconsiam: 'Now you are riding past IconSiam by the river in Bangkok!',
+  bkk_bridge: 'Now you are crossing the big railway bridge in Bangkok!',
+  mom_house: 'Now you are passing Mommy and Daddy\'s house!'
+};
+
+// Train Dan (~20%): short, crisp comments on objects & occasionally animals
+var TRAIN_DAN_SHORT_COMMENTS = {
+  eiffel: 'Look! That is the tall Eiffel Tower!',
+  colosseum: 'Look! There is the Roman Colosseum!',
+  grandma_house: 'Look! Here is Grandma and Grandpa\'s house!',
+  airport: 'Look at the airplanes at the Airport!',
+  jewel: 'Wow, look at the big waterfall inside Jewel!',
+  stadium: 'Look! They are playing football in the Stadium!',
+  bigben: 'Look at Big Ben, the golden clock tower!',
+  skyscraper: 'Wow, look at that tall glass Skyscraper!',
+  fountain: 'Look at the sparkling water Fountain!',
+  anantara_boat: 'Look at the wooden Anantara boat on the river!'
+};
+
+var animalGreetingCounter = 0;
+
+function handleShowcaseNarrationBalanced(focusId) {
+  if (!focusId || !hasUserGesture) return false;
+  if (window.isVoiceCurrentlyPlaying()) return false;
+
+  var nowMs = Date.now();
+
+  // 1) Animals & Monsters (70% priority): the visible animal calls out a short greeting!
+  //    (20% of the time, Train Dan briefly comments on the animal instead)
+  if (ANIMAL_SHORT_GREETINGS[focusId]) {
+    var lastAnimMs = animalGreetCooldownMap[focusId] || 0;
+    if (nowMs - lastAnimMs < 9000) return false;
+    animalGreetCooldownMap[focusId] = nowMs;
+    animalGreetingCounter++;
+
+    // 1 in 5 times (~20%), Train Dan makes a short remark about the animal
+    if (animalGreetingCounter % 5 === 0) {
+      var shortDanAnimal = {
+        squirrel: 'Look! A cute orange squirrel in the tree!',
+        owl: 'Look up! A wise brown owl on the branch!',
+        rabbit: 'Look! A little white rabbit hopping by the track!',
+        cow: 'Look! Our friend Daisy the cow!',
+        sheep_0: 'Look at the fluffy white sheep!',
+        sheep_1: 'Look! White sheep waving by the tracks!',
+        monster_0: 'Haha! Look at the funny purple monster!',
+        monster_1: 'Haha! That fuzzy monster hid behind the tree!'
+      }[focusId];
+      if (shortDanAnimal) {
+        lastTrainDanSpeechMs = nowMs;
+        return speakDynamicUtterance('train', 'train', shortDanAnimal);
+      }
+    }
+
+    var lines = ANIMAL_SHORT_GREETINGS[focusId];
+    var chosenLine = lines[animalGreetingCounter % lines.length];
+    var aType = focusId.indexOf('sheep') === 0 ? 'sheep' : (focusId.indexOf('monster') === 0 ? 'monster' : focusId);
+    return speakDynamicUtterance('friend', aType, chosenLine);
   }
 
-  var prio = (overridePriority !== undefined && overridePriority !== null)
-    ? overridePriority
-    : (entry.priority || 2);
-
-  if (!window.isVoiceCurrentlyPlaying() && !nextVoiceTimer) {
-    return startVoiceClipImmediate(clipKey, customSubtitleText, customSpeaker);
+  // 2) Mom Narrator (~10%): comments where the train is heading (e.g. Anantara in Bangkok)
+  if (MOM_DESTINATION_LINES[focusId]) {
+    if (nowMs - lastMomRouteSpeechMs < 14000) return false;
+    lastMomRouteSpeechMs = nowMs;
+    return speakDynamicUtterance('mom', 'mom', MOM_DESTINATION_LINES[focusId]);
   }
 
-  if (activeVoiceKey === clipKey) {
-    return false;
-  }
-
-  if (!pendingVoiceItem || prio >= pendingVoiceItem.priority) {
-    pendingVoiceItem = {
-      clipKey: clipKey,
-      customSubtitleText: customSubtitleText || null,
-      customSpeaker: customSpeaker || null,
-      priority: prio
-    };
-    return true;
+  // 3) Train Dan (~20%): short 1-sentence comment on objects/landmarks passed
+  if (TRAIN_DAN_SHORT_COMMENTS[focusId]) {
+    if (nowMs - lastTrainDanSpeechMs < 11000) return false;
+    lastTrainDanSpeechMs = nowMs;
+    return speakDynamicUtterance('train', 'train', TRAIN_DAN_SHORT_COMMENTS[focusId]);
   }
 
   return false;
-};
-
-function resolveVoiceClipInfo(role, speakerName, rawText, explicitClipKey) {
-  if (explicitClipKey && window.VOICE_PACK[explicitClipKey]) {
-    return { key: explicitClipKey, priority: window.VOICE_PACK[explicitClipKey].priority || 2, dropIfBusy: false };
-  }
-
-  var s = String(rawText || '').toLowerCase();
-  var sp = String(speakerName || '').toLowerCase();
-
-  if (role === 'charlie' || sp.indexOf('charlie') !== -1 || sp.indexOf('helicopter') !== -1) {
-    if (s.indexOf('takeoff') !== -1) return { key: 'charlie-takeoff', priority: 2, dropIfBusy: false };
-    if (s.indexOf('closer look') !== -1 || s.indexOf('explore') !== -1) return { key: 'charlie-explore', priority: 2, dropIfBusy: false };
-    if (s.indexOf('up here') !== -1 || s.indexOf('interesting') !== -1) return { key: 'charlie-overview', priority: 2, dropIfBusy: false };
-    var charlieKeys = ['charlie-takeoff', 'charlie-overview', 'charlie-explore'];
-    var cKey = charlieKeys[charlieCycleIdx % charlieKeys.length];
-    charlieCycleIdx++;
-    return { key: cKey, priority: 2, dropIfBusy: false };
-  }
-
-  if (role === 'mom') {
-    if (s.indexOf('turning left') !== -1 || s.indexOf('turn left') !== -1) {
-      return { key: 'storyteller-turn-left', priority: 2, dropIfBusy: false };
-    }
-    if (s.indexOf('turning right') !== -1 || s.indexOf('turn right') !== -1) {
-      return { key: 'storyteller-turn-right', priority: 2, dropIfBusy: false };
-    }
-    if (s.indexOf('turning straight') !== -1 || s.indexOf('straight ahead') !== -1) {
-      return { key: 'storyteller-go-straight', priority: 2, dropIfBusy: false };
-    }
-    if (s.indexOf('sheep') !== -1) {
-      return { key: 'storyteller-sheep', priority: 3, dropIfBusy: false };
-    }
-    if (s.indexOf('sun is shining') !== -1) {
-      return { key: 'storyteller-sunny', priority: 2, dropIfBusy: false };
-    }
-    if (s.indexOf('wonderful') !== -1 || s.indexOf('unlocked') !== -1 || s.indexOf('found') !== -1) {
-      return { key: 'storyteller-praise', priority: 3, dropIfBusy: false };
-    }
-    if (s.indexOf('hello') !== -1 || s.indexOf('welcome to our') !== -1) {
-      return { key: 'storyteller-hello', priority: 3, dropIfBusy: false };
-    }
-    stationAlternateIdx++;
-    var stKey = (stationAlternateIdx % 2 === 1) ? 'storyteller-station' : 'storyteller-discovery';
-    return { key: stKey, priority: 3, dropIfBusy: false };
-  }
-
-  if (role === 'train') {
-    if (s.indexOf('gnome cavern') !== -1 || s.indexOf('crystals') !== -1 || s.indexOf('magic mushrooms') !== -1 || s.indexOf('jewel') !== -1 || s.indexOf('vortex') !== -1) {
-      metroCycleIdx++;
-      var mKey = (metroCycleIdx % 2 === 1) ? 'danicek-crystals' : 'danicek-metro';
-      return { key: mKey, priority: 3, dropIfBusy: false };
-    }
-    if (s.indexOf('entering the metro') !== -1 || s.indexOf('metro station tunnel') !== -1) {
-      return { key: 'danicek-metro', priority: 3, dropIfBusy: false };
-    }
-    if (s.indexOf('dark mountain tunnel') !== -1 || s.indexOf('dark tunnel') !== -1 || s.indexOf('headlight') !== -1) {
-      return { key: 'danicek-tunnel', priority: 3, dropIfBusy: false };
-    }
-    if (s.indexOf('speed') !== -1 || s.indexOf('chugga') !== -1 || s.indexOf('faster') !== -1) {
-      return { key: 'danicek-speed-up', priority: 2, dropIfBusy: false };
-    }
-    if (s.indexOf('backing up') !== -1 || s.indexOf('turning back') !== -1 || s.indexOf('reverse') !== -1) {
-      return { key: 'danicek-reverse', priority: 2, dropIfBusy: false };
-    }
-    if (s.indexOf('slowing down') !== -1) {
-      return { key: 'danicek-slow-down', priority: 2, dropIfBusy: false };
-    }
-    if (s.indexOf('new wagon') !== -1 || s.indexOf('3 treasures') !== -1) {
-      return { key: 'storyteller-praise', priority: 3, dropIfBusy: false };
-    }
-    if (s.indexOf('raindrops') !== -1 || s.indexOf('snowflakes') !== -1 || s.indexOf('next stop') !== -1) {
-      return { key: 'danicek-next-stop', priority: 2, dropIfBusy: false };
-    }
-    if (s.indexOf('hi friends!') !== -1) {
-      var interactiveCycle = [
-        'danicek-ready',
-        'charlie-takeoff',
-        'danicek-next-stop',
-        'charlie-overview',
-        'storyteller-discovery',
-        'charlie-explore'
-      ];
-      var chosenKey = interactiveCycle[hornCycleIdx % interactiveCycle.length];
-      hornCycleIdx++;
-      return { key: chosenKey, priority: 2, dropIfBusy: false };
-    }
-    return { key: 'danicek-ready', priority: 2, dropIfBusy: false };
-  }
-
-  var friendCycle = [
-    'charlie-overview',
-    'charlie-explore',
-    'danicek-next-stop',
-    'storyteller-discovery',
-    'charlie-takeoff'
-  ];
-  var fKey = friendCycle[charlieCycleIdx % friendCycle.length];
-  charlieCycleIdx++;
-  return { key: fKey, priority: 1, dropIfBusy: true };
 }
 
 window.speakCharacter = function(role, speakerName, avatarColorHex, text, explicitClipKey) {
-  var info = resolveVoiceClipInfo(role, speakerName, text, explicitClipKey);
-  if (!info || !info.key || !window.VOICE_PACK[info.key]) return;
+  if (!hasUserGesture) return false;
+  // Strict single-speaker rule: if anyone is speaking, do not overlap or queue
+  if (window.isVoiceCurrentlyPlaying()) return false;
 
-  if (info.dropIfBusy && (window.isVoiceCurrentlyPlaying() || pendingVoiceItem)) {
-    return;
+  var sp = String(speakerName || '').toLowerCase();
+  var s = String(text || '').toLowerCase();
+  var nowMs = Date.now();
+
+  // Rule: Storyteller = 0% (never speak as Storyteller)
+  if (sp.indexOf('storyteller') !== -1) {
+    return false;
   }
 
-  // Keep the authentic subtitle text in the banner while playing the studio voice clip!
-  window.playVoicePackClip(info.key, text || null, speakerName || null, info.priority);
+  // Filter out repetitive speed/slowdown/horn button chatter so Train Dan stays ~20%
+  if (role === 'train' || role === 'toby') {
+    if (
+      s.indexOf('speed ') !== -1 ||
+      s.indexOf('faster') !== -1 ||
+      s.indexOf('slowing down') !== -1 ||
+      s.indexOf('brakes') !== -1 ||
+      s.indexOf('slower now') !== -1 ||
+      s.indexOf('hi friends!') !== -1
+    ) {
+      return false;
+    }
+    if (s.indexOf('gnome cavern') !== -1 || s.indexOf('underground') !== -1) {
+      return window.playVoicePackClip('danicek-metro');
+    }
+    if (s.indexOf('dark mountain tunnel') !== -1 || s.indexOf('dark tunnel') !== -1) {
+      return window.playVoicePackClip('danicek-tunnel');
+    }
+    if (s.indexOf('backing up') !== -1 || s.indexOf('reverse') !== -1) {
+      if (nowMs - lastTrainDanSpeechMs < 10000) return false;
+      lastTrainDanSpeechMs = nowMs;
+      return window.playVoicePackClip('danicek-reverse');
+    }
+    if (s.indexOf('new wagon') !== -1) {
+      lastTrainDanSpeechMs = nowMs;
+      return speakDynamicUtterance('train', 'train', 'Yay! We got a new wagon!');
+    }
+    if (nowMs - lastTrainDanSpeechMs < 9000) return false;
+    lastTrainDanSpeechMs = nowMs;
+    return speakDynamicUtterance('train', 'train', text);
+  }
+
+  // Mom Narrator (~10%): Day/Night transitions & destination direction announcements
+  if (role === 'mom') {
+    // Sheep on track is handled by the sheep greeting itself
+    if (s.indexOf('sheep') !== -1) {
+      if (window.trackSheepFlocks && window.playerLoco) {
+        for (var si = 0; si < window.trackSheepFlocks.length; si++) {
+          var fl = window.trackSheepFlocks[si];
+          var shPos = (fl && fl.group) ? fl.group.position : (fl ? fl.basePos : null);
+          if (shPos && window.isWorldPosVisibleOnScreen(shPos, 42)) {
+            return speakDynamicUtterance('friend', 'sheep', 'Baa, baa! Hello train Dan!');
+          }
+        }
+      }
+      return false;
+    }
+
+    // Direction switch ("Turning left/right toward...") — throttled so Mom stays ~10%
+    if (s.indexOf('turning ') === 0) {
+      if (nowMs - lastMomRouteSpeechMs < 15000) return false;
+      lastMomRouteSpeechMs = nowMs;
+      var cleanDest = String(text || '')
+        .replace(/^Turning\s+(left|right|straight)\s+toward\s+/i, '')
+        .replace(/^[^\wA-Za-z]+/, '')
+        .trim();
+      if (cleanDest.toLowerCase().indexOf('anantara') !== -1) {
+        return speakDynamicUtterance('mom', 'mom', 'Now heading to the Anantara Hotel in Bangkok!');
+      }
+      if (cleanDest) {
+        return speakDynamicUtterance('mom', 'mom', 'Heading toward ' + cleanDest + '!');
+      }
+      return false;
+    }
+
+    // Station stop announcement
+    if (nowMs - lastMomRouteSpeechMs < 14000) return false;
+    lastMomRouteSpeechMs = nowMs;
+    return window.playVoicePackClip('storyteller-station');
+  }
+
+  // Friends (Animals, AI Trains, Stopped Crossing Cars) — MUST be visible on screen!
+  if (role === 'friend') {
+    // 1) Cow greeting (Daisy the Cow)
+    if (sp.indexOf('cow') !== -1 || sp.indexOf('daisy') !== -1) {
+      if (!window.daisyTheCow || !window.isWorldPosVisibleOnScreen(window.daisyTheCow.position, 42)) {
+        return false;
+      }
+      return speakDynamicUtterance('friend', 'cow', 'Mooo! Hello train Dan!');
+    }
+
+    // 2) AI Train greeting (Bullet Bob / Rusty Steam Friend)
+    if (sp.indexOf('bullet') !== -1 || sp.indexOf('rusty') !== -1 || sp.indexOf('shinkansen') !== -1 || sp.indexOf('steam') !== -1) {
+      var visibleAi = false;
+      if (window.aiTrains) {
+        for (var aiIdx = 0; aiIdx < window.aiTrains.length; aiIdx++) {
+          var ai = window.aiTrains[aiIdx];
+          if (ai && ai.loco && window.isWorldPosVisibleOnScreen(ai.loco.position, 38)) {
+            visibleAi = true;
+            break;
+          }
+        }
+      }
+      if (!visibleAi) return false;
+      var shortTrainGreet = (sp.indexOf('bullet') !== -1)
+        ? 'Choo choo! Hi train Dan!'
+        : 'Toot toot! Hello friend Dan!';
+      return speakDynamicUtterance('friend', 'ai_train', shortTrainGreet);
+    }
+
+    // 3) Road Car greeting — ONLY if stopped at a crossing AND visible on screen!
+    var visibleStoppedCar = false;
+    if (window.livingVehicles) {
+      for (var vi = 0; vi < window.livingVehicles.length; vi++) {
+        var lv = window.livingVehicles[vi];
+        if (lv && lv.isStopped && lv.mesh && window.isWorldPosVisibleOnScreen(lv.mesh.position, 42)) {
+          visibleStoppedCar = true;
+          break;
+        }
+      }
+    }
+    if (!visibleStoppedCar) return false;
+    return speakDynamicUtterance('friend', 'car', 'Beep beep! Hi train Dan!');
+  }
+
+  if (explicitClipKey && window.VOICE_PACK[explicitClipKey]) {
+    return window.playVoicePackClip(explicitClipKey);
+  }
+  return false;
 };
+var balancedSpeakCharacter = window.speakCharacter;
 
 window.speakPureEnglish = function(emoji, text) {
-  window.speakCharacter('mom', '📖 Storyteller', '#ec4899', text);
+  window.speakCharacter('mom', '👩 Mom Narrator', '#ec4899', text);
 };
 
 // ============================================================================
-// USER GESTURE AUDIO UNLOCK & CHARLIE THE HELICOPTER SKY DIRECTOR
+// USER GESTURE AUDIO UNLOCK
 // ============================================================================
-function unlockAudioOnFirstGesture(playWelcomeIfIdle) {
-  var wasUnlocked = hasUserGesture;
+function unlockAudioOnFirstGesture() {
   window.initAudio();
-  if (!wasUnlocked && playWelcomeIfIdle) {
-    setTimeout(function() {
-      if (!window.isVoiceCurrentlyPlaying() && !pendingVoiceItem) {
-        window.playVoicePackClip(deferredWelcomeClip || 'storyteller-hello', null, null, 3);
-      }
-    }, 60);
-  }
 }
 
-window.addEventListener('keydown', function onKey(e) {
-  unlockAudioOnFirstGesture(false);
-  if ((e.key === 'c' || e.key === 'C') && (!document.activeElement || ['INPUT', 'TEXTAREA'].indexOf(document.activeElement.tagName) === -1)) {
-    var cClips = ['charlie-takeoff', 'charlie-overview', 'charlie-explore'];
-    var ck = cClips[charlieCycleIdx % cClips.length];
-    charlieCycleIdx++;
-    window.playVoicePackClip(ck, null, null, 2);
-  }
+window.addEventListener('keydown', function() {
+  unlockAudioOnFirstGesture();
 }, true);
 
-window.addEventListener('pointerdown', function onPointer() {
-  unlockAudioOnFirstGesture(true);
+window.addEventListener('pointerdown', function() {
+  unlockAudioOnFirstGesture();
 }, true);
 
-var lastAutoSkyCallout = Date.now() + 8000;
-setInterval(function() {
-  if (!hasUserGesture) return;
-  if (window.isVoiceCurrentlyPlaying() || pendingVoiceItem) return;
-  if (Date.now() - lastAutoSkyCallout < 20000) return;
-
-  if (window.pState && Math.abs(window.pState.currentVel || 0) > 0.04 && !window.pState.atGate) {
-    lastAutoSkyCallout = Date.now();
-    if (window.pState.inSubway) {
-      window.playVoicePackClip('danicek-crystals', null, null, 2);
-    } else {
-      var skyRotation = [
-        'charlie-overview',
-        'charlie-explore',
-        'storyteller-discovery',
-        'danicek-next-stop',
-        'charlie-takeoff'
-      ];
-      var nextClip = skyRotation[charlieCycleIdx % skyRotation.length];
-      charlieCycleIdx++;
-      window.playVoicePackClip(nextClip, null, null, 1);
-    }
-  }
-}, 4000);
+window.addEventListener('touchstart', function() {
+  unlockAudioOnFirstGesture();
+}, true);
 
 // ============================================================================
 // GLOSSY IRIDESCENT CHIMNEY BUBBLE GENERATOR (Triggered on Steam Whistle!)
@@ -1563,7 +1906,7 @@ function spawnGlossyChimneyBurst(count) {
 }
 
 // ============================================================================
-// WEB AUDIO SYNTHESIZER (Authentic Steam Locomotive Whistle + Steam Hiss!)
+// WEB AUDIO SYNTHESIZER (Steam Whistle, Visible-Only Animal & Crossing Car Horns)
 // ============================================================================
 function playTone(freqs, dur, type) {
   window.initAudio();
@@ -1651,17 +1994,51 @@ window.playTrainHorn = function() {
   } catch (e) {}
 };
 
-var lastCollectVoiceTime = 0;
+// Collectible chime ONLY (Storyteller 0% — no voice praise on every item pickup)
 window.playCollectSound = function() {
   playTone([587.33, 880.0, 1174.66], 0.26, 'sine');
-  if (!window.isVoiceCurrentlyPlaying() && !pendingVoiceItem && Date.now() - lastCollectVoiceTime > 10000) {
-    lastCollectVoiceTime = Date.now();
-    window.playVoicePackClip('storyteller-praise', null, null, 2);
-  }
 };
-window.playSheepBaa = function() { playTone([310, 275, 300], 0.32, 'sawtooth'); };
-window.playCowMoo = function() { playTone([145, 130], 0.75, 'sawtooth'); };
-window.playCarBeepBeep = function() { playTone([480, 620], 0.18, 'square'); };
+
+window.playSheepBaa = function() {
+  if (window.trackSheepFlocks && window.playerLoco) {
+    var anyVisibleSheep = false;
+    for (var i = 0; i < window.trackSheepFlocks.length; i++) {
+      var fl = window.trackSheepFlocks[i];
+      var pos = (fl && fl.group) ? fl.group.position : (fl ? fl.basePos : null);
+      if (pos && window.isWorldPosVisibleOnScreen(pos, 36)) {
+        anyVisibleSheep = true;
+        break;
+      }
+    }
+    if (!anyVisibleSheep) return;
+  }
+  playTone([310, 275, 300], 0.32, 'sawtooth');
+};
+
+window.playCowMoo = function() {
+  if (window.daisyTheCow && !window.isWorldPosVisibleOnScreen(window.daisyTheCow.position, 38)) {
+    return;
+  }
+  playTone([145, 130], 0.75, 'sawtooth');
+};
+
+window.playCarBeepBeep = function(pitchOffset) {
+  // Only allow car horn if at least one car stopped at a railway crossing is currently visible on screen!
+  if (window.livingVehicles) {
+    var hasVisibleStoppedCar = false;
+    for (var i = 0; i < window.livingVehicles.length; i++) {
+      var lv = window.livingVehicles[i];
+      if (lv && lv.isStopped && lv.mesh && window.isWorldPosVisibleOnScreen(lv.mesh.position, 48)) {
+        hasVisibleStoppedCar = true;
+        break;
+      }
+    }
+    if (!hasVisibleStoppedCar) return;
+  }
+  var p = pitchOffset || 0;
+  playTone([480 + p, 620 + p], 0.16, 'square');
+};
+
 window.playHappyLaugh = function() { playTone([523, 659, 587, 784, 659], 0.14, 'sine'); };
 window.playMagicSubwaySound = function() { playTone([440, 554.37, 659.25, 880, 1108.73], 0.35, 'sine'); };
 
@@ -1683,3 +2060,218 @@ window.playCzechCrossingBell = function() {
     osc.stop(now + 0.25);
   });
 };
+
+// ============================================================================
+// POST-LOAD SCENE COORDINATOR:
+// 1. Permanently hides all 3D animal/monster speech bubbles (renderOrder === 999)
+// 2. Replaces models.js showcase narration with balanced Mom (10%) / Train Dan (20%) / Animals (70%)
+// 3. Filters automatic train horn calls so off-screen AI trains never honk, and animals greet instead
+// 4. Makes visible stopped cars at railway crossings blink headlights & honk at the passing train
+// 5. Triggers Mom Narrator on Day <-> Night clock transitions and Anantara Bangkok entry
+// ============================================================================
+(function installPostLoadSceneCoordinator() {
+  function setupCoordinator() {
+    if (!window.THREE || !window.scene) {
+      setTimeout(setupCoordinator, 100);
+      return;
+    }
+    var THREE = window.THREE;
+
+    // 1) Permanently hide all 3D comic speech bubble sprites above animals & monsters (Requirement 1)
+    window.scene.traverse(function(node) {
+      if (node && node.isSprite && node.renderOrder === 999) {
+        node.visible = false;
+        node.scale.set(0, 0, 0);
+        try {
+          Object.defineProperty(node, 'visible', {
+            get: function() { return false; },
+            set: function() {},
+            configurable: true
+          });
+        } catch (e) {}
+      }
+    });
+
+    // 2) Override window.triggerEnglishShowcaseNarration (created by models.js) with balanced voice router
+    window.triggerEnglishShowcaseNarration = function(focusId) {
+      handleShowcaseNarrationBalanced(focusId);
+    };
+
+    // 3) Re-apply direct balanced window.speakCharacter
+    if (typeof balancedSpeakCharacter === 'function') {
+      window.speakCharacter = balancedSpeakCharacter;
+    }
+
+    // 4) Wrap window.playTrainHorn (after models.js overwrote it) so:
+    //    - Off-screen AI trains never blow the horn
+    //    - Rabbit / Squirrel / Owl proximity triggers their short greeting instead of a train whistle
+    var modelsPlayTrainHorn = window.playTrainHorn;
+    var userHornWindowUntil = 0;
+
+    if (typeof window.handleInput === 'function' && !window.handleInput._hornTracked) {
+      var origHandleInput = window.handleInput;
+      window.handleInput = function(key) {
+        if (key === 'Enter' || key === ' ') {
+          userHornWindowUntil = Date.now() + 250;
+        }
+        return origHandleInput.apply(this, arguments);
+      };
+      window.handleInput._hornTracked = true;
+    }
+
+    window.playTrainHorn = function() {
+      var now = Date.now();
+      // Always allow user-initiated horn (OK / Enter)
+      if (now <= userHornWindowUntil) {
+        return modelsPlayTrainHorn.apply(this, arguments);
+      }
+
+      // Check if called by game.js AI train pass-by (game.js sets lastFriendChatTime = Date.now() right before playTrainHorn)
+      if (typeof window.lastFriendChatTime === 'number' && Math.abs(now - window.lastFriendChatTime) <= 12) {
+        var anyVisibleAiNear = false;
+        if (window.aiTrains && window.playerLoco) {
+          for (var i = 0; i < window.aiTrains.length; i++) {
+            var ai = window.aiTrains[i];
+            if (
+              ai && ai.loco &&
+              ai.loco.position.distanceTo(window.playerLoco.position) < 30 &&
+              window.isWorldPosVisibleOnScreen(ai.loco.position, 38)
+            ) {
+              anyVisibleAiNear = true;
+              break;
+            }
+          }
+        }
+        if (!anyVisibleAiNear) {
+          // AI train is off-screen -> block horn and reset cooldown
+          window.lastFriendChatTime = 0;
+          return;
+        }
+        return modelsPlayTrainHorn.apply(this, arguments);
+      }
+
+      // Check if called by Rabbit, Squirrel, or Owl proximity in models.js:
+      // Instead of blowing the train whistle, let the visible animal call out its short greeting!
+      if (window._storybookCharId === 'rabbit' || window._storybookCharId === 'squirrel' || window._storybookCharId === 'owl') {
+        handleShowcaseNarrationBalanced(window._storybookCharId);
+        return;
+      }
+
+      return modelsPlayTrainHorn.apply(this, arguments);
+    };
+
+    // 5) Per-frame observer for:
+    //    - Day / Night transitions (Mom Narrator 10%)
+    //    - Entering Bangkok Anantara / IconSiam track edges (Mom Narrator 10%)
+    //    - Visible stopped cars at railway crossings: blinking lights + multi-car honking + single-speaker greeting
+    var wasNightState = null;
+    var lastAnnouncedEdgeId = null;
+    var blinkerGeo = new THREE.SphereGeometry(0.26, 8, 8);
+    var blinkerMatOn = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+    var blinkerMatAmber = new THREE.MeshBasicMaterial({ color: 0xf97316 });
+
+    function ensureCarCrossingBlinkers(lv) {
+      if (!lv || !lv.mesh || lv._crossingBlinkerGroup) return lv._crossingBlinkerGroup;
+      var grp = new THREE.Group();
+      var l1 = new THREE.Mesh(blinkerGeo, blinkerMatOn);
+      var l2 = new THREE.Mesh(blinkerGeo, blinkerMatOn);
+      var l3 = new THREE.Mesh(blinkerGeo, blinkerMatAmber);
+      var l4 = new THREE.Mesh(blinkerGeo, blinkerMatAmber);
+      l1.position.set(-0.72, 0.68, 1.95);
+      l2.position.set(0.72, 0.68, 1.95);
+      l3.position.set(-0.88, 0.62, 1.88);
+      l4.position.set(0.88, 0.62, 1.88);
+      grp.add(l1, l2, l3, l4);
+      grp.visible = false;
+      lv.mesh.add(grp);
+      lv._crossingBlinkerGroup = grp;
+      return grp;
+    }
+
+    function updateFrameCoordinator() {
+      requestAnimationFrame(updateFrameCoordinator);
+      if (!window.playerLoco || !window.pState) return;
+
+      var now = Date.now();
+
+      // A) Mom Narrator comments on Day <-> Night change
+      if (typeof window.gameTimeSeconds === 'number') {
+        var hoursFloat = (window.gameTimeSeconds / 300) * 24;
+        var isNightNow = (hoursFloat >= 20.0 || hoursFloat < 5.5);
+        if (wasNightState === null) {
+          wasNightState = isNightNow;
+        } else if (isNightNow !== wasNightState) {
+          wasNightState = isNightNow;
+          if (!window.pState.inSubway && !window.isVoiceCurrentlyPlaying()) {
+            lastMomRouteSpeechMs = now;
+            if (isNightNow) {
+              speakDynamicUtterance('mom', 'mom', 'Good evening! Night is falling and the lights are glowing!');
+            } else {
+              speakDynamicUtterance('mom', 'mom', 'Good morning! A bright sunny day is starting!');
+            }
+          }
+        }
+      }
+
+      // B) Mom Narrator comments when entering major destination tracks (e.g. Anantara in Bangkok)
+      var curEdge = window.pState.edge;
+      if (curEdge && !curEdge.isTurnout && curEdge.id !== lastAnnouncedEdgeId) {
+        lastAnnouncedEdgeId = curEdge.id;
+        if (curEdge.id === 'J_NW->J_BKK_ANANTARA' && !window.isVoiceCurrentlyPlaying()) {
+          lastMomRouteSpeechMs = now;
+          speakDynamicUtterance('mom', 'mom', 'Now you are heading to the Anantara Hotel in Bangkok!');
+        } else if (curEdge.id === 'J_BKK_ANANTARA->J_BKK_BRIDGE_E' && !window.isVoiceCurrentlyPlaying() && now - lastMomRouteSpeechMs > 12000) {
+          lastMomRouteSpeechMs = now;
+          speakDynamicUtterance('mom', 'mom', 'Riding along the river toward IconSiam in Bangkok!');
+        }
+      }
+
+      // C) Visible Animals Greeting when in camera view (< 22m)
+      if (!window.pState.inSubway && !window.isVoiceCurrentlyPlaying()) {
+        if (window._storybookCharId && ANIMAL_SHORT_GREETINGS[window._storybookCharId]) {
+          handleShowcaseNarrationBalanced(window._storybookCharId);
+        }
+      }
+
+      // D) Road Cars Stopped at Railway Crossings:
+      //    - Blink lights & honk ONLY when stopped at crossing AND visible in camera view!
+      //    - Multiple visible stopped cars can honk and blink simultaneously!
+      if (window.livingVehicles) {
+        for (var i = 0; i < window.livingVehicles.length; i++) {
+          var lv = window.livingVehicles[i];
+          if (!lv || !lv.mesh) continue;
+
+          var isStoppedAndVisible = Boolean(
+            lv.isStopped &&
+            window.isWorldPosVisibleOnScreen(lv.mesh.position, 48) &&
+            window.playerLoco.position.distanceTo(lv.mesh.position) < 44
+          );
+
+          var blinkerGrp = lv._crossingBlinkerGroup;
+          if (isStoppedAndVisible) {
+            if (!blinkerGrp) blinkerGrp = ensureCarCrossingBlinkers(lv);
+            if (blinkerGrp) {
+              blinkerGrp.visible = (Math.floor((now + i * 110) / 180) % 2 === 0);
+            }
+            if (!lv._nextCrossingHonkMs || now >= lv._nextCrossingHonkMs) {
+              lv._nextCrossingHonkMs = now + 2300 + (i % 4) * 450;
+              window.playCarBeepBeep((i % 3) * 35);
+            }
+          } else if (blinkerGrp && blinkerGrp.visible) {
+            blinkerGrp.visible = false;
+          }
+        }
+      }
+    }
+
+    requestAnimationFrame(updateFrameCoordinator);
+  }
+
+  if (document.readyState === 'complete') {
+    setTimeout(setupCoordinator, 0);
+  } else {
+    window.addEventListener('load', function() {
+      setTimeout(setupCoordinator, 0);
+    });
+  }
+})();
