@@ -8132,12 +8132,19 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     var p1 = baseEdge.curve.getPointAt(0.84);
     var inDir = baseEdge.curve.getTangentAt(0.84).normalize();
 
+    // Temporarily block all branches leading to paid gates (EXIT_ALPS, EXIT_EGYPT) for kids' testing
     var candidates = edges.filter(function(e) {
       if (e.from !== node || e.to === baseEdge.from) return false;
+      if (e.to && e.to.indexOf('EXIT_') === 0) return false;
+      if (typeof nodes !== 'undefined' && nodes[e.to] && nodes[e.to].isExit) return false;
       return true;
     });
     if (candidates.length === 0) {
-      candidates = edges.filter(function(e) { return e.from === node && !e.isSubway; });
+      candidates = edges.filter(function(e) {
+        if (e.from !== node || e.isSubway) return false;
+        if (e.to && e.to.indexOf('EXIT_') === 0) return false;
+        return true;
+      });
     }
 
     var scored = candidates.map(function(e) {
@@ -8173,6 +8180,120 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       right: scored[scored.length - 1].edge
     };
   };
+
+  // Place 3D "ZÁKAZ VJEZDU" (No Entry - red circle with white horizontal bar) signs & barriers
+  // in front of all turnouts and entrances leading to paid gates (EXIT_ALPS & EXIT_EGYPT)
+  (function placeNoEntrySignsBeforePaidGateTurnouts() {
+    if (typeof scene === 'undefined' || !scene) return;
+
+    // Ensure paid gate modal can never interrupt children during playtesting
+    if (typeof nodes !== 'undefined') {
+      if (nodes.EXIT_ALPS) nodes.EXIT_ALPS.unlocked = true;
+      if (nodes.EXIT_EGYPT) nodes.EXIT_EGYPT.unlocked = true;
+    }
+    var gateModalEl = document.getElementById('gate-modal');
+    if (gateModalEl) {
+      gateModalEl.style.display = 'none';
+    }
+
+    // Create high-contrast Czech "Zákaz vjezdu" (B2) sign texture (Red circle, white border, bold white center bar)
+    var noEntryCanvas = document.createElement('canvas');
+    noEntryCanvas.width = 512;
+    noEntryCanvas.height = 512;
+    var nCtx = noEntryCanvas.getContext('2d');
+
+    // Outer dark metallic rim
+    nCtx.fillStyle = '#0f172a';
+    nCtx.beginPath();
+    nCtx.arc(256, 256, 244, 0, Math.PI * 2);
+    nCtx.fill();
+
+    // Outer reflective white border ring
+    nCtx.fillStyle = '#ffffff';
+    nCtx.beginPath();
+    nCtx.arc(256, 256, 232, 0, Math.PI * 2);
+    nCtx.fill();
+
+    // Vivid red prohibition circle
+    nCtx.fillStyle = '#dc2626';
+    nCtx.beginPath();
+    nCtx.arc(256, 256, 204, 0, Math.PI * 2);
+    nCtx.fill();
+
+    // Bold horizontal white bar in the center
+    nCtx.fillStyle = '#ffffff';
+    if (nCtx.roundRect) {
+      nCtx.beginPath();
+      nCtx.roundRect(84, 210, 344, 92, 18);
+      nCtx.fill();
+    } else {
+      nCtx.fillRect(84, 210, 344, 92);
+    }
+
+    var noEntryTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(noEntryCanvas) : new THREE.CanvasTexture(noEntryCanvas);
+
+    // Red-and-white striped railway stop beam texture
+    var stripeCanvas = document.createElement('canvas');
+    stripeCanvas.width = 256;
+    stripeCanvas.height = 64;
+    var sCtx = stripeCanvas.getContext('2d');
+    for (var si = 0; si < 8; si++) {
+      sCtx.fillStyle = (si % 2 === 0) ? '#dc2626' : '#ffffff';
+      sCtx.fillRect(si * 32, 0, 32, 64);
+    }
+    var stripeTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(stripeCanvas) : new THREE.CanvasTexture(stripeCanvas);
+
+    var postMetalMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.55, roughness: 0.4 });
+    var stripeBarMat = new THREE.MeshStandardMaterial({ map: stripeTex, roughness: 0.35 });
+    var signDiscMat = new THREE.MeshBasicMaterial({ map: noEntryTex, transparent: true, side: THREE.DoubleSide });
+    var redLampMat = new THREE.MeshBasicMaterial({ color: 0xff1111 });
+
+    function buildNoEntrySignPost(pos, tangentDir, signDiameter, withTrackBarrier) {
+      var g = new THREE.Group();
+      g.position.copy(pos);
+      var angY = Math.atan2(tangentDir.x, tangentDir.z);
+      g.rotation.y = angY;
+
+      if (withTrackBarrier) {
+        // Two side posts + red-and-white striped railway stop barrier across the closed track
+        [-2.2, 2.2].forEach(function(px) {
+          var bPost = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 2.6, 10), postMetalMat);
+          bPost.position.set(px, 1.3, 0);
+          var rLight = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 10), redLampMat);
+          rLight.position.set(px, 2.75, 0);
+          g.add(bPost, rLight);
+        });
+        var crossBar = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.48, 0.28), stripeBarMat);
+        crossBar.position.set(0, 1.55, 0);
+        g.add(crossBar);
+      }
+
+      // Central tall signpost pole
+      var poleH = withTrackBarrier ? 5.6 : 4.8;
+      var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, poleH, 12), postMetalMat);
+      pole.position.set(0, poleH * 0.5, 0);
+      g.add(pole);
+
+      // Single crisp "Zákaz vjezdu" circular sign on top of the pole (no duplicate overlapping disc)
+      var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: noEntryTex, transparent: true, depthTest: true }));
+      sp.scale.set(signDiameter, signDiameter, 1);
+      sp.position.set(0, poleH + signDiameter * 0.38, 0);
+      g.add(sp);
+
+      scene.add(g);
+    }
+
+    // Place ONLY a single "Zákaz vjezdu" sign + barrier directly on the spur track leading from the junction to each paid gate
+    edges.forEach(function(e) {
+      if (!e || !e.to || e.isTurnout) return;
+      if (e.to.indexOf('EXIT_') === 0) {
+        var uSpur = 0.165;
+        var sPt = e.curve.getPointAt(uSpur);
+        var sTan = e.curve.getTangentAt(uSpur).normalize();
+        buildNoEntrySignPost(sPt, sTan, 4.4, true);
+      }
+    });
+  })();
 
   // Rebuild `window.junctionSignsGroup` so all 3D junction signposts reflect the complete 3-way branches
   if (window.junctionSignsGroup) {
@@ -9938,6 +10059,63 @@ window.createDetailedCoach = function(colHex, coachIndex) {
               }
             }
           }
+
+          // Calm signpost clearance ONLY during sustained landmark/character detail shots or stops
+          if (typeof cs.signClearLift !== 'number') {
+            cs.signClearLift = 0.0;
+            cs.signClearLiftVel = 0.0;
+            cs.signOccludeTimer = 0.0;
+          }
+          var targetSignLift = 0.0;
+          var isDetailShowcase = (cs.poiWeight > 0.45 && Boolean(cs.activePoiId));
+          if (isDetailShowcase && window.junctionSignsGroup && window.junctionSignsGroup.children) {
+            var jSigns = window.junctionSignsGroup.children;
+            var lookDx = finalTargetLook.x - cs.pos.x;
+            var lookDz = finalTargetLook.z - cs.pos.z;
+            var lookDistXZ = Math.hypot(lookDx, lookDz);
+            if (lookDistXZ > 5.0) {
+              var lookDirX = lookDx / lookDistXZ;
+              var lookDirZ = lookDz / lookDistXZ;
+              var blockingSignTopY = -999.0;
+              for (var jsi = 0; jsi < jSigns.length; jsi++) {
+                var sGrp = jSigns[jsi];
+                if (!sGrp || !sGrp.position) continue;
+                var sVx = sGrp.position.x - cs.pos.x;
+                var sVz = sGrp.position.z - cs.pos.z;
+                var fwdDist = sVx * lookDirX + sVz * lookDirZ;
+                if (fwdDist > 3.0 && fwdDist < Math.min(lookDistXZ - 2.0, 34.0)) {
+                  var perpDist = Math.abs(-sVx * lookDirZ + sVz * lookDirX);
+                  if (perpDist < 5.2) {
+                    var topOff = 13.4;
+                    if (sGrp.children) {
+                      for (var sci = 0; sci < sGrp.children.length; sci++) {
+                        var ch = sGrp.children[sci];
+                        if (ch && ch.isSprite && ch.scale) {
+                          topOff = (ch.position ? ch.position.y : 9.6) + ch.scale.y * 0.52;
+                        }
+                      }
+                    }
+                    blockingSignTopY = Math.max(blockingSignTopY, sGrp.position.y + topOff);
+                  }
+                }
+              }
+              if (blockingSignTopY > -900.0) {
+                cs.signOccludeTimer += dtCam;
+                if (cs.signOccludeTimer > 0.35) {
+                  var neededLift = (blockingSignTopY + 3.5) - finalTargetCam.y;
+                  if (neededLift > 0.0) {
+                    targetSignLift = Math.min(8.5, neededLift);
+                  }
+                }
+              } else {
+                cs.signOccludeTimer = Math.max(0.0, cs.signOccludeTimer - dtCam * 2.5);
+              }
+            }
+          } else {
+            cs.signOccludeTimer = 0.0;
+          }
+          cs.signClearLift = smoothDampScalar(cs.signClearLift, targetSignLift, cs, 'signClearLiftVel', 0.95, dtCam, 10.0);
+          finalTargetCam.y += cs.signClearLift;
 
           var camPosSmoothTime = Math.max(0.30, 0.44 - cs.speedBlend * 0.10);
           var camLookSmoothTime = Math.max(0.26, 0.38 - cs.speedBlend * 0.08);
@@ -13284,6 +13462,12 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     var jNwPos = (window.nodes['J_NW'] && window.nodes['J_NW'].pos)
       ? window.nodes['J_NW'].pos.clone()
       : new THREE.Vector3(-125.0, 12.4, -185.0);
+    var jWestPos = (window.nodes['J_WEST'] && window.nodes['J_WEST'].pos)
+      ? window.nodes['J_WEST'].pos.clone()
+      : new THREE.Vector3(-235.0, 11.2, 0.0);
+    var jSwPos = (window.nodes['J_SW'] && window.nodes['J_SW'].pos)
+      ? window.nodes['J_SW'].pos.clone()
+      : new THREE.Vector3(-210.0, 2.2, 190.0);
     var jAnantaraPos = window.nodes['J_BKK_ANANTARA'].pos.clone();
     var jIconsiamPos = window.nodes['J_BKK_ICONSIAM'].pos.clone();
     var jWestbankPos = window.nodes['J_BKK_WESTBANK'].pos.clone();
@@ -13329,7 +13513,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           voice: 'Look at the golden IconSiam mall, the Ferris wheel, and the dancing water fountains!'
         }
       },
-      // 3) Grand Chao Phraya Tied-Arch Railway Bridge crossing the wide river south of IconSiam
+      // 3) Grand Rama VIII Cable-Stayed Railway Bridge crossing the Chao Phraya River at IconSiam
       {
         from: 'J_BKK_ICONSIAM',
         to: 'J_BKK_WESTBANK',
@@ -13341,13 +13525,13 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           new THREE.Vector3(-568.0, 4.0, 130.0),
           jWestbankPos.clone()
         ],
-        landmark: { type: 'bkk_bridge', name: '🌉 Chao Phraya Railway Bridge' },
+        landmark: { type: 'bkk_bridge', name: '🌉 Rama VIII Chao Phraya Bridge' },
         station: {
           type: 'bridge_suspension',
           icon: 'bkk_bridge',
-          name: '🌉 Chao Phraya Railway Bridge',
+          name: '🌉 Rama VIII Chao Phraya Bridge',
           emoji: '🌉',
-          voice: 'Riding high across the grand Chao Phraya River railway bridge! Look at the Anantara boat below!'
+          voice: 'Riding high across the golden cable-stayed Chao Phraya River bridge! Look at the Anantara boat below!'
         }
       },
       // 4) Opposite Bank Northbound Return & Northern River Crossing back behind Mom's House
@@ -13362,13 +13546,52 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           new THREE.Vector3(-395.0, 7.2, -172.0),
           jAnantaraPos.clone()
         ],
-        landmark: { type: 'anantara', name: '🏨 Anantara & Return to City' },
+        landmark: { type: 'anantara', name: '🏨 Anantara & Luxury Bangkok Skyline' },
         station: {
           type: 'landmark',
           icon: 'anantara',
-          name: '🏨 Anantara & Return to City',
+          name: '🏨 Anantara & Luxury Bangkok Skyline',
           emoji: '🏨',
-          voice: 'Crossing back to Anantara Riverside and heading toward Mommy and Daddy\'s house!'
+          voice: 'Looking across the river at Anantara Riverside Hotel and heading back toward Mommy and Daddy\'s house!'
+        }
+      },
+      // 5) New Railway Branch right after Big Ben (`J_SW` at -210, 2.2, 190) connecting directly to IconSiam (`J_BKK_ICONSIAM` at -368, 4.2, 215)
+      {
+        from: 'J_SW',
+        to: 'J_BKK_ICONSIAM',
+        pts: [
+          jSwPos.clone(),
+          new THREE.Vector3(-254.0, 2.6, 204.0),
+          new THREE.Vector3(-308.0, 3.4, 214.0),
+          jIconsiamPos.clone()
+        ],
+        landmark: { type: 'iconsiam', name: '🛍️ IconSiam & Dancing Fountains' },
+        station: {
+          type: 'landmark',
+          icon: 'iconsiam',
+          name: '🛍️ IconSiam & Dancing Fountains',
+          emoji: '🛍️',
+          voice: 'Turning after Big Ben straight to IconSiam and the Chao Phraya River!'
+        }
+      },
+      // 6) Scenic Branch from `J_WEST` (-235, 11.2, 0) passing right behind Big Ben (-296, 6.2, 74) to IconSiam (-368, 4.2, 215)
+      {
+        from: 'J_WEST',
+        to: 'J_BKK_ICONSIAM',
+        pts: [
+          jWestPos.clone(),
+          new THREE.Vector3(-278.0, 8.2, 46.0),
+          new THREE.Vector3(-314.0, 5.4, 112.0),
+          new THREE.Vector3(-344.0, 4.4, 168.0),
+          jIconsiamPos.clone()
+        ],
+        landmark: { type: 'iconsiam', name: '🛍️ IconSiam & Dancing Fountains' },
+        station: {
+          type: 'landmark',
+          icon: 'iconsiam',
+          name: '🛍️ IconSiam & Dancing Fountains',
+          emoji: '🛍️',
+          voice: 'Riding past Big Ben straight toward IconSiam on the Chao Phraya River!'
         }
       }
     ];
@@ -13481,8 +13704,8 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     });
 
     // Build smooth Hermite turnout curves (`window.turnoutCurves`) matching tracks.js schema
-    // (`isTurnout: true`, `sourceEdge`, `targetEdge`, `curve`, `parallelCurve`) for J_NW and Bangkok nodes!
-    var bkkNodesToConnect = ['J_NW', 'J_BKK_ANANTARA', 'J_BKK_ICONSIAM', 'J_BKK_WESTBANK'];
+    // (`isTurnout: true`, `sourceEdge`, `targetEdge`, `curve`, `parallelCurve`) for J_NW, J_WEST, J_SW, and Bangkok nodes!
+    var bkkNodesToConnect = ['J_NW', 'J_WEST', 'J_SW', 'J_BKK_ANANTARA', 'J_BKK_ICONSIAM', 'J_BKK_WESTBANK'];
     bkkNodesToConnect.forEach(function(jId) {
       var incomingList = window.edges.filter(function(e) { return e.to === jId && !e.isTurnout; });
       var outgoingList = window.edges.filter(function(e) { return e.from === jId && !e.isTurnout; });
@@ -13534,11 +13757,8 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       });
     });
 
-    // Enhance `window.getBranches` so:
-    // - At J_NW coming from Eiffel Tower (`J_NORTH->J_NW`):
-    //     Left = Metro 1, Straight = Mom's House (`J_NW->J_WEST`), Right = Bangkok Chao Phraya (`J_NW->J_BKK_ANANTARA`)
-    // - Once on the Bangkok loop, leaving the switch on `straight` naturally guides the train
-    //   all the way around Anantara -> IconSiam -> Bridge -> Westbank -> Anantara -> back to Mom's House track (`J_NW->J_WEST`)!
+    // Enhance `window.getBranches` so all junctions (J_NW, J_WEST, J_SW, J_BKK_ANANTARA, J_BKK_ICONSIAM)
+    // seamlessly route to and from IconSiam, Anantara, and Big Ben!
     var origGetBranches = window.getBranches;
     window.getBranches = function(currentEdge) {
       var res = origGetBranches ? origGetBranches(currentEdge) : { left: null, straight: null, right: null };
@@ -13574,23 +13794,105 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         var eMet3 = findEdge('METRO_J_NW->J_SE');
         return { left: eEif3 || eMom3, straight: eMom3, right: eMet3 || eMom3 };
       }
-      // 4) Arriving at Anantara Junction from J_NW (`J_NW->J_BKK_ANANTARA`):
-      //    Straight = 1km Riverside Track to IconSiam (`J_BKK_ANANTARA->J_BKK_ICONSIAM`)
-      //    Right = Northern River Bridge (`J_BKK_ANANTARA->J_BKK_WESTBANK`)
+      // 4) Coming from Mom's House (`J_NW->J_WEST`) toward Big Ben:
+      //    Left = Fountain Square (`J_WEST->J_CENTER`)
+      //    Straight = Big Ben Viaduct (`J_WEST->J_SW`)
+      //    Right = Behind Big Ben directly to IconSiam (`J_WEST->J_BKK_ICONSIAM`)!
+      if (baseEdge.id === 'J_NW->J_WEST') {
+        var eFntW = findEdge('J_WEST->J_CENTER') || res.left;
+        var eBenW = findEdge('J_WEST->J_SW') || res.straight;
+        var eIconW = findEdge('J_WEST->J_BKK_ICONSIAM') || eBenW;
+        return { left: eFntW, straight: eBenW, right: eIconW };
+      }
+      // 5) Coming from Fountain Square (`J_CENTER->J_WEST`):
+      if (baseEdge.id === 'J_CENTER->J_WEST') {
+        var eBenW2 = findEdge('J_WEST->J_SW') || res.left;
+        var eIconW2 = findEdge('J_WEST->J_BKK_ICONSIAM') || eBenW2;
+        var eMomW2 = findEdge('J_WEST->J_NW') || res.right;
+        return { left: eBenW2, straight: eIconW2, right: eMomW2 };
+      }
+      // 6) Coming northbound past Big Ben (`J_SW->J_WEST`):
+      //    Left = Branch behind Big Ben to IconSiam (`J_WEST->J_BKK_ICONSIAM`)
+      //    Straight = Mom's House (`J_WEST->J_NW`)
+      //    Right = Fountain Square (`J_WEST->J_CENTER`)
+      if (baseEdge.id === 'J_SW->J_WEST') {
+        var eIconW3 = findEdge('J_WEST->J_BKK_ICONSIAM');
+        var eMomW3 = findEdge('J_WEST->J_NW') || res.straight;
+        var eFntW3 = findEdge('J_WEST->J_CENTER') || res.right;
+        return { left: eIconW3 || eMomW3, straight: eMomW3, right: eFntW3 };
+      }
+      // 7) Returning from IconSiam to J_WEST (`J_BKK_ICONSIAM->J_WEST`):
+      if (baseEdge.id === 'J_BKK_ICONSIAM->J_WEST') {
+        var eMomW4 = findEdge('J_WEST->J_NW');
+        var eFntW4 = findEdge('J_WEST->J_CENTER');
+        var eBenW4 = findEdge('J_WEST->J_SW');
+        return { left: eMomW4, straight: eFntW4 || eMomW4, right: eBenW4 || eMomW4 };
+      }
+      // 8) Riding southbound past Big Ben (`J_WEST->J_SW`) -> Right turn after Big Ben connects directly to IconSiam!
+      if (baseEdge.id === 'J_WEST->J_SW') {
+        var eStadSw = findEdge('J_SW->J_SOUTH') || res.left;
+        var eMetSw = findEdge('METRO_J_SW->J_NE') || res.straight;
+        var eIconSw = findEdge('J_SW->J_BKK_ICONSIAM') || res.right;
+        return { left: eStadSw, straight: eMetSw || eStadSw, right: eIconSw || eStadSw };
+      }
+      // 9) Coming from Football Stadium (`J_SOUTH->J_SW`):
+      //    Left = IconSiam (`J_SW->J_BKK_ICONSIAM`), Straight = Big Ben (`J_SW->J_WEST`), Right = Metro 2
+      if (baseEdge.id === 'J_SOUTH->J_SW') {
+        var eIconSw2 = findEdge('J_SW->J_BKK_ICONSIAM');
+        var eBenSw2 = findEdge('J_SW->J_WEST') || res.straight;
+        var eMetSw2 = findEdge('METRO_J_SW->J_NE') || res.right;
+        return { left: eIconSw2 || eBenSw2, straight: eBenSw2, right: eMetSw2 };
+      }
+      // 10) Returning from IconSiam to J_SW (`J_BKK_ICONSIAM->J_SW`):
+      if (baseEdge.id === 'J_BKK_ICONSIAM->J_SW') {
+        var eBenSw3 = findEdge('J_SW->J_WEST');
+        var eMetSw3 = findEdge('METRO_J_SW->J_NE');
+        var eStadSw3 = findEdge('J_SW->J_SOUTH');
+        return { left: eBenSw3, straight: eStadSw3 || eBenSw3, right: eMetSw3 || eStadSw3 };
+      }
+      // 11) Arriving at IconSiam from Anantara (`J_BKK_ANANTARA->J_BKK_ICONSIAM`):
+      //     Left = Branch to Big Ben (`J_BKK_ICONSIAM->J_SW`)
+      //     Straight = Rama VIII Chao Phraya Bridge (`J_BKK_ICONSIAM->J_BKK_WESTBANK`)
+      //     Right = Scenic Track behind Big Ben to Mom's House (`J_BKK_ICONSIAM->J_WEST`)
+      if (baseEdge.id === 'J_BKK_ANANTARA->J_BKK_ICONSIAM') {
+        var eToSw = findEdge('J_BKK_ICONSIAM->J_SW');
+        var eToBridge = findEdge('J_BKK_ICONSIAM->J_BKK_WESTBANK');
+        var eToWest = findEdge('J_BKK_ICONSIAM->J_WEST');
+        return { left: eToSw || eToBridge, straight: eToBridge, right: eToWest || eToBridge };
+      }
+      // 12) Arriving at IconSiam from Big Ben (`J_SW->J_BKK_ICONSIAM` or `J_WEST->J_BKK_ICONSIAM`):
+      //     Left = Rama VIII Chao Phraya Bridge (`J_BKK_ICONSIAM->J_BKK_WESTBANK`)
+      //     Straight = Riverside Track to Anantara Hotel (`J_BKK_ICONSIAM->J_BKK_ANANTARA`)
+      //     Right = Rama VIII Chao Phraya Bridge (`J_BKK_ICONSIAM->J_BKK_WESTBANK`)
+      if (baseEdge.id === 'J_SW->J_BKK_ICONSIAM' || baseEdge.id === 'J_WEST->J_BKK_ICONSIAM') {
+        var eBrFromBen = findEdge('J_BKK_ICONSIAM->J_BKK_WESTBANK');
+        var eAnFromBen = findEdge('J_BKK_ICONSIAM->J_BKK_ANANTARA');
+        return { left: eBrFromBen || eAnFromBen, straight: eAnFromBen, right: eBrFromBen || eAnFromBen };
+      }
+      // 13) Arriving at IconSiam from the Bridge (`J_BKK_WESTBANK->J_BKK_ICONSIAM`):
+      if (baseEdge.id === 'J_BKK_WESTBANK->J_BKK_ICONSIAM') {
+        var eAnFromBr = findEdge('J_BKK_ICONSIAM->J_BKK_ANANTARA');
+        var eSwFromBr = findEdge('J_BKK_ICONSIAM->J_SW');
+        var eWestFromBr = findEdge('J_BKK_ICONSIAM->J_WEST');
+        return { left: eAnFromBr, straight: eAnFromBr, right: eSwFromBr || eWestFromBr || eAnFromBr };
+      }
+      // 14) Arriving at Anantara Junction from J_NW (`J_NW->J_BKK_ANANTARA`):
+      //     Straight = 1km Riverside Track to IconSiam (`J_BKK_ANANTARA->J_BKK_ICONSIAM`)
+      //     Right = Northern River Bridge (`J_BKK_ANANTARA->J_BKK_WESTBANK`)
       if (baseEdge.id === 'J_NW->J_BKK_ANANTARA') {
         var eIcon = findEdge('J_BKK_ANANTARA->J_BKK_ICONSIAM');
         var eWest = findEdge('J_BKK_ANANTARA->J_BKK_WESTBANK');
         return { left: eIcon, straight: eIcon, right: eWest || eIcon };
       }
-      // 5) Completing the loop from Opposite Bank (`J_BKK_WESTBANK->J_BKK_ANANTARA`):
-      //    Straight = Return behind Mom's House to main track (`J_BKK_ANANTARA->J_NW`)
-      //    Right = Repeat the riverside loop to IconSiam (`J_BKK_ANANTARA->J_BKK_ICONSIAM`)
+      // 15) Completing the loop from Opposite Bank (`J_BKK_WESTBANK->J_BKK_ANANTARA`):
+      //     Straight = Return behind Mom's House to main track (`J_BKK_ANANTARA->J_NW`)
+      //     Right = Repeat the riverside loop to IconSiam (`J_BKK_ANANTARA->J_BKK_ICONSIAM`)
       if (baseEdge.id === 'J_BKK_WESTBANK->J_BKK_ANANTARA') {
         var eRetNw = findEdge('J_BKK_ANANTARA->J_NW');
         var eIcon2 = findEdge('J_BKK_ANANTARA->J_BKK_ICONSIAM');
         return { left: eRetNw, straight: eRetNw, right: eIcon2 || eRetNw };
       }
-      // 6) Reverse along East Bank (`J_BKK_ICONSIAM->J_BKK_ANANTARA`):
+      // 16) Reverse along East Bank (`J_BKK_ICONSIAM->J_BKK_ANANTARA`):
       if (baseEdge.id === 'J_BKK_ICONSIAM->J_BKK_ANANTARA') {
         var eWest2 = findEdge('J_BKK_ANANTARA->J_BKK_WESTBANK');
         var eRetNw2 = findEdge('J_BKK_ANANTARA->J_NW');
@@ -13663,18 +13965,32 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         ctx.save();
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fillStyle = '#0284c7';
+        ctx.fillStyle = '#1e1b4b';
         ctx.fill();
         ctx.lineWidth = 4;
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = '#facc15';
         ctx.stroke();
-        // Tied-arch railway bridge silhouette
+        // Iconic Rama VIII single-pylon fan cable-stayed bridge silhouette
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 2.5;
+        var pylonX = cx - r * 0.22;
+        var pylonTopY = cy - r * 0.62;
+        var deckY = cy + r * 0.28;
+        for (var ci = 1; ci <= 4; ci++) {
+          ctx.beginPath();
+          ctx.moveTo(pylonX, pylonTopY + ci * r * 0.06);
+          ctx.lineTo(pylonX + ci * r * 0.20, deckY);
+          ctx.moveTo(pylonX, pylonTopY + ci * r * 0.06);
+          ctx.lineTo(pylonX - ci * r * 0.11, deckY);
+          ctx.stroke();
+        }
         ctx.strokeStyle = '#f8fafc';
         ctx.lineWidth = 5;
         ctx.beginPath();
-        ctx.arc(cx, cy + r * 0.18, r * 0.58, Math.PI, 0, false);
-        ctx.moveTo(cx - r * 0.68, cy + r * 0.18);
-        ctx.lineTo(cx + r * 0.68, cy + r * 0.18);
+        ctx.moveTo(pylonX, pylonTopY);
+        ctx.lineTo(pylonX, deckY + r * 0.22);
+        ctx.moveTo(cx - r * 0.70, deckY);
+        ctx.lineTo(cx + r * 0.70, deckY);
         ctx.stroke();
         ctx.restore();
         return;
@@ -13804,7 +14120,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           }
         }
 
-        var uSign = 0.81;
+        var uSign = (e.id === 'J_WEST->J_NW') ? 0.89 : 0.81;
         var pt = e.curve.getPointAt(uSign);
         var tan = e.curve.getTangentAt(uSign).normalize();
         var rightVec = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
@@ -14379,99 +14695,563 @@ window.createDetailedCoach = function(colHex, coachIndex) {
   })();
 
   // --------------------------------------------------------------------------
-  // 5. GRAND CHAO PHRAYA TIED-ARCH RAILWAY BRIDGE & NORTHERN RETURN VIADUCT
+  // 5. GRAND RAMA VIII CABLE-STAYED BRIDGE AT ICONSIAM & NORTHERN BRIDGE
+  //    Modeled after the attached Bangkok Rama VIII Bridge photo:
+  //    - Towering asymmetrical inverted-Y concrete pylon (~48m tall)
+  //    - Golden lotus-bud observation finial at the summit of the pylon
+  //    - Dramatic magenta/purple & golden night uplighting on the pylon legs
+  //    - Dense fan-arranged golden stay cables radiating to the bridge deck
   // --------------------------------------------------------------------------
   window.bkkBridgeWorldCenter = new THREE.Vector3(-474.0, 14.2, 260.0);
 
   (function buildChaoPhrayaRailwayBridges() {
-    var whiteSteelMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3, metalness: 0.65 });
-    var pierConcreteMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.7 });
+    var whiteSteelMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3, metalness: 0.55 });
+    var pierConcreteMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.55 });
+    var pylonUpperMat = new THREE.MeshStandardMaterial({
+      color: 0xfef3c7,
+      roughness: 0.38,
+      metalness: 0.25,
+      emissive: 0xd97706,
+      emissiveIntensity: 0.35
+    });
+    var pylonMagentaMat = new THREE.MeshStandardMaterial({
+      color: 0xf5d0fe,
+      roughness: 0.35,
+      metalness: 0.25,
+      emissive: 0xc026d3,
+      emissiveIntensity: 0.55
+    });
+    var goldLotusMat = new THREE.MeshStandardMaterial({
+      color: 0xfacc15,
+      roughness: 0.22,
+      metalness: 0.8,
+      emissive: 0xf59e0b,
+      emissiveIntensity: 0.85
+    });
+    var stayCableMat = new THREE.MeshStandardMaterial({
+      color: 0xfef08a,
+      roughness: 0.25,
+      metalness: 0.65,
+      emissive: 0xf59e0b,
+      emissiveIntensity: 0.65
+    });
     var lampGlowMat = new THREE.MeshStandardMaterial({
       color: 0xfef08a,
       emissive: 0xfacc15,
-      emissiveIntensity: 0.9
+      emissiveIntensity: 0.95
     });
-    bkkNightLights.push({ mat: lampGlowMat, dayHex: 0xfef08a, nightHex: 0xfde047, dayInt: 0.35, nightInt: 1.8 });
+    bkkNightLights.push({ mat: pylonUpperMat, dayHex: 0xfef3c7, nightHex: 0xf59e0b, dayInt: 0.2, nightInt: 0.95 });
+    bkkNightLights.push({ mat: pylonMagentaMat, dayHex: 0xe9d5ff, nightHex: 0xd946ef, dayInt: 0.25, nightInt: 1.25 });
+    bkkNightLights.push({ mat: stayCableMat, dayHex: 0xfef08a, nightHex: 0xfbbf24, dayInt: 0.35, nightInt: 1.15 });
+    bkkNightLights.push({ mat: lampGlowMat, dayHex: 0xfef08a, nightHex: 0xfde047, dayInt: 0.35, nightInt: 1.85 });
 
-    function decorateBridgeSpan(edgeId, archPeakHeight, hasGrandTiedArch) {
+    // Helper to connect two 3D points with a taut stay cable cylinder
+    function addStayCable(pStart, pEnd, radius, mat) {
+      var diff = pEnd.clone().sub(pStart);
+      var len = diff.length();
+      if (len < 0.5) return;
+      var mid = pStart.clone().addScaledVector(diff, 0.5);
+      var cable = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 6), mat);
+      cable.position.copy(mid);
+      cable.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), diff.clone().normalize());
+      bkkRootGroup.add(cable);
+    }
+
+    function decorateRamaVIIIBridgeSpan(edgeId, pylonHeight, pylonT) {
       var eObj = window.edges.find(function(x) { return x.id === edgeId; });
       if (!eObj) return;
       var curve = eObj.curve;
-      var steps = 32;
+      var steps = 36;
+      var deckPoints = [];
 
-      for (var i = 3; i <= steps - 3; i++) {
+      for (var i = 2; i <= steps - 2; i++) {
         var t = i / steps;
         var p = curve.getPointAt(t);
         var tan = curve.getTangentAt(t).normalize();
         var right = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
         var yaw = Math.atan2(tan.x, tan.z);
 
-        // Wide bridge deck slab spanning both tracks + safety parapets
-        var centerPt = p.clone().addScaledVector(right, -2.4);
-        var slab = new THREE.Mesh(new THREE.BoxGeometry(10.8, 0.9, 6.8), pierConcreteMat);
-        slab.position.set(centerPt.x, centerPt.y - 0.55, centerPt.z);
+        // Wide bridge deck slab spanning both tracks + golden-white edge parapets
+        var centerPt = p.clone().addScaledVector(right, -2.2);
+        deckPoints.push({ t: t, center: centerPt.clone(), right: right.clone(), yaw: yaw });
+
+        var slab = new THREE.Mesh(new THREE.BoxGeometry(11.4, 1.05, 6.4), pierConcreteMat);
+        slab.position.set(centerPt.x, centerPt.y - 0.58, centerPt.z);
         slab.rotation.y = yaw;
         bkkRootGroup.add(slab);
 
-        [-5.1, 5.1].forEach(function(sideOff) {
-          var rail = new THREE.Mesh(new THREE.BoxGeometry(0.32, 1.35, 6.8), whiteSteelMat);
+        // Golden decorative side fascia strip along the deck edge (like the warm lit deck in the photo)
+        [-5.55, 5.55].forEach(function(sideOff) {
+          var rail = new THREE.Mesh(new THREE.BoxGeometry(0.34, 1.35, 6.4), whiteSteelMat);
           rail.position.set(centerPt.x + right.x * sideOff, centerPt.y + 0.55, centerPt.z + right.z * sideOff);
           rail.rotation.y = yaw;
           bkkRootGroup.add(rail);
+
+          var goldTrim = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.28, 6.4), stayCableMat);
+          goldTrim.position.set(centerPt.x + right.x * sideOff, centerPt.y - 0.15, centerPt.z + right.z * sideOff);
+          goldTrim.rotation.y = yaw;
+          bkkRootGroup.add(goldTrim);
         });
 
-        // Bridge street lamps & tied-arch suspension ribs over the river channel
-        var normSpan = (t - 0.18) / 0.48;
-        if (hasGrandTiedArch && normSpan >= 0.0 && normSpan <= 1.0) {
-          var archH = Math.sin(normSpan * Math.PI) * archPeakHeight;
-          [-5.0, 5.0].forEach(function(sideOff) {
-            var archNode = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.85, 6.8), whiteSteelMat);
-            archNode.position.set(centerPt.x + right.x * sideOff, centerPt.y + archH + 0.8, centerPt.z + right.z * sideOff);
-            archNode.rotation.y = yaw;
-            bkkRootGroup.add(archNode);
-
-            if (archH > 1.8) {
-              var hanger = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, archH, 6), whiteSteelMat);
-              hanger.position.set(centerPt.x + right.x * sideOff, centerPt.y + archH * 0.5 + 0.4, centerPt.z + right.z * sideOff);
-              bkkRootGroup.add(hanger);
-            }
-          });
-
-          if (i % 3 === 0 && archH > 5.0) {
-            var crossBeam = new THREE.Mesh(new THREE.BoxGeometry(10.2, 0.5, 0.6), whiteSteelMat);
-            crossBeam.position.set(centerPt.x, centerPt.y + archH + 0.8, centerPt.z);
-            crossBeam.rotation.y = yaw;
-            bkkRootGroup.add(crossBeam);
-          }
-        }
-
-        // Glowing warm street lamps along the bridge
+        // Glowing warm street lamps along the bridge deck
         if (i % 3 === 0) {
-          [-5.1, 5.1].forEach(function(sideOff) {
-            var post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 3.4, 6), whiteSteelMat);
+          [-5.45, 5.45].forEach(function(sideOff) {
+            var post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 3.6, 6), whiteSteelMat);
             post.position.set(centerPt.x + right.x * sideOff, centerPt.y + 1.8, centerPt.z + right.z * sideOff);
             bkkRootGroup.add(post);
 
             var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 8), lampGlowMat);
-            bulb.position.set(centerPt.x + right.x * sideOff, centerPt.y + 3.6, centerPt.z + right.z * sideOff);
+            bulb.position.set(centerPt.x + right.x * sideOff, centerPt.y + 3.7, centerPt.z + right.z * sideOff);
             bkkRootGroup.add(bulb);
           });
         }
 
-        // Heavy river piers outside the main central navigation channel
-        if (i === 6 || i === 10 || i === 18 || i === 23) {
+        // Approach viaduct piers outside the main river channel
+        if (i === 5 || i === 25 || i === 30) {
           var pierH = centerPt.y + 4.5;
-          var pier = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2.4, pierH, 12), pierConcreteMat);
+          var pier = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.2, pierH, 12), pierConcreteMat);
           pier.position.set(centerPt.x, centerPt.y - pierH * 0.5 - 0.4, centerPt.z);
           bkkRootGroup.add(pier);
         }
       }
+
+      // Build the signature Rama VIII Inverted-Y Pylon at `pylonT`
+      var pPylon = curve.getPointAt(pylonT);
+      var tanPylon = curve.getTangentAt(pylonT).normalize();
+      var rightPylon = new THREE.Vector3(-tanPylon.z, 0, tanPylon.x).normalize();
+      var pylonCenter = pPylon.clone().addScaledVector(rightPylon, -2.2);
+      var deckY = pylonCenter.y;
+      var mergeY = deckY + pylonHeight * 0.46;
+      var topY = deckY + pylonHeight;
+
+      // Massive octagonal concrete foundation caisson in the river
+      var caisson = new THREE.Mesh(new THREE.CylinderGeometry(7.2, 8.4, (deckY + 3.2), 16), pierConcreteMat);
+      caisson.position.set(pylonCenter.x, (deckY - 1.2) * 0.5 - 1.0, pylonCenter.z);
+      bkkRootGroup.add(caisson);
+
+      // Two inclined lower concrete legs straddling the railway deck and merging into the inverted-Y apex (magenta/purple uplighting!)
+      var legSpread = 6.2;
+      var leftLegBase = pylonCenter.clone().addScaledVector(rightPylon, -legSpread);
+      leftLegBase.y = riverWaterY + 0.5;
+      var rightLegBase = pylonCenter.clone().addScaledVector(rightPylon, legSpread);
+      rightLegBase.y = riverWaterY + 0.5;
+      var apexPt = new THREE.Vector3(pylonCenter.x, mergeY, pylonCenter.z);
+
+      [leftLegBase, rightLegBase].forEach(function(basePt) {
+        var legDiff = apexPt.clone().sub(basePt);
+        var legLen = legDiff.length();
+        var legMid = basePt.clone().addScaledVector(legDiff, 0.5);
+        var legMesh = new THREE.Mesh(new THREE.BoxGeometry(2.1, legLen, 2.6), pylonMagentaMat);
+        legMesh.position.copy(legMid);
+        legMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), legDiff.clone().normalize());
+        legMesh.castShadow = true;
+        bkkRootGroup.add(legMesh);
+      });
+
+      // Horizontal portal cross-beam at deck level and collar at the inverted-Y merge apex
+      var pylonYaw = Math.atan2(tanPylon.x, tanPylon.z);
+      var deckCrossBeam = new THREE.Mesh(new THREE.BoxGeometry(legSpread * 2.2, 1.8, 3.2), pierConcreteMat);
+      deckCrossBeam.position.set(pylonCenter.x, deckY - 1.1, pylonCenter.z);
+      deckCrossBeam.rotation.y = pylonYaw;
+      bkkRootGroup.add(deckCrossBeam);
+
+      var apexCollar = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2.4, 3.6), pylonUpperMat);
+      apexCollar.position.copy(apexPt);
+      apexCollar.rotation.y = pylonYaw;
+      bkkRootGroup.add(apexCollar);
+
+      // Single tall slender upper shaft rising from `mergeY` to `topY` (warm golden illumination)
+      var upperShaftLen = topY - mergeY;
+      var upperShaft = new THREE.Mesh(new THREE.BoxGeometry(2.3, upperShaftLen, 2.8), pylonUpperMat);
+      upperShaft.position.set(pylonCenter.x, mergeY + upperShaftLen * 0.5, pylonCenter.z);
+      upperShaft.rotation.y = pylonYaw;
+      upperShaft.castShadow = true;
+      bkkRootGroup.add(upperShaft);
+
+      // Iconic Golden Lotus-Bud Observation Pod & Spire Finial at the summit of the Rama VIII Pylon!
+      var lotusBase = new THREE.Mesh(new THREE.CylinderGeometry(1.85, 1.35, 3.2, 12), goldLotusMat);
+      lotusBase.position.set(pylonCenter.x, topY + 1.5, pylonCenter.z);
+      bkkRootGroup.add(lotusBase);
+
+      var lotusDome = new THREE.Mesh(new THREE.SphereGeometry(1.95, 14, 12), goldLotusMat);
+      lotusDome.scale.set(1.0, 1.45, 1.0);
+      lotusDome.position.set(pylonCenter.x, topY + 3.8, pylonCenter.z);
+      bkkRootGroup.add(lotusDome);
+
+      var lotusSpire = new THREE.Mesh(new THREE.ConeGeometry(0.65, 5.2, 10), goldLotusMat);
+      lotusSpire.position.set(pylonCenter.x, topY + 7.4, pylonCenter.z);
+      bkkRootGroup.add(lotusSpire);
+
+      // Architectural night uplights on the pylon
+      var pylonGlowLight = new THREE.PointLight(0xd946ef, 1.5, 95);
+      pylonGlowLight.position.set(pylonCenter.x, deckY + 10.0, pylonCenter.z);
+      bkkRootGroup.add(pylonGlowLight);
+      bkkNightLights.push({ light: pylonGlowLight, dayInt: 0.3, nightInt: 2.4 });
+
+      var topGoldLight = new THREE.PointLight(0xfacc15, 1.4, 110);
+      topGoldLight.position.set(pylonCenter.x, topY + 3.5, pylonCenter.z);
+      bkkRootGroup.add(topGoldLight);
+      bkkNightLights.push({ light: topGoldLight, dayInt: 0.4, nightInt: 2.5 });
+
+      // Fan-arranged golden stay cables radiating from the upper pylon shaft (`mergeY + 3` to `topY - 0.8`)
+      // down to both sides of the bridge deck on the main river span and back span!
+      for (var di = 0; di < deckPoints.length; di++) {
+        var dp = deckPoints[di];
+        var dtSpan = dp.t - pylonT;
+        if (Math.abs(dtSpan) < 0.045 || dtSpan < -0.26 || dtSpan > 0.44) continue;
+
+        var normDist = Math.min(1.0, Math.abs(dtSpan) / (dtSpan > 0 ? 0.44 : 0.26));
+        var anchorY = mergeY + 2.4 + normDist * (upperShaftLen - 3.0);
+
+        [-5.25, 5.25].forEach(function(sideOff) {
+          var towerAnchor = new THREE.Vector3(
+            pylonCenter.x + rightPylon.x * (sideOff * 0.18),
+            anchorY,
+            pylonCenter.z + rightPylon.z * (sideOff * 0.18)
+          );
+          var deckAnchor = new THREE.Vector3(
+            dp.center.x + dp.right.x * sideOff,
+            dp.center.y + 0.85,
+            dp.center.z + dp.right.z * sideOff
+          );
+          addStayCable(towerAnchor, deckAnchor, 0.085, stayCableMat);
+        });
+      }
     }
 
-    // 1) Main Southern Grand Chao Phraya Tied-Arch Railway Bridge (after IconSiam)
-    decorateBridgeSpan('J_BKK_ICONSIAM->J_BKK_WESTBANK', 15.5, true);
-    // 2) Northern Return River Bridge (connecting Opposite Bank back behind Mom's House)
-    decorateBridgeSpan('J_BKK_WESTBANK->J_BKK_ANANTARA', 9.5, true);
+    // 1) Main Southern Rama VIII Single-Pylon Fan Cable-Stayed Bridge at IconSiam (48m tall pylon!)
+    decorateRamaVIIIBridgeSpan('J_BKK_ICONSIAM->J_BKK_WESTBANK', 48.0, 0.34);
+    // 2) Northern Chao Phraya Cable-Stayed Crossing (36m tall pylon)
+    decorateRamaVIIIBridgeSpan('J_BKK_WESTBANK->J_BKK_ANANTARA', 36.0, 0.56);
+  })();
+
+  // --------------------------------------------------------------------------
+  // 5B. ULTRA-LUXURY BANGKOK HOTELS OPPOSITE ANANTARA & DISTANT SEA ON HORIZON
+  //     - Built across the Chao Phraya River on the West Bank opposite Anantara:
+  //       1. The Mandarin Oriental Bangkok (Colonial Authors' Wing + Luxury Tower)
+  //       2. The Peninsula Bangkok (Iconic Stepped W-Wave Tower + Rooftop Helipad)
+  //       3. Lebua at State Tower (Sirocco Sky Bar & Giant Glowing Golden Dome!)
+  //       4. Four Seasons / Capella Bangkok Chao Phraya Riverfront Resort
+  //     - Behind the luxury hotels on the western horizon (`x = -650 .. -1380`):
+  //       Sandy tropical beach with palms + shimmering Gulf of Thailand Sea (`Moře`)
+  //       with animated ocean waves, tropical islands, lighthouse, and sailboats!
+  // --------------------------------------------------------------------------
+  var distantSeaWaveStrips = [];
+  window.bkkLuxuryHotelsWorldCenter = new THREE.Vector3(-525.0, 18.0, -25.0);
+
+  (function buildWestBankLuxuryHotelsAndDistantSea() {
+    var luxGroup = new THREE.Group();
+    bkkRootGroup.add(luxGroup);
+
+    var goldMat = new THREE.MeshStandardMaterial({
+      color: 0xfacc15,
+      roughness: 0.25,
+      metalness: 0.78,
+      emissive: 0xb45309,
+      emissiveIntensity: 0.45
+    });
+    var pearlWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.35, metalness: 0.15 });
+    var warmCreamMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.4, metalness: 0.15 });
+    var silverGlassMat = new THREE.MeshStandardMaterial({
+      color: 0xbae6fd,
+      roughness: 0.18,
+      metalness: 0.72,
+      emissive: 0x0284c7,
+      emissiveIntensity: 0.32
+    });
+    var amberGlassMat = new THREE.MeshStandardMaterial({
+      color: 0xfde68a,
+      roughness: 0.2,
+      metalness: 0.6,
+      emissive: 0xd97706,
+      emissiveIntensity: 0.38
+    });
+    bkkNightLights.push({ mat: silverGlassMat, dayHex: 0x38bdf8, nightHex: 0xfef08a, dayInt: 0.22, nightInt: 1.25 });
+    bkkNightLights.push({ mat: amberGlassMat, dayHex: 0xfbbf24, nightHex: 0xfde047, dayInt: 0.28, nightInt: 1.35 });
+    bkkNightLights.push({ mat: goldMat, dayHex: 0xb45309, nightHex: 0xf59e0b, dayInt: 0.35, nightInt: 1.4 });
+
+    function addHotelRooftopSign(parent, text, subText, yPos, width, height, bgHex, borderHex, textHex) {
+      var tex = createSignageTexture(text, subText, false, bgHex, borderHex, textHex);
+      var mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+      // Face East (+X toward Anantara & river) and West (-X toward West Bank track)
+      [-0.6, 0.6].forEach(function(dx) {
+        var board = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
+        board.position.set(dx, yPos, 0);
+        board.rotation.y = (dx > 0) ? (Math.PI / 2) : (-Math.PI / 2);
+        parent.add(board);
+      });
+    }
+
+    // 1. THE MANDARIN ORIENTAL BANGKOK (`x = -522, z = -92`, opposite north wing of Anantara)
+    (function buildMandarinOriental() {
+      var moG = new THREE.Group();
+      moG.position.set(-522.0, 2.2, -92.0);
+      luxGroup.add(moG);
+
+      // Classic Colonial Authors' Wing Podium with arched veranda & golden Thai roof trim
+      var podium = new THREE.Mesh(new THREE.BoxGeometry(16.0, 10.5, 32.0), pearlWhiteMat);
+      podium.position.set(4.0, 5.25, 0);
+      podium.castShadow = true;
+      moG.add(podium);
+
+      var podiumRoof = new THREE.Mesh(new THREE.ConeGeometry(18.0, 4.2, 4), goldMat);
+      podiumRoof.rotation.y = Math.PI / 4;
+      podiumRoof.scale.set(0.65, 1.0, 1.35);
+      podiumRoof.position.set(4.0, 12.4, 0);
+      moG.add(podiumRoof);
+
+      // Grand River Tower rising behind the Authors' Wing
+      var towerH = 48.0;
+      var tower = new THREE.Mesh(new THREE.BoxGeometry(15.0, towerH, 26.0), warmCreamMat);
+      tower.position.set(-4.5, towerH * 0.5, 0);
+      tower.castShadow = true;
+      moG.add(tower);
+
+      var glassFront = new THREE.Mesh(new THREE.BoxGeometry(15.3, towerH * 0.88, 22.5), amberGlassMat);
+      glassFront.position.set(-4.5, towerH * 0.5, 0);
+      moG.add(glassFront);
+
+      // Golden fan crest & illuminated rooftop sign
+      var fanCrest = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 0.6, 2.8, 12), goldMat);
+      fanCrest.rotation.z = Math.PI / 2;
+      fanCrest.position.set(3.3, towerH - 2.0, 0);
+      moG.add(fanCrest);
+
+      addHotelRooftopSign(moG, 'MANDARIN ORIENTAL', 'FIVE-STAR BANGKOK RESORT', towerH + 3.2, 18.5, 4.4, '#1e1b4b', '#facc15', '#fef08a');
+    })();
+
+    // 2. THE PENINSULA BANGKOK (`x = -524, z = -38`, directly opposite Anantara Riverside Hotel!)
+    (function buildPeninsulaBangkok() {
+      var penG = new THREE.Group();
+      penG.position.set(-524.0, 2.2, -38.0);
+      luxGroup.add(penG);
+
+      // Iconic 3-tiered stepped W-shaped wave tower so every suite overlooks Anantara & the river
+      var tierSpecs = [
+        { x: 4.5, z: -9.5, w: 12.0, d: 12.0, h: 46.0 },
+        { x: 0.0, z: 0.0,  w: 14.5, d: 15.0, h: 58.0 },
+        { x: 4.5, z: 9.5,  w: 12.0, d: 12.0, h: 46.0 }
+      ];
+      tierSpecs.forEach(function(ts) {
+        var col = new THREE.Mesh(new THREE.BoxGeometry(ts.w, ts.h, ts.d), pearlWhiteMat);
+        col.position.set(ts.x, ts.h * 0.5, ts.z);
+        col.castShadow = true;
+        penG.add(col);
+
+        var gl = new THREE.Mesh(new THREE.BoxGeometry(ts.w + 0.25, ts.h * 0.90, ts.d * 0.84), silverGlassMat);
+        gl.position.set(ts.x, ts.h * 0.5, ts.z);
+        penG.add(gl);
+
+        // Horizontal architectural cornice bands every 8m
+        for (var by = 8.0; by < ts.h; by += 8.0) {
+          var band = new THREE.Mesh(new THREE.BoxGeometry(ts.w + 0.6, 0.45, ts.d + 0.6), goldMat);
+          band.position.set(ts.x, by, ts.z);
+          penG.add(band);
+        }
+      });
+
+      // Rooftop Helipad Pad + Glowing Beacon on top of the central 58m tower
+      var helipad = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.6, 1.2, 16), goldMat);
+      helipad.position.set(0, 58.6, 0);
+      penG.add(helipad);
+
+      addHotelRooftopSign(penG, 'THE PENINSULA', 'BANGKOK RIVERSIDE PALACE', 62.2, 19.5, 4.6, '#0f172a', '#38bdf8', '#ffffff');
+    })();
+
+    // 3. LEBUA AT STATE TOWER — SIROCCO SKY BAR & ICONIC GOLDEN DOME (`x = -526, z = +22`)
+    (function buildLebuaStateTower() {
+      var lebG = new THREE.Group();
+      lebG.position.set(-526.0, 2.2, 22.0);
+      luxGroup.add(lebG);
+
+      var towerH = 64.0;
+      var mainBody = new THREE.Mesh(new THREE.BoxGeometry(17.5, towerH, 24.0), warmCreamMat);
+      mainBody.position.set(0, towerH * 0.5, 0);
+      mainBody.castShadow = true;
+      lebG.add(mainBody);
+
+      var winFace = new THREE.Mesh(new THREE.BoxGeometry(17.8, towerH * 0.88, 20.0), amberGlassMat);
+      winFace.position.set(0, towerH * 0.5, 0);
+      lebG.add(winFace);
+
+      // Ornate neoclassical curved balconies along the river facade
+      for (var fl = 10.0; fl < towerH - 4.0; fl += 6.5) {
+        var balc = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 0.55, 12), pearlWhiteMat);
+        balc.position.set(8.8, fl, -5.5);
+        lebG.add(balc);
+        var balc2 = balc.clone();
+        balc2.position.set(8.8, fl, 5.5);
+        lebG.add(balc2);
+      }
+
+      // World-famous circular rotunda drum + Giant Glowing GOLDEN DOME at the summit!
+      var drum = new THREE.Mesh(new THREE.CylinderGeometry(6.4, 6.8, 6.5, 20), pearlWhiteMat);
+      drum.position.set(0, towerH + 3.25, 0);
+      lebG.add(drum);
+
+      var goldenDome = new THREE.Mesh(new THREE.SphereGeometry(6.6, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.62), goldMat);
+      goldenDome.position.set(0, towerH + 6.2, 0);
+      lebG.add(goldenDome);
+
+      var domeLantern = new THREE.Mesh(new THREE.ConeGeometry(1.2, 4.5, 10), goldMat);
+      domeLantern.position.set(0, towerH + 14.2, 0);
+      lebG.add(domeLantern);
+
+      var domeLight = new THREE.PointLight(0xfacc15, 1.6, 110);
+      domeLight.position.set(0, towerH + 10.0, 0);
+      lebG.add(domeLight);
+      bkkNightLights.push({ light: domeLight, dayInt: 0.5, nightInt: 2.8 });
+
+      addHotelRooftopSign(lebG, 'LEBUA STATE TOWER', 'GOLDEN DOME SKY RESORT', towerH + 18.2, 20.0, 4.6, '#422006', '#facc15', '#fef08a');
+    })();
+
+    // 4. FOUR SEASONS & CAPELLA BANGKOK RIVERSIDE RESORT (`x = -520, z = +76`)
+    (function buildFourSeasonsBangkok() {
+      var fsG = new THREE.Group();
+      fsG.position.set(-520.0, 2.2, 76.0);
+      luxGroup.add(fsG);
+
+      // Stepped modern glass resort terraces & infinity pools facing the river
+      var steps = [
+        { x: 5.0, y: 5.5, w: 12.0, h: 11.0, d: 28.0 },
+        { x: 0.0, y: 12.5, w: 13.0, h: 25.0, d: 24.0 },
+        { x: -5.0, y: 20.0, w: 14.0, h: 40.0, d: 20.0 }
+      ];
+      steps.forEach(function(st) {
+        var box = new THREE.Mesh(new THREE.BoxGeometry(st.w, st.h, st.d), pearlWhiteMat);
+        box.position.set(st.x, st.y, 0);
+        box.castShadow = true;
+        fsG.add(box);
+
+        var gl = new THREE.Mesh(new THREE.BoxGeometry(st.w + 0.25, st.h * 0.86, st.d * 0.88), silverGlassMat);
+        gl.position.set(st.x, st.y, 0);
+        fsG.add(gl);
+      });
+
+      addHotelRooftopSign(fsG, 'FOUR SEASONS', 'CAPELLA RIVERSIDE RESORT', 43.2, 18.5, 4.4, '#0c4a6e', '#38bdf8', '#e0f2fe');
+    })();
+
+    // Lush coconut palms along the West Bank luxury hotel riverfront promenade
+    for (var wpz = -110; wpz <= 96; wpz += 16) {
+      createBangkokPalmTree(-494.0, 2.2, wpz, 1.05);
+    }
+
+    // ------------------------------------------------------------------------
+    // DISTANT OPEN SEA (GULF OF THAILAND / MOŘE V DÁLCE) BEHIND THE LUXURY HOTELS
+    // Positioned at `x = -635 .. -1450`, `z = -620 .. +620` so when looking across
+    // the river at the luxury Bangkok hotels, the sparkling blue sea, sandy beach,
+    // tropical islands, and white sailboats are clearly visible in the background!
+    // ------------------------------------------------------------------------
+    var seaLevelY = 1.6;
+
+    // Golden tropical sandy beach strip along the coastline (`x = -638`)
+    var beachMat = new THREE.MeshStandardMaterial({ color: 0xfde68a, roughness: 0.85 });
+    var beachStrip = new THREE.Mesh(new THREE.BoxGeometry(36.0, 1.2, 1180.0), beachMat);
+    beachStrip.position.set(-642.0, seaLevelY - 0.1, 0.0);
+    beachStrip.receiveShadow = true;
+    luxGroup.add(beachStrip);
+
+    // Shimmering deep turquoise-azure Ocean / Distant Sea plane (`820m` wide x `1240m` long)
+    var seaWaterMat = new THREE.MeshStandardMaterial({
+      color: 0x0284c7,
+      roughness: 0.14,
+      metalness: 0.68,
+      emissive: 0x0369a1,
+      emissiveIntensity: 0.35
+    });
+    bkkNightLights.push({ mat: seaWaterMat, dayHex: 0x0369a1, nightHex: 0x0c4a6e, dayInt: 0.35, nightInt: 0.65 });
+
+    var seaPlane = new THREE.Mesh(new THREE.BoxGeometry(820.0, 1.0, 1240.0), seaWaterMat);
+    seaPlane.position.set(-1060.0, seaLevelY - 0.4, 0.0);
+    seaPlane.receiveShadow = true;
+    luxGroup.add(seaPlane);
+
+    // Elevated turquoise horizon water band at the back so the sea is even clearer above low terrain hills
+    var seaHorizonBand = new THREE.Mesh(
+      new THREE.PlaneGeometry(1240.0, 26.0),
+      new THREE.MeshBasicMaterial({ color: 0x0ea5e9, side: THREE.DoubleSide, transparent: true, opacity: 0.88 })
+    );
+    seaHorizonBand.position.set(-980.0, 13.0, 0.0);
+    seaHorizonBand.rotation.y = Math.PI / 2;
+    luxGroup.add(seaHorizonBand);
+
+    // Animated whitecap ocean wave strips on the sea
+    var seaWaveMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+    for (var swi = 0; swi < 24; swi++) {
+      var swZ = -320.0 + swi * 28.0;
+      var swX = -685.0 - (swi % 4) * 58.0;
+      var waveMesh = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 42.0 + (swi % 3) * 14.0), seaWaveMat);
+      waveMesh.rotation.x = -Math.PI / 2;
+      waveMesh.position.set(swX, seaLevelY + 0.25, swZ);
+      luxGroup.add(waveMesh);
+      distantSeaWaveStrips.push({ mesh: waveMesh, baseX: swX, phase: swi * 0.65 });
+    }
+
+    // Tropical Islands, Lighthouse & Large White-Sailed Yachts on the Distant Sea
+    var islandMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.75 });
+    var sailWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+    var yachtHullMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 });
+    var beaconGlowMat = new THREE.MeshStandardMaterial({
+      color: 0xfef08a,
+      emissive: 0xfacc15,
+      emissiveIntensity: 0.95
+    });
+
+    [
+      { x: -780.0, z: -145.0, r: 34.0, h: 22.0 },
+      { x: -840.0, z: -15.0,  r: 42.0, h: 28.0 },
+      { x: -790.0, z: 125.0,  r: 36.0, h: 24.0 }
+    ].forEach(function(isl, idx) {
+      var cone = new THREE.Mesh(new THREE.ConeGeometry(isl.r, isl.h, 14), islandMat);
+      cone.position.set(isl.x, seaLevelY + isl.h * 0.45, isl.z);
+      luxGroup.add(cone);
+
+      if (idx === 1) {
+        // White & red coastal lighthouse on the central island
+        var lhTower = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.6, 16.0, 12), pearlWhiteMat);
+        lhTower.position.set(isl.x + 10.0, seaLevelY + isl.h * 0.7 + 6.0, isl.z);
+        luxGroup.add(lhTower);
+        var lhBeacon = new THREE.Mesh(new THREE.SphereGeometry(2.2, 10, 10), beaconGlowMat);
+        lhBeacon.position.set(isl.x + 10.0, seaLevelY + isl.h * 0.7 + 15.0, isl.z);
+        luxGroup.add(lhBeacon);
+      }
+    });
+
+    // 6 Big White Sailboats & Luxury Cruise Yachts on the sea
+    [-190, -110, -55, 0, 62, 150].forEach(function(yz, yi) {
+      var yx = -710.0 - (yi % 3) * 48.0;
+      var yg = new THREE.Group();
+      yg.position.set(yx, seaLevelY + 0.5, yz);
+      var hull = new THREE.Mesh(new THREE.BoxGeometry(5.5, 2.8, 18.0), yachtHullMat);
+      hull.position.y = 1.4;
+      yg.add(hull);
+
+      var mast = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 22.0, 8), goldMat);
+      mast.position.y = 12.0;
+      yg.add(mast);
+
+      var mainSail = new THREE.Mesh(new THREE.BufferGeometry(), sailWhiteMat);
+      var sailVerts = new Float32Array([
+        0, 3.5, 0,
+        0, 21.5, 0,
+        0, 4.5, -10.5
+      ]);
+      mainSail.geometry.setAttribute('position', new THREE.BufferAttribute(sailVerts, 3));
+      mainSail.geometry.computeVertexNormals();
+      yg.add(mainSail);
+
+      var jibSail = new THREE.Mesh(new THREE.BufferGeometry(), sailWhiteMat);
+      var jibVerts = new Float32Array([
+        0, 4.0, 0.8,
+        0, 19.5, 0.5,
+        0, 4.5, 8.5
+      ]);
+      jibSail.geometry.setAttribute('position', new THREE.BufferAttribute(jibVerts, 3));
+      jibSail.geometry.computeVertexNormals();
+      yg.add(jibSail);
+
+      luxGroup.add(yg);
+    });
   })();
 
   // --------------------------------------------------------------------------
@@ -14723,12 +15503,42 @@ window.createDetailedCoach = function(colHex, coachIndex) {
   }
 
   // --------------------------------------------------------------------------
-  // 7. PANORAMIC CAMERA CANDIDATES & FRAME-BY-FRAME ANIMATION UPDATE
+  // 7. PANORAMIC CAMERA CANDIDATES & 3-SECOND ANANTARA CAMERA ROTATION
   // --------------------------------------------------------------------------
+  var anantaraRiverPanState = {
+    activeStartMs: -99999,
+    lastEdgeKey: ''
+  };
+
   window.appendBangkokCameraCandidates = function(candidates, buildLargeLandmarkCandidate) {
     if (!Array.isArray(candidates) || typeof buildLargeLandmarkCandidate !== 'function') return;
 
-    // 1) Anantara Riverside Bangkok Resort & Boat Pier
+    var curEdgeId = (window.pState && window.pState.edge) ? window.pState.edge.id : '';
+    var curT = (window.pState && typeof window.pState.t === 'number') ? window.pState.t : 0.0;
+    var nowMs = performance.now();
+
+    // Detect when the train rides from the bridge with the Chao Phraya River on its RIGHT side:
+    // - Case 1: Riding North from the Southern Rama VIII Bridge along `J_BKK_WESTBANK->J_BKK_ANANTARA` (`curT` in 0.02..0.52),
+    //   where the river (`+X`) and Anantara Hotel (`-396, 2.2, -42`) are on the train's right side across the water!
+    // - Case 2: Riding South from the Northern Bridge / Anantara Junction along `J_BKK_ANANTARA->J_BKK_ICONSIAM` (`curT` in 0.04..0.46),
+    //   where the river (`-X`) and Anantara Hotel (`-396, 2.2, -42`) are on the train's right side!
+    var inWestbankRightRiverZone = (curEdgeId === 'J_BKK_WESTBANK->J_BKK_ANANTARA' && curT >= 0.02 && curT <= 0.52);
+    var inEastbankRightRiverZone = (curEdgeId === 'J_BKK_ANANTARA->J_BKK_ICONSIAM' && curT >= 0.04 && curT <= 0.46);
+
+    if (inWestbankRightRiverZone || inEastbankRightRiverZone) {
+      var zoneKey = curEdgeId;
+      if (anantaraRiverPanState.lastEdgeKey !== zoneKey) {
+        anantaraRiverPanState.lastEdgeKey = zoneKey;
+        anantaraRiverPanState.activeStartMs = nowMs;
+      }
+    } else if (curEdgeId !== 'J_BKK_WESTBANK->J_BKK_ANANTARA' && curEdgeId !== 'J_BKK_ANANTARA->J_BKK_ICONSIAM') {
+      anantaraRiverPanState.lastEdgeKey = '';
+    }
+
+    var elapsedPanSec = (nowMs - anantaraRiverPanState.activeStartMs) * 0.001;
+    var isThreeSecondAnantaraPanActive = (elapsedPanSec >= 0.0 && elapsedPanSec <= 3.35) && (inWestbankRightRiverZone || inEastbankRightRiverZone);
+
+    // 1) Anantara Riverside Bangkok Resort & Boat Pier (with 3-second priority camera rotation when riding from the bridge with river on right!)
     var anantaraCand = buildLargeLandmarkCandidate({
       id: 'anantara',
       narrationId: 'anantara',
@@ -14736,19 +15546,47 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       baseY: 2.2,
       height: 22.0,
       radius: 34.0,
-      approachDist: 98.0,
-      peakAheadDist: 24.0,
-      peakBehindDist: -14.0,
-      departDist: 52.0,
-      maxPerpDist: 92.0,
-      camBack: 56.0,
-      camOppositeSide: 24.0,
+      approachDist: 145.0,
+      peakAheadDist: 38.0,
+      peakBehindDist: -24.0,
+      departDist: 68.0,
+      maxPerpDist: 195.0,
+      camBack: isThreeSecondAnantaraPanActive ? 48.0 : 56.0,
+      camOppositeSide: isThreeSecondAnantaraPanActive ? 32.0 : 24.0,
       camHeight: 16.5,
-      lookShare: 0.56,
-      targetFov: 48.0,
-      priority: 1.12
+      lookShare: isThreeSecondAnantaraPanActive ? 0.78 : 0.58,
+      targetFov: 48.5,
+      priority: isThreeSecondAnantaraPanActive ? 1.55 : 1.14
     });
-    if (anantaraCand) candidates.push(anantaraCand);
+    if (anantaraCand) {
+      if (isThreeSecondAnantaraPanActive) {
+        anantaraCand.weight = Math.max(anantaraCand.weight, 0.96);
+      }
+      candidates.push(anantaraCand);
+    }
+
+    // 1B) When riding along the East Bank past Anantara (`J_BKK_ANANTARA->J_BKK_ICONSIAM` after the 3s Anantara pan, or `J_BKK_ICONSIAM->J_BKK_ANANTARA`),
+    //     also showcase the 4 Ultra-Luxury Bangkok Hotels (Peninsula, Mandarin Oriental, Lebua Golden Dome, Four Seasons) + Distant Sea across the river!
+    var luxHotelsCand = buildLargeLandmarkCandidate({
+      id: 'bkk_luxury_hotels',
+      narrationId: 'anantara',
+      center: new THREE.Vector3(-525.0, 22.0, -18.0),
+      baseY: 2.2,
+      height: 58.0,
+      radius: 52.0,
+      approachDist: 135.0,
+      peakAheadDist: 32.0,
+      peakBehindDist: -22.0,
+      departDist: 62.0,
+      maxPerpDist: 195.0,
+      camBack: 62.0,
+      camOppositeSide: 28.0,
+      camHeight: 19.5,
+      lookShare: 0.62,
+      targetFov: 50.0,
+      priority: isThreeSecondAnantaraPanActive ? 0.85 : 1.10
+    });
+    if (luxHotelsCand) candidates.push(luxHotelsCand);
 
     // 2) IconSiam Megacomplex, Ferris Wheel & Dancing Fountains
     var iconsiamCand = buildLargeLandmarkCandidate({
@@ -14772,25 +15610,25 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     });
     if (iconsiamCand) candidates.push(iconsiamCand);
 
-    // 3) Grand Chao Phraya Tied-Arch Railway Bridge (+ Synchronized Anantara Boat on the River!)
+    // 3) Grand Rama VIII Cable-Stayed Railway Bridge (+ Synchronized Anantara Boat on the River!)
     var bridgeCand = buildLargeLandmarkCandidate({
       id: 'bkk_bridge',
       narrationId: 'bkk_bridge',
-      center: new THREE.Vector3(-472.0, 10.5, 250.0),
+      center: new THREE.Vector3(-472.0, 16.5, 250.0),
       baseY: 0.0,
-      height: 28.0,
-      radius: 48.0,
-      approachDist: 108.0,
-      peakAheadDist: 26.0,
+      height: 46.0,
+      radius: 52.0,
+      approachDist: 118.0,
+      peakAheadDist: 28.0,
       peakBehindDist: -18.0,
-      departDist: 54.0,
-      maxPerpDist: 96.0,
-      camBack: 62.0,
-      camOppositeSide: 26.0,
-      camHeight: 21.0,
-      lookShare: 0.54,
-      targetFov: 50.0,
-      priority: 1.15
+      departDist: 56.0,
+      maxPerpDist: 102.0,
+      camBack: 66.0,
+      camOppositeSide: 28.0,
+      camHeight: 22.0,
+      lookShare: 0.56,
+      targetFov: 50.5,
+      priority: 1.16
     });
     if (bridgeCand) candidates.push(bridgeCand);
 
@@ -14813,7 +15651,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         camHeight: 15.0,
         lookShare: 0.48,
         targetFov: 47.0,
-        priority: 1.02
+        priority: isThreeSecondAnantaraPanActive ? 0.75 : 1.02
       });
       if (boatCand) candidates.push(boatCand);
     }
@@ -14833,11 +15671,15 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     var curEdgeId = (window.pState && window.pState.edge) ? window.pState.edge.id : '';
     var curT = (window.pState && typeof window.pState.t === 'number') ? window.pState.t : 0.0;
 
-    // 1) Animate Chao Phraya River ripples
+    // 1) Animate Chao Phraya River ripples & Distant Sea ocean waves
     for (var ri = 0; ri < riverWaveStrips.length; ri++) {
       var rw = riverWaveStrips[ri];
       rw.mesh.position.z = rw.baseZ + Math.sin(tSec * 1.4 + rw.phase) * 1.8;
       rw.mesh.material.opacity = 0.24 + 0.16 * Math.sin(tSec * 2.2 + rw.phase);
+    }
+    for (var swi = 0; swi < distantSeaWaveStrips.length; swi++) {
+      var sw = distantSeaWaveStrips[swi];
+      sw.mesh.position.x = sw.baseX + Math.sin(tSec * 1.1 + sw.phase) * 3.5;
     }
 
     // 2) Rotate the IconSiam Riverfront Ferris Wheel smoothly

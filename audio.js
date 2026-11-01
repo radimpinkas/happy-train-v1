@@ -126,8 +126,61 @@ window.formatPersonalizedText = function(role, rawText) {
 // 1. Completely hides speech text boxes (#face-cam-card) & 3D animal text bubbles
 // 2. Compacts #top-bar on smartphones to 1 slim row (Player Name, Clock, Score, Music ON/OFF)
 // 3. Replaces bottom buttons with a Translucent Circular Remote D-Pad Wheel (UP/DOWN/LEFT/RIGHT + OK)
+// 4. Adds Top-Left Current Speed Number & Top-Right Next-Junction Switch Direction Arrow
 // ============================================================================
 (function installCleanUiAndCircularRemoteWheel() {
+  var lastRenderedSpeedStage = null;
+  var lastRenderedSwitchChoice = null;
+
+  var SWITCH_ARROW_SVGS = {
+    left: '<svg viewBox="0 0 48 48"><path d="M36 39V26c0-6.6-5.4-12-12-12h-7V6L4 17.5 17 29v-8h7c2.8 0 5 2.2 5 5v13h7z" fill="#facc15" stroke="#0f172a" stroke-width="2.6" stroke-linejoin="round"/></svg>',
+    straight: '<svg viewBox="0 0 48 48"><path d="M24 5L9 21h9.5v22h11V21H39L24 5z" fill="#4ade80" stroke="#0f172a" stroke-width="2.6" stroke-linejoin="round"/></svg>',
+    right: '<svg viewBox="0 0 48 48"><path d="M12 39V26c0-6.6 5.4-12 12-12h7V6l13 11.5L31 29v-8h-7c-2.8 0-5 2.2-5 5v13h-7z" fill="#fb923c" stroke="#0f172a" stroke-width="2.6" stroke-linejoin="round"/></svg>'
+  };
+
+  var SPEED_THEME = {
+    '-1': { text: 'R', color: '#38bdf8', border: 'rgba(56, 189, 248, 0.88)', glow: 'rgba(56, 189, 248, 0.48)' },
+    '0':  { text: '0', color: '#e2e8f0', border: 'rgba(148, 163, 184, 0.82)', glow: 'rgba(148, 163, 184, 0.35)' },
+    '1':  { text: '1', color: '#86efac', border: 'rgba(134, 239, 172, 0.88)', glow: 'rgba(134, 239, 172, 0.45)' },
+    '2':  { text: '2', color: '#4ade80', border: 'rgba(74, 222, 128, 0.90)', glow: 'rgba(74, 222, 128, 0.50)' },
+    '3':  { text: '3', color: '#facc15', border: 'rgba(250, 204, 21, 0.92)', glow: 'rgba(250, 204, 21, 0.52)' },
+    '4':  { text: '4', color: '#fb923c', border: 'rgba(251, 146, 60, 0.92)', glow: 'rgba(251, 146, 60, 0.54)' },
+    '5':  { text: '5', color: '#f87171', border: 'rgba(248, 113, 113, 0.95)', glow: 'rgba(239, 68, 68, 0.58)' }
+  };
+
+  var SWITCH_THEME = {
+    left:     { border: 'rgba(250, 204, 21, 0.90)', glow: 'rgba(250, 204, 21, 0.48)' },
+    straight: { border: 'rgba(74, 222, 128, 0.90)', glow: 'rgba(74, 222, 128, 0.48)' },
+    right:    { border: 'rgba(251, 146, 60, 0.90)', glow: 'rgba(251, 146, 60, 0.48)' }
+  };
+
+  window.syncCornerSpeedAndSwitchHud = function(force) {
+    if (!window.pState) return;
+    var speedStage = typeof window.pState.speedStage === 'number' ? window.pState.speedStage : 0;
+    var switchChoice = window.pState.switchChoice || 'straight';
+
+    var speedEl = document.getElementById('hud-speed-corner');
+    var speedNumEl = document.getElementById('hud-speed-corner-num');
+    if (speedEl && speedNumEl && (force || speedStage !== lastRenderedSpeedStage)) {
+      lastRenderedSpeedStage = speedStage;
+      var sTheme = SPEED_THEME[String(speedStage)] || SPEED_THEME['0'];
+      speedNumEl.textContent = sTheme.text;
+      speedNumEl.style.color = sTheme.color;
+      speedEl.style.borderColor = sTheme.border;
+      speedEl.style.boxShadow = '0 0 16px ' + sTheme.glow + ', inset 0 0 12px ' + sTheme.glow + ', 0 6px 18px rgba(0,0,0,0.42)';
+    }
+
+    var switchEl = document.getElementById('hud-switch-corner');
+    var switchIconEl = document.getElementById('hud-switch-corner-icon');
+    if (switchEl && switchIconEl && (force || switchChoice !== lastRenderedSwitchChoice)) {
+      lastRenderedSwitchChoice = switchChoice;
+      var wTheme = SWITCH_THEME[switchChoice] || SWITCH_THEME.straight;
+      switchIconEl.innerHTML = SWITCH_ARROW_SVGS[switchChoice] || SWITCH_ARROW_SVGS.straight;
+      switchEl.style.borderColor = wTheme.border;
+      switchEl.style.boxShadow = '0 0 16px ' + wTheme.glow + ', inset 0 0 12px ' + wTheme.glow + ', 0 6px 18px rgba(0,0,0,0.42)';
+    }
+  };
+
   function injectStylesAndRemoteWheel() {
     if (!document.getElementById('happy-train-mobile-remote-styles')) {
       var styleEl = document.createElement('style');
@@ -141,9 +194,55 @@ window.formatPersonalizedText = function(role, rawText) {
         '  pointer-events: none !important;',
         '}',
         '',
-        '/* 2. Hide legacy wide bottom button bar and show translucent circular remote wheel */',
-        '#hud {',
+        '/* 2. Hide legacy wide bottom button bar, legacy second-row speed bar, and legacy giant direction card */',
+        '#hud, #giant-direction-card, #top-bar > .hud-box:last-child {',
         '  display: none !important;',
+        '}',
+        '',
+        '/* 3. Top-Left Speed Badge & Top-Right Next-Junction Switch Arrow Badge (Translucent, high-contrast) */',
+        '#hud-speed-corner, #hud-switch-corner {',
+        '  position: fixed;',
+        '  top: 66px;',
+        '  width: 64px;',
+        '  height: 64px;',
+        '  border-radius: 18px;',
+        '  background: radial-gradient(circle, rgba(30, 41, 59, 0.46) 0%, rgba(15, 23, 42, 0.66) 100%);',
+        '  border: 2.5px solid rgba(125, 211, 252, 0.85);',
+        '  backdrop-filter: blur(4px);',
+        '  -webkit-backdrop-filter: blur(4px);',
+        '  display: flex;',
+        '  flex-direction: column;',
+        '  align-items: center;',
+        '  justify-content: center;',
+        '  z-index: 22;',
+        '  user-select: none;',
+        '  -webkit-user-select: none;',
+        '  transition: transform 0.14s ease, border-color 0.18s ease, box-shadow 0.18s ease;',
+        '}',
+        '#hud-speed-corner {',
+        '  left: 14px;',
+        '}',
+        '#hud-switch-corner {',
+        '  right: 14px;',
+        '}',
+        '#hud-speed-corner-num {',
+        '  font-size: 34px;',
+        '  font-weight: 900;',
+        '  line-height: 1;',
+        '  color: #4ade80;',
+        '  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);',
+        '}',
+        '#hud-switch-corner-icon {',
+        '  width: 42px;',
+        '  height: 42px;',
+        '  display: flex;',
+        '  align-items: center;',
+        '  justify-content: center;',
+        '}',
+        '#hud-switch-corner-icon svg {',
+        '  width: 100%;',
+        '  height: 100%;',
+        '  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.72));',
         '}',
         '',
         '#remote-wheel-hud {',
@@ -267,7 +366,7 @@ window.formatPersonalizedText = function(role, rawText) {
         '  box-shadow: 0 0 14px rgba(56, 189, 248, 0.85);',
         '}',
         '',
-        '/* 3. Smartphone compact single-row top menu (shows only Player Name, Clock, Score, Music ON/OFF) */',
+        '/* 4. Smartphone compact single-row top menu (shows only Player Name, Clock, Score, Music ON/OFF) */',
         '@media (max-width: 920px), (pointer: coarse) and (max-width: 1024px) {',
         '  #top-bar {',
         '    top: 6px !important;',
@@ -332,6 +431,21 @@ window.formatPersonalizedText = function(role, rawText) {
         '    gap: 5px !important;',
         '    white-space: nowrap !important;',
         '  }',
+        '  #hud-speed-corner, #hud-switch-corner {',
+        '    top: 50px;',
+        '    width: 56px;',
+        '    height: 56px;',
+        '    border-radius: 15px;',
+        '  }',
+        '  #hud-speed-corner { left: 10px; }',
+        '  #hud-switch-corner { right: 10px; }',
+        '  #hud-speed-corner-num {',
+        '    font-size: 30px;',
+        '  }',
+        '  #hud-switch-corner-icon {',
+        '    width: 36px;',
+        '    height: 36px;',
+        '  }',
         '  #remote-wheel-hud {',
         '    width: 146px;',
         '    height: 146px;',
@@ -358,6 +472,24 @@ window.formatPersonalizedText = function(role, rawText) {
       faceCard.classList.remove('visible', 'talking');
       faceCard.style.display = 'none';
     }
+
+    if (!document.getElementById('hud-speed-corner') && document.body) {
+      var speedBadge = document.createElement('div');
+      speedBadge.id = 'hud-speed-corner';
+      speedBadge.setAttribute('aria-label', 'Current Train Speed');
+      speedBadge.innerHTML = '<span id="hud-speed-corner-num">0</span>';
+      document.body.appendChild(speedBadge);
+    }
+
+    if (!document.getElementById('hud-switch-corner') && document.body) {
+      var switchBadge = document.createElement('div');
+      switchBadge.id = 'hud-switch-corner';
+      switchBadge.setAttribute('aria-label', 'Next Junction Switch Direction');
+      switchBadge.innerHTML = '<div id="hud-switch-corner-icon">' + SWITCH_ARROW_SVGS.straight + '</div>';
+      document.body.appendChild(switchBadge);
+    }
+
+    window.syncCornerSpeedAndSwitchHud(true);
 
     if (!document.getElementById('remote-wheel-hud') && document.body) {
       var wheel = document.createElement('div');
@@ -392,6 +524,9 @@ window.formatPersonalizedText = function(role, rawText) {
         if (typeof window.handleInput === 'function') {
           window.handleInput(keyName);
         }
+        if (typeof window.syncCornerSpeedAndSwitchHud === 'function') {
+          window.syncCornerSpeedAndSwitchHud(false);
+        }
       }
 
       var buttons = wheel.querySelectorAll('button[data-key]');
@@ -423,6 +558,11 @@ window.formatPersonalizedText = function(role, rawText) {
             matchBtn.classList.remove('active-press');
           }, 160);
         }
+        setTimeout(function() {
+          if (typeof window.syncCornerSpeedAndSwitchHud === 'function') {
+            window.syncCornerSpeedAndSwitchHud(false);
+          }
+        }, 0);
       });
     }
   }
@@ -2645,6 +2785,9 @@ window.playCzechCrossingBell = function() {
 
     function updateFrameCoordinator() {
       requestAnimationFrame(updateFrameCoordinator);
+      if (typeof window.syncCornerSpeedAndSwitchHud === 'function') {
+        window.syncCornerSpeedAndSwitchHud(false);
+      }
       if (!window.playerLoco || !window.pState) return;
 
       var now = Date.now();
