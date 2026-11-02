@@ -228,7 +228,7 @@
     </div>
 
     <div class="music-panel">
-      <button class="pill-btn" id="music-toggle-btn" onclick="toggleMusic()">🎵 Music: OFF (M)</button>
+      <button class="pill-btn playing" id="music-toggle-btn" onclick="toggleMusic()">🎵 Music: ON</button>
       <button class="pill-btn" onclick="nextMusicTrack()" title="Next Song">⏭️</button>
       <span title="Music Volume">🔉</span>
       <input type="range" id="music-vol" min="0" max="1" step="0.05" value="0.45" oninput="changeMusicVolume(this.value)" />
@@ -305,23 +305,18 @@
   <div id="settings-modal">
     <div class="modal-card" style="max-width:560px; border-color:#eab308;">
       <h1 style="color:#fef3c7; font-size:26px; margin-bottom:6px;">🚂 Train & Child Name Settings</h1>
-      <p style="color:#cbd5e1; font-size:14px;">Customize your child's name, the 3D nameplate on the locomotive, and voice addressing.</p>
+      <p style="color:#cbd5e1; font-size:14px;">Customize your child's name and the 3D nameplate on the locomotive.</p>
 
       <div class="settings-form">
         <div class="settings-field">
-          <label for="input-child-name">👶 Child's Name (Jméno dítěte):</label>
+          <label for="input-child-name">👶 Child's Name:</label>
           <input type="text" id="input-child-name" class="settings-input" value="Daníček" maxlength="28" placeholder="Daníček" oninput="onLivePersonalizationInput()" />
         </div>
 
         <div class="settings-field">
-          <label for="input-train-name">🚂 Train's Name on 3D Plaque (Jméno vláčku):</label>
+          <label for="input-train-name">🚂 Train's Name on 3D Plaque:</label>
           <input type="text" id="input-train-name" class="settings-input" value="Daníček" maxlength="24" placeholder="Daníček" oninput="onLivePersonalizationInput()" />
         </div>
-
-        <label class="settings-toggle-row" for="input-voice-addressing">
-          <span style="font-size:15px; font-weight:900; color:#fef3c7;">🔊 Address Child by Name in Voice Lines (Oslovování jménem)</span>
-          <input type="checkbox" id="input-voice-addressing" checked onchange="onLivePersonalizationInput()" />
-        </label>
       </div>
 
       <div>

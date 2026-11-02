@@ -70,6 +70,19 @@ window.applyPersonalizationToUI = function() {
   var vInput = document.getElementById('input-voice-addressing');
   if (vInput) vInput.checked = vEnabled;
 
+  // Ensure settings modal labels are clean English-only and unused voice addressing toggle row is hidden
+  var modalEl = document.getElementById('settings-modal');
+  if (modalEl) {
+    var descP = modalEl.querySelector('.modal-card > p');
+    if (descP) descP.textContent = "Customize your child's name and the 3D nameplate on the locomotive.";
+    var cLabel = modalEl.querySelector('label[for="input-child-name"]');
+    if (cLabel) cLabel.textContent = "👶 Child's Name:";
+    var tLabel = modalEl.querySelector('label[for="input-train-name"]');
+    if (tLabel) tLabel.textContent = "🚂 Train's Name on 3D Plaque:";
+    var toggleRow = modalEl.querySelector('.settings-toggle-row');
+    if (toggleRow) toggleRow.style.display = 'none';
+  }
+
   if (window.updateTrainNameplates) {
     window.updateTrainNameplates(tName);
   }
@@ -384,7 +397,6 @@ window.formatPersonalizedText = function(role, rawText) {
         '  #weather-btn,',
         '  .music-panel button:not(#music-toggle-btn),',
         '  .music-panel span,',
-        '  #music-vol,',
         '  .wagon-bar-wrap,',
         '  #top-bar > .hud-box:last-child,',
         '  #giant-direction-card {',
@@ -413,16 +425,29 @@ window.formatPersonalizedText = function(role, rawText) {
         '    white-space: nowrap !important;',
         '  }',
         '  .music-panel {',
-        '    padding: 0 !important;',
-        '    background: transparent !important;',
-        '    border: none !important;',
+        '    padding: 2px 6px !important;',
+        '    background: rgba(15, 23, 42, 0.72) !important;',
+        '    border: 1.5px solid #475569 !important;',
+        '    border-radius: 10px !important;',
+        '    display: flex !important;',
+        '    align-items: center !important;',
+        '    gap: 5px !important;',
         '    flex-shrink: 0 !important;',
         '  }',
         '  #music-toggle-btn {',
-        '    padding: 5px 8px !important;',
+        '    padding: 4px 7px !important;',
         '    font-size: 11px !important;',
-        '    border-radius: 10px !important;',
+        '    border-radius: 8px !important;',
         '    white-space: nowrap !important;',
+        '  }',
+        '  #music-vol {',
+        '    display: inline-block !important;',
+        '    width: 58px !important;',
+        '    height: 18px !important;',
+        '    margin: 0 !important;',
+        '    accent-color: #22c55e !important;',
+        '    cursor: pointer !important;',
+        '    touch-action: pan-x !important;',
         '  }',
         '  .score-pill {',
         '    padding: 4px 8px !important;',
@@ -461,6 +486,9 @@ window.formatPersonalizedText = function(role, rawText) {
         '@media (max-width: 420px) {',
         '  #time-phase-label {',
         '    display: none !important;',
+        '  }',
+        '  #music-vol {',
+        '    width: 46px !important;',
         '  }',
         '}'
       ].join('\n');
@@ -1055,10 +1083,22 @@ var sunoTrackGroups = [
   ['song4.mp3', 'assets/aistudio/Song4_3a5fe458.mp3', '/assets/aistudio/Song4_3a5fe458.mp3']
 ];
 var currentSongIndex = 0;
-var isMusicPlaying = false;
+var isMusicPlaying = true;
 var userMusicVolume = 0.45;
 var bgMusicAudio = new Audio();
 bgMusicAudio.volume = userMusicVolume;
+
+function syncMusicButtonUI() {
+  var btn = document.getElementById('music-toggle-btn');
+  if (!btn) return;
+  if (isMusicPlaying) {
+    btn.textContent = '🎵 Music: ON';
+    btn.classList.add('playing');
+  } else {
+    btn.textContent = '🎵 Music: OFF';
+    btn.classList.remove('playing');
+  }
+}
 
 function playCurrentCandidate(fallbackUrlIdx, failedTrackCount) {
   if (!isMusicPlaying) return;
@@ -1074,10 +1114,20 @@ function playCurrentCandidate(fallbackUrlIdx, failedTrackCount) {
     return;
   }
 
-  bgMusicAudio.src = candidates[uIdx];
-  bgMusicAudio.play().catch(function() {
-    playCurrentCandidate(uIdx + 1, failCount);
-  });
+  var targetSrc = candidates[uIdx];
+  if (!bgMusicAudio.src || bgMusicAudio.src.indexOf(targetSrc) === -1) {
+    bgMusicAudio.src = targetSrc;
+  }
+  var playPromise = bgMusicAudio.play();
+  if (playPromise && typeof playPromise.catch === 'function') {
+    playPromise.catch(function(err) {
+      // If browser autoplay policy defers unmuted audio until first gesture, keep current candidate armed
+      if (err && (err.name === 'NotAllowedError' || err.name === 'AbortError')) {
+        return;
+      }
+      playCurrentCandidate(uIdx + 1, failCount);
+    });
+  }
 }
 
 bgMusicAudio.addEventListener('ended', function() {
@@ -1087,23 +1137,18 @@ bgMusicAudio.addEventListener('ended', function() {
 
 window.toggleMusic = function() {
   window.initAudio();
-  var btn = document.getElementById('music-toggle-btn');
   if (isMusicPlaying) {
     isMusicPlaying = false;
     bgMusicAudio.pause();
-    if (btn) {
-      btn.textContent = '🎵 Music: OFF';
-      btn.classList.remove('playing');
-    }
+    syncMusicButtonUI();
   } else {
     isMusicPlaying = true;
-    if (btn) {
-      btn.textContent = '🎵 Music: ON';
-      btn.classList.add('playing');
-    }
+    syncMusicButtonUI();
     var volEl = document.getElementById('music-vol');
     if (volEl) userMusicVolume = parseFloat(volEl.value);
-    bgMusicAudio.volume = userMusicVolume;
+    bgMusicAudio.volume = window.isVoiceCurrentlyPlaying && window.isVoiceCurrentlyPlaying()
+      ? Math.max(0.08, userMusicVolume * 0.35)
+      : userMusicVolume;
     playCurrentCandidate(0, 0);
   }
 };
@@ -1116,9 +1161,34 @@ window.nextMusicTrack = function() {
 };
 
 window.changeMusicVolume = function(val) {
-  userMusicVolume = parseFloat(val);
-  bgMusicAudio.volume = userMusicVolume;
+  var parsed = parseFloat(val);
+  if (!isNaN(parsed)) {
+    userMusicVolume = Math.max(0, Math.min(1, parsed));
+    bgMusicAudio.volume = window.isVoiceCurrentlyPlaying && window.isVoiceCurrentlyPlaying()
+      ? Math.max(0.08, userMusicVolume * 0.35)
+      : userMusicVolume;
+  }
 };
+
+(function autoStartBackgroundMusicOnLaunch() {
+  function startMusicNow() {
+    syncMusicButtonUI();
+    var volEl = document.getElementById('music-vol');
+    if (volEl) {
+      var v = parseFloat(volEl.value);
+      if (!isNaN(v)) userMusicVolume = v;
+    }
+    bgMusicAudio.volume = userMusicVolume;
+    if (isMusicPlaying && bgMusicAudio.paused) {
+      playCurrentCandidate(0, 0);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startMusicNow);
+  } else {
+    startMusicNow();
+  }
+})();
 
 // ============================================================================
 // GOOGLE AI STUDIO VOICE PROFILES & STUDIO WAV PACK (/voices/*.wav)
@@ -2386,6 +2456,12 @@ function unlockAudioOnFirstGesture() {
   if (lastVoiceFinishedTime === 0) {
     // Allow first greeting ~1.5s after first user gesture
     lastVoiceFinishedTime = Date.now() - (MIN_SPEECH_PAUSE_MS - 1200);
+  }
+  if (isMusicPlaying && bgMusicAudio && bgMusicAudio.paused) {
+    bgMusicAudio.volume = window.isVoiceCurrentlyPlaying && window.isVoiceCurrentlyPlaying()
+      ? Math.max(0.08, userMusicVolume * 0.35)
+      : userMusicVolume;
+    playCurrentCandidate(0, 0);
   }
 }
 

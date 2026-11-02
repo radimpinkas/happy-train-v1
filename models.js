@@ -1759,10 +1759,7 @@ function buildAirportShuttleBusMesh() {
   wsGroup.add(wsPole, wsSockPivot);
   ag.add(wsGroup);
 
-  // 9. Soft Fairytale Studio Fill Light, Wooden Post-and-Rail Fence, Storybook Trees & Lush Flowering Gardens (`image_7985496f.png` & `image_14f8f908.png`!)
-  var airportSunFill = new THREE.PointLight(0xfffbeb, 0.22, 160);
-  airportSunFill.position.set(-18, 46, 0);
-  ag.add(airportSunFill);
+  // 9. Wooden Post-and-Rail Fence, Storybook Trees & Lush Flowering Gardens (`image_7985496f.png` & `image_14f8f908.png`!)
 
   var woodFenceMat = new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.72 });
   var shrubGreenMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.62 });
@@ -4780,12 +4777,6 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
     });
   }
 
-  var jewelPoolLight = new THREE.PointLight(0x22d3ee, 0.95, 65);
-  jewelPoolLight.position.set(vortexX, 5.5, 0);
-  var jewelOculusLight = new THREE.PointLight(0x38bdf8, 0.75, 75);
-  jewelOculusLight.position.set(vortexX, 33.5, 0);
-  domeG.add(jewelPoolLight, jewelOculusLight);
-
   // Primary crystal-turquoise palette (`image_f2b93fd1.png` & `image_e865e179.png`) + gentle color-changing Light & Sound Show
   var showPalettes = [
     { oculus: new THREE.Color(0x00d2ff), waterEmit: new THREE.Color(0x0284c7), waterTint: new THREE.Color(0xf0f9ff), pool: new THREE.Color(0x06b6d4), mist: new THREE.Color(0xa5f3fc) },
@@ -4800,8 +4791,11 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
   poolWater.onBeforeRender = function() {
     var now = performance.now();
     var dt = Math.min(0.05, Math.max(0.004, (now - lastPhysicsTime) * 0.001));
-    if (now - lastPhysicsTime < 8) return;
+    if (now - lastPhysicsTime < 16) return;
     lastPhysicsTime = now;
+    if (window.playerLoco && window.playerLoco.position && window.jewelDomeCenterWorld) {
+      if (window.playerLoco.position.distanceTo(window.jewelDomeCenterWorld) > 220.0) return;
+    }
     showTime += dt;
 
     for (var pi = 0; pi < jewelAutoPortals.length; pi++) {
@@ -4848,8 +4842,6 @@ function buildHouse(x, y, z, w, d, h, wallCol, roofCol, title, iconType) {
     poolGlowMat.color.copy(palA.pool).lerp(palB.pool, sBlend);
     poolMistMat.color.copy(palA.mist).lerp(palB.mist, sBlend);
     splashMat.color.copy(palA.waterTint).lerp(palB.waterTint, sBlend);
-    jewelPoolLight.color.copy(poolGlowMat.color);
-    jewelOculusLight.color.copy(oculusCollarMat.color);
 
     for (var bi = 0; bi < lightBeamMats.length; bi++) {
       var wave = 0.5 + 0.5 * Math.sin(showTime * 3.2 + bi * 0.52);
@@ -5528,10 +5520,6 @@ window.vietnamCrawlingCrabs = [];
   g.position.set(mx, my, mz);
   var houseRotY = Math.PI * 0.36;
   g.rotation.y = houseRotY;
-
-  var cottageSunLight = new THREE.PointLight(0xfff7ed, 0.28, 78);
-  cottageSunLight.position.set(0, 20, 18);
-  g.add(cottageSunLight);
 
   var pureWhiteWallMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.34, metalness: 0.04 });
   var offWhiteTrimMat  = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.38 });
@@ -6267,10 +6255,6 @@ window.vietnamCrawlingCrabs = [];
   var houseRotY = -0.32;
   g.rotation.y = houseRotY;
 
-  var grandmaSunLight = new THREE.PointLight(0xfff7ed, 0.26, 75);
-  grandmaSunLight.position.set(0, 22, 18);
-  g.add(grandmaSunLight);
-
   // Procedural Terracotta Roof Tile Texture
   function createGrandmaRoofTileTex() {
     var c = document.createElement('canvas');
@@ -6998,6 +6982,12 @@ window.boats = [];
     var bg = new THREE.Group();
     bg.scale.set(0.92, 0.92, 0.92);
 
+    // Inner orientation group rotated -90° around Y so the boat's bow (+X in hull coords)
+    // points along local +Z, matching `game.js` (`b.mesh.rotation.y = b.dir === 1 ? Math.PI/2 : -Math.PI/2`)!
+    var boatOrientG = new THREE.Group();
+    boatOrientG.rotation.y = -Math.PI / 2;
+    bg.add(boatOrientG);
+
     var hullColMat = new THREE.MeshStandardMaterial({ color: hullColors[bi % hullColors.length], roughness: 0.30, metalness: 0.15 });
     var sailAccentMat = new THREE.MeshStandardMaterial({ color: stripeCols[bi % stripeCols.length], roughness: 0.38, side: THREE.DoubleSide });
     var sailCreamMat  = new THREE.MeshStandardMaterial({ color: 0xfffbeb, roughness: 0.38, side: THREE.DoubleSide });
@@ -7032,7 +7022,7 @@ window.boats = [];
         var portGlass = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 0.15, 12), glassPortMat);
         portGlass.rotation.x = Math.PI / 2;
         portGlass.position.set(px, 2.25, pz);
-        bg.add(portRim, portGlass);
+        boatOrientG.add(portRim, portGlass);
       });
     });
 
@@ -7076,7 +7066,7 @@ window.boats = [];
     pennant.rotation.z = Math.PI / 2;
     pennant.position.set(0.0, 12.6, 0);
 
-    bg.add(hullMid, bowCone, gunwaleStripe, teakDeck, cabin, cabinRoof, lifebuoy, mast, boom, bowsprit, mainSail, mainSailStripe, jibSail, pennant);
+    boatOrientG.add(hullMid, bowCone, gunwaleStripe, teakDeck, cabin, cabinRoof, lifebuoy, mast, boom, bowsprit, mainSail, mainSailStripe, jibSail, pennant);
     scene.add(bg);
     boats.push({ mesh: bg, x: -240 + bi * 75, dir: bi % 2 === 0 ? 1 : -1, speed: 0.22 });
   }
@@ -8117,6 +8107,104 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       }
     }
   }
+
+  // 1A-2) Trim the horizontal floor slab (`stationFloorSlab`), cream shell (`shellMesh`), and green hill (`hillMound`)
+  //       inside the 4 surface Metro Station portal groups so they terminate at `local z = +12.5m`
+  //       (before `surfA3` / `surfB3` at `local z = +15.0m` where the Metro track pitches downward and curves).
+  //       This prevents the horizontal grey floor slab and side walls from cutting across the descending tunnel!
+  if (typeof scene !== 'undefined' && scene && scene.children) {
+    var portalTargets = [];
+    for (var si = 0; si < window.subwayEdges.length; si++) {
+      var se = window.subwayEdges[si];
+      if (se && se.portalPosA) portalTargets.push(se.portalPosA);
+      if (se && se.portalPosB) portalTargets.push(se.portalPosB);
+    }
+    scene.children.forEach(function(grp) {
+      if (!grp || !grp.children || grp.children.length < 5) return;
+      var isMetroPortalGrp = false;
+      for (var pi = 0; pi < portalTargets.length; pi++) {
+        var pt = portalTargets[pi];
+        if (Math.hypot(grp.position.x - pt.x, grp.position.z - pt.z) < 2.5) {
+          isMetroPortalGrp = true;
+          break;
+        }
+      }
+      if (!isMetroPortalGrp) return;
+
+      grp.children.forEach(function(ch) {
+        if (!ch || !ch.isMesh || !ch.material) return;
+        var colHex = (ch.material.color && typeof ch.material.color.getHex === 'function')
+          ? ch.material.color.getHex()
+          : -1;
+        // 1. Horizontal grey floor slab (`0x334155`, originally 28m long at z = 9.5 -> -4.5 .. +23.5m):
+        //    Trim to z = -4.5 .. +12.0m (strictly under the flat entry apron before the downward ramp at +15m)
+        if (colHex === 0x334155 && Math.abs(ch.position.y - (-0.42)) < 0.2) {
+          ch.scale.z = 16.5 / 28.0;
+          ch.position.z = 3.75;
+        }
+        // 2. Cream station shell (`0xfef3c7`, originally depth 26m translated z = -4.0 -> -4.0 .. +22.0m):
+        //    Trim back end to +12.0m so it ends inside the straight stone tunnel sleeve before the curve
+        else if (colHex === 0xfef3c7) {
+          var shellScaleZ = 16.0 / 26.0;
+          ch.scale.z = shellScaleZ;
+          ch.position.z = -4.0 * (1.0 - shellScaleZ);
+        }
+        // 3. Outer green hill arch (`0x22c55e`, originally depth 28m translated z = +2.0 -> +2.0 .. +30.0m):
+        //    Trim back end to +12.5m so its green wall never protrudes into the curved stone tunnel bore
+        else if (colHex === 0x22c55e) {
+          var hillScaleZ = 11.5 / 28.0;
+          ch.scale.z = hillScaleZ;
+          ch.position.z = 1.0 - 2.0 * hillScaleZ;
+        }
+        // 4. Side platforms (`0xe2e8f0`) & interior ceiling glow (`0xfde68a`): trim to z = -4.0 .. +10.0m
+        else if (colHex === 0xe2e8f0 || colHex === 0xfde68a) {
+          ch.scale.z = 14.0 / 16.0;
+          ch.position.z = 3.0;
+        }
+      });
+    });
+
+    // 1A-3) Collect all surface road meshes (`curb`, `asph`, `dash`, `guard`, `rPier`) and any surface objects
+    //       that intersect the 4 Metro tunnel ramps so they can be cleanly hidden whenever the player
+    //       enters or rides inside the Metro tunnel (`image_d055e81d.png`)!
+    window.surfaceRoadMeshes = [];
+    window.metroRampIntersectingMeshes = [];
+
+    var metroRampSamplePts = [];
+    [line0, line2].forEach(function(mLine) {
+      if (!mLine || !mLine.curve) return;
+      for (var k = 0; k <= 80; k++) {
+        var u = 0.18 + (k / 80) * 0.64;
+        if (u <= 0.37 || u >= 0.63) {
+          metroRampSamplePts.push(mLine.curve.getPointAt(u));
+        }
+      }
+    });
+
+    scene.children.forEach(function(obj) {
+      if (!obj || obj === window.undergroundWorldGroup || obj === window.grassMesh || obj === window.riverMesh) return;
+      if (obj.isMesh && obj.geometry && obj.geometry.parameters) {
+        var gp = obj.geometry.parameters;
+        var isRoadPart = (
+          (gp.width === 10.0 && gp.height === 0.24) ||
+          (gp.width === 8.8 && gp.height === 0.28) ||
+          (gp.width === 0.38 && gp.height === 0.32) ||
+          (gp.width === 0.45 && gp.height === 0.85) ||
+          (gp.radiusTop === 1.1 && gp.radiusBottom === 1.4 && gp.height === 5.2)
+        );
+        if (isRoadPart) {
+          window.surfaceRoadMeshes.push(obj);
+          for (var rsi = 0; rsi < metroRampSamplePts.length; rsi++) {
+            var sp = metroRampSamplePts[rsi];
+            if (Math.hypot(obj.position.x - sp.x, obj.position.z - sp.z) < 15.0) {
+              window.metroRampIntersectingMeshes.push(obj);
+              break;
+            }
+          }
+        }
+      }
+    });
+  }
 })();
 
 // 1B) Fix 3-Branch Railway Junction Routing (`window.getBranches`) & Rebuild 3D Junction Direction Signs
@@ -8530,28 +8618,97 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           } else if (distToPlayer > 46.0) {
             window._aiPassGreetingTriggered[aii] = false;
           }
+        }
+      }
 
-          if (ai.edge.isTurnout || (nearPlayer && window.pState.t > 0.65)) {
-            var spd = ai.baseSpeed || 0.38;
-            ai.currentSpeed = spd;
-            var pCurve = ai.edge.parallelCurve || ai.edge.curve;
-            var cLen = (pCurve && pCurve.getLength) ? (pCurve.getLength() || 60) : 60;
-            ai.t += spd / cLen;
-            if (ai.edge.isTurnout && ai.t >= 1.0) {
-              ai.edge = ai.edge.targetEdge;
-              ai.t = 0.24;
-            }
-            var actC = ai.edge.parallelCurve || ai.edge.curve;
-            if (actC && actC.getPointAt) {
-              var ap = actC.getPointAt(Math.max(0, Math.min(1, ai.t)));
-              var atan = actC.getTangentAt(Math.max(0, Math.min(1, ai.t)));
-              ai.loco.position.copy(ap);
-              ai.loco.lookAt(ap.clone().add(atan));
-              var wp = actC.getPointAt(Math.max(0, ai.t - 5.8 / (actC.getLength() || 60)));
-              ai.wagon.position.copy(wp);
-              ai.wagon.lookAt(ap);
+      // Cull underground cavern (with its 5 PointLights) when driving on the surface,
+      // and disable `trainHeadLight.visible` when its intensity is 0 during daytime!
+      if (window.undergroundWorldGroup && window.pState) {
+        var onSubwayApproach = Boolean(
+          window.pState.inSubway ||
+          (window.pState.edge && window.pState.edge.isSubway) ||
+          (window.pState.edge && window.pState.edge.isTurnout && window.pState.edge.targetEdge && window.pState.edge.targetEdge.isSubway)
+        );
+        var inMetroTunnel = Boolean(
+          window.pState.inSubway ||
+          (window.pState.edge && window.pState.edge.isSubway && window.pState.t >= 0.185 && window.pState.t <= 0.815)
+        );
+        window.undergroundWorldGroup.visible = onSubwayApproach;
+        if (window.metroPortalBlockerMeshes && onSubwayApproach) {
+          for (var mbi = 0; mbi < window.metroPortalBlockerMeshes.length; mbi++) {
+            window.metroPortalBlockerMeshes[mbi].visible = false;
+          }
+        }
+        // Hide road segments that cross the Metro ramp tunnel bore as soon as the train approaches the Metro,
+        // and hide ALL surface roads + surface vehicles (`livingVehicles`) while inside the Metro tunnel!
+        if (window.metroRampIntersectingMeshes) {
+          for (var mri = 0; mri < window.metroRampIntersectingMeshes.length; mri++) {
+            window.metroRampIntersectingMeshes[mri].visible = !onSubwayApproach;
+          }
+        }
+        if (window.surfaceRoadMeshes && window._lastInMetroTunnelRoadState !== inMetroTunnel) {
+          window._lastInMetroTunnelRoadState = inMetroTunnel;
+          for (var sri = 0; sri < window.surfaceRoadMeshes.length; sri++) {
+            window.surfaceRoadMeshes[sri].visible = !inMetroTunnel;
+          }
+        }
+        if (window.livingVehicles) {
+          for (var lvi2 = 0; lvi2 < window.livingVehicles.length; lvi2++) {
+            var lvItem = window.livingVehicles[lvi2];
+            if (lvItem && lvItem.mesh) {
+              lvItem.mesh.visible = !onSubwayApproach;
             }
           }
+        }
+        if (inMetroTunnel) {
+          if (window.grassMesh) window.grassMesh.visible = false;
+          if (window.riverMesh) window.riverMesh.visible = false;
+          if (window.tracksRiverMesh) window.tracksRiverMesh.visible = false;
+          if (window.surfaceHousesList) {
+            for (var shi = 0; shi < window.surfaceHousesList.length; shi++) {
+              if (window.surfaceHousesList[shi]) window.surfaceHousesList[shi].visible = false;
+            }
+          }
+        }
+      }
+      // Show ONLY the directional signpost belonging to the track the player is currently riding on
+      // so billboard sprites from other incoming branches at the same junction never show conflicting arrows!
+      if (window.junctionSignsGroup && window.junctionSignsGroup.children && window.pState && window.pState.edge) {
+        var curE = window.pState.edge;
+        var activeSignEdgeId = curE.isTurnout
+          ? (curE.targetEdge ? curE.targetEdge.id : '')
+          : (window.pState.t <= 0.85 ? curE.id : '');
+        for (var jsi = 0; jsi < window.junctionSignsGroup.children.length; jsi++) {
+          var sg = window.junctionSignsGroup.children[jsi];
+          if (sg && sg.userData && sg.userData.edgeId) {
+            sg.visible = (!window.pState.inSubway && sg.userData.edgeId === activeSignEdgeId);
+          }
+        }
+      }
+      if (typeof trainHeadLight !== 'undefined' && trainHeadLight) {
+        trainHeadLight.visible = (trainHeadLight.intensity > 0.01);
+      }
+      if (!window._allTrackCurveLengthsCached) {
+        window._allTrackCurveLengthsCached = true;
+        var wrapLen = function(c) {
+          if (!c || c._lenCached || typeof c.getLength !== 'function') return;
+          var l = c.getLength();
+          c.getLength = function() { return l; };
+          c._lenCached = true;
+        };
+        if (window.edges) {
+          window.edges.forEach(function(e) {
+            if (e) { wrapLen(e.curve); wrapLen(e.parallelCurve); }
+          });
+        }
+        if (window.turnoutCurves) {
+          Object.keys(window.turnoutCurves).forEach(function(k) {
+            var tc = window.turnoutCurves[k];
+            if (tc) { wrapLen(tc.curve); wrapLen(tc.parallelCurve); }
+          });
+        }
+        if (window.roadNetworkCurves) {
+          window.roadNetworkCurves.forEach(wrapLen);
         }
       }
 
@@ -8682,9 +8839,10 @@ window.createDetailedCoach = function(colHex, coachIndex) {
             }
           }
         }
-        if (ens.baseLight) ens.baseLight.intensity = 2.6 * nb;
-        if (ens.midLight)  ens.midLight.intensity  = 3.0 * nb;
-        if (ens.topLight)  ens.topLight.intensity  = 3.6 * nb;
+        var eifLightsActive = (nb > 0.01);
+        if (ens.baseLight) { ens.baseLight.intensity = 2.6 * nb; ens.baseLight.visible = eifLightsActive; }
+        if (ens.midLight)  { ens.midLight.intensity  = 3.0 * nb; ens.midLight.visible  = eifLightsActive; }
+        if (ens.topLight)  { ens.topLight.intensity  = 3.6 * nb; ens.topLight.visible  = eifLightsActive; }
         if (ens.contourMat) ens.contourMat.opacity = 0.88 * nb;
         if (ens.searchBeamMat) ens.searchBeamMat.opacity = 0.44 * nb;
         if (ens.beaconRotor) {
@@ -9344,39 +9502,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
             }
           }
 
-          // B) THREE.Raycaster check if available on the runtime THREE object
-          if (typeof THREE.Raycaster === 'function' && scene && scene.children) {
-            try {
-              if (!window._animalCamRaycaster) {
-                window._animalCamRaycaster = new THREE.Raycaster();
-              }
-              var rc = window._animalCamRaycaster;
-              if (typeof camera !== 'undefined' && camera) {
-                rc.camera = camera;
-              }
-              var rayDir = targetPt.clone().sub(camOrigin);
-              var totalDist = rayDir.length();
-              if (totalDist > 1.0) {
-                rayDir.divideScalar(totalDist);
-                rc.set(camOrigin, rayDir);
-                rc.near = 1.5;
-                rc.far = Math.max(2.0, totalDist - 1.6);
-                var testMeshes = [];
-                for (var oi2 = 0; oi2 < obstacles.length; oi2++) {
-                  if (obstacles[oi2].mesh && obstacles[oi2].mesh !== animalRootMesh) {
-                    testMeshes.push(obstacles[oi2].mesh);
-                  }
-                }
-                if (testMeshes.length > 0 && typeof rc.intersectObjects === 'function') {
-                  var hits = rc.intersectObjects(testMeshes, true);
-                  if (hits && hits.length > 0) {
-                    penalty += 120.0;
-                  }
-                }
-              }
-            } catch (rcErr) {}
-          }
-
           return penalty;
         }
 
@@ -10010,8 +10135,57 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         if (window._storybookMonsterHoldCrawl && window.pState && window.pState.currentVel > 0.015) {
           var crawlTarget = window._storybookMonsterStopWait ? 0.010 : 0.032;
           window.pState.currentVel += (crawlTarget - window.pState.currentVel) * (1.0 - Math.exp(-12.0 * dtCam));
-        } else if ((window._storybookSlowdownRequested || (cs.poiWeight > 0.28 && cs.activePoiId)) && window.pState && window.pState.currentVel > 0.125) {
-          window.pState.currentVel += (0.12 - window.pState.currentVel) * (1.0 - Math.exp(-6.0 * dtCam));
+        }
+
+        // Prevent Helicopter Charlie (`window.heliCharlie`) from flying through tall buildings, towers, domes, hotels, and bridge pylons
+        if (window.heliCharlie && window.heliCharlie.position) {
+          var hcPos = window.heliCharlie.position;
+          if (!window._heliAvoidCylinders) {
+            window._heliAvoidCylinders = [
+              // City skyscrapers & Bohumín town towers
+              { x: -118, z: -120, r: 26, topY: 58 },
+              { x: -145, z: -90,  r: 24, topY: 52 },
+              { x: -95,  z: -85,  r: 24, topY: 50 },
+              { x: -55,  z: -15,  r: 36, topY: 28 },
+              // Eiffel Tower, Big Ben & Castle
+              { x: -118, z: 325,  r: 30, topY: 92 },
+              { x: -286, z: 92,   r: 28, topY: 66 },
+              { x: 0,    z: -410, r: 42, topY: 52 },
+              // Bangkok East Bank: Anantara, IconSiam & Ferris Wheel
+              { x: -396, z: -42,  r: 36, topY: 28 },
+              { x: -406, z: 142,  r: 36, topY: 44 },
+              { x: -410, z: 98,   r: 24, topY: 46 },
+              // Bangkok Rama VIII Bridge Pylons (South & North)
+              { x: -468, z: 248,  r: 24, topY: 68 },
+              { x: -454, z: -135, r: 22, topY: 52 },
+              // Bangkok West Bank Luxury Hotels (Mandarin Oriental, Peninsula, Lebua Golden Dome, Four Seasons)
+              { x: -522, z: -92,  r: 28, topY: 56 },
+              { x: -524, z: -38,  r: 28, topY: 66 },
+              { x: -526, z: 22,   r: 28, topY: 84 },
+              { x: -520, z: 76,   r: 28, topY: 48 }
+            ];
+          }
+          var minHeliClearY = (typeof window.getTerrainHeight === 'function')
+            ? (window.getTerrainHeight(hcPos.x, hcPos.z) + 22.0)
+            : 28.0;
+          var cyls = window._heliAvoidCylinders;
+          for (var hci = 0; hci < cyls.length; hci++) {
+            var ob = cyls[hci];
+            var dxH = hcPos.x - ob.x;
+            var dzH = hcPos.z - ob.z;
+            var dSq = dxH * dxH + dzH * dzH;
+            var safeR = ob.r + 10.0;
+            if (dSq < safeR * safeR && hcPos.y < ob.topY + 8.0) {
+              var dH = Math.sqrt(Math.max(0.001, dSq));
+              var pushOut = (safeR - dH);
+              hcPos.x += (dxH / dH) * pushOut * 0.65;
+              hcPos.z += (dzH / dH) * pushOut * 0.65;
+              minHeliClearY = Math.max(minHeliClearY, ob.topY + 8.5);
+            }
+          }
+          if (hcPos.y < minHeliClearY) {
+            hcPos.y += (minHeliClearY - hcPos.y) * 0.35;
+          }
         }
 
         // --------------------------------------------------------------------
@@ -13574,15 +13748,16 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           voice: 'Turning after Big Ben straight to IconSiam and the Chao Phraya River!'
         }
       },
-      // 6) Scenic Branch from `J_WEST` (-235, 11.2, 0) passing right behind Big Ben (-296, 6.2, 74) to IconSiam (-368, 4.2, 215)
+      // 6) Scenic Branch from `J_WEST` (-235, 11.2, 0) routed cleanly BESIDE (west of) Big Ben (-286, 6.2, 92) to IconSiam (-368, 4.2, 215)
       {
         from: 'J_WEST',
         to: 'J_BKK_ICONSIAM',
         pts: [
           jWestPos.clone(),
-          new THREE.Vector3(-278.0, 8.2, 46.0),
-          new THREE.Vector3(-314.0, 5.4, 112.0),
-          new THREE.Vector3(-344.0, 4.4, 168.0),
+          new THREE.Vector3(-298.0, 8.5, 20.0),
+          new THREE.Vector3(-342.0, 5.8, 65.0),
+          new THREE.Vector3(-352.0, 4.6, 115.0),
+          new THREE.Vector3(-360.0, 4.3, 168.0),
           jIconsiamPos.clone()
         ],
         landmark: { type: 'iconsiam', name: '🛍️ IconSiam & Dancing Fountains' },
@@ -13599,9 +13774,16 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     var trackOffset = 2.2;
     var newDirectedEdges = [];
 
+    function cacheCurveLength(c) {
+      if (!c) return c;
+      var cachedLen = c.getLength();
+      c.getLength = function() { return cachedLen; };
+      return c;
+    }
+
     function createOffsetTrackCurve(pts, sideSign) {
       var baseCurve = new THREE.CatmullRomCurve3(pts, false);
-      var samples = 28;
+      var samples = 14;
       var offsetPts = [];
       for (var i = 0; i <= samples; i++) {
         var t = i / samples;
@@ -13610,7 +13792,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         var right = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
         offsetPts.push(p.clone().addScaledVector(right, sideSign * trackOffset));
       }
-      return new THREE.CatmullRomCurve3(offsetPts, false);
+      return cacheCurveLength(new THREE.CatmullRomCurve3(offsetPts, false));
     }
 
     bkkBaseEdges.forEach(function(be) {
@@ -13648,63 +13830,116 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       newDirectedEdges.push(fwdEdge, revEdge);
     });
 
-    // Render physical ballast, wooden sleepers, and steel rails for all new Bangkok tracks
+    // Render physical ballast, wooden sleepers, steel rails, and continuous viaduct/embankment support for all Bangkok tracks
     var sleeperMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.75 });
     var railMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.3, metalness: 0.65 });
     var ballastMat = new THREE.MeshStandardMaterial({ color: 0xe7e5e4, roughness: 0.9 });
     var deckConcreteMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.6 });
+    var deckParapetMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4, metalness: 0.3 });
+    var bkkEmbankmentMat = window.embankmentMat || new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.88 });
 
-    function renderTrackGeometryForCurve(curve, startT, endT, includeEmbankment) {
+    var sharedSleeperGeo = new THREE.BoxGeometry(3.0, 0.22, 0.62);
+    var sharedUnitBoxGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+    var sharedPierCylGeo = new THREE.CylinderGeometry(1.0, 1.18, 1.0, 10);
+
+    function renderTrackGeometryForCurve(curve, startT, endT, includeEmbankment, isRamaBridgeEdge) {
       var len = curve.getLength() * (endT - startT);
-      var steps = Math.max(8, Math.floor(len / 2.2));
+      var steps = Math.max(8, Math.floor(len / 2.8));
+      var segLen = (len / steps) * 1.12;
+
       for (var i = 0; i <= steps; i++) {
         var t = startT + (i / steps) * (endT - startT);
         var p = curve.getPointAt(t);
         var tan = curve.getTangentAt(t).normalize();
         var yaw = Math.atan2(tan.x, tan.z);
+        var horizLen = Math.hypot(tan.x, tan.z) || 0.001;
+        var pitch = -Math.atan2(tan.y, horizLen);
 
-        // Wooden sleeper
-        var slp = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.22, 0.62), sleeperMat);
+        // Wooden sleeper (shared geometry)
+        var slp = new THREE.Mesh(sharedSleeperGeo, sleeperMat);
         slp.position.set(p.x, p.y + 0.10, p.z);
+        slp.rotation.order = 'YXZ';
         slp.rotation.y = yaw;
+        slp.rotation.x = pitch;
         bkkRootGroup.add(slp);
 
-        // Left & right steel rails
+        // Left & right steel rails (shared unit box geometry)
         var rightVec = new THREE.Vector3(tan.z, 0, -tan.x).normalize();
-        var segLen = (len / steps) * 1.08;
         [-0.88, 0.88].forEach(function(rOff) {
-          var rl = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.26, segLen), railMat);
+          var rl = new THREE.Mesh(sharedUnitBoxGeo, railMat);
+          rl.scale.set(0.20, 0.26, segLen);
           rl.position.set(p.x + rightVec.x * rOff, p.y + 0.26, p.z + rightVec.z * rOff);
+          rl.rotation.order = 'YXZ';
           rl.rotation.y = yaw;
+          rl.rotation.x = pitch;
           bkkRootGroup.add(rl);
         });
 
-        // Ballast bed or bridge concrete deck
-        if (includeEmbankment && i % 2 === 0) {
+        // Continuous bridge deck + embankment/pier support all the way down to terrain (no mid-air cutoff!)
+        if (includeEmbankment && (i % 2 === 0 || i === steps)) {
           var terrH = window.getTerrainHeight(p.x, p.z);
           var clearH = p.y - terrH;
-          if (clearH > 2.2) {
-            var deck = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.65, segLen * 2.05), deckConcreteMat);
-            deck.position.set(p.x, p.y - 0.32, p.z);
-            deck.rotation.y = yaw;
-            bkkRootGroup.add(deck);
-          } else {
-            var balH = Math.max(0.5, clearH + 0.35);
-            var bal = new THREE.Mesh(new THREE.BoxGeometry(4.6, balH, segLen * 2.05), ballastMat);
-            bal.position.set(p.x, p.y - balH * 0.5 + 0.04, p.z);
-            bal.rotation.y = yaw;
-            bkkRootGroup.add(bal);
+          var spanZ = segLen * 2.25;
+
+          // Always place a continuous concrete & ballast trackbed under the sleepers
+          var deck = new THREE.Mesh(sharedUnitBoxGeo, deckConcreteMat);
+          deck.scale.set(5.4, 0.72, spanZ);
+          deck.position.set(p.x, p.y - 0.34, p.z);
+          deck.rotation.order = 'YXZ';
+          deck.rotation.y = yaw;
+          deck.rotation.x = pitch;
+          bkkRootGroup.add(deck);
+
+          // For non-Rama-VIII river spans, provide continuous support down to the ground so no track ever floats in mid-air
+          if (!isRamaBridgeEdge && clearH > 0.15) {
+            var inRiverChannel = (p.x < -422.0 && p.x > -496.0);
+            if (!inRiverChannel) {
+              var embH = clearH + 1.6;
+              var emb = new THREE.Mesh(sharedPierCylGeo, bkkEmbankmentMat);
+              var topR = 3.2;
+              emb.scale.set(topR, embH, topR);
+              emb.position.set(p.x, p.y - embH * 0.5 - 0.45, p.z);
+              bkkRootGroup.add(emb);
+            } else if (i % 4 === 0) {
+              var pierH = clearH + 3.0;
+              var pier = new THREE.Mesh(sharedPierCylGeo, deckConcreteMat);
+              pier.scale.set(1.4, pierH, 1.4);
+              pier.position.set(p.x, p.y - pierH * 0.5 - 0.45, p.z);
+              bkkRootGroup.add(pier);
+            }
           }
         }
       }
     }
 
+    // Render main edge geometry along [0.14 .. 0.86] so it overlaps cleanly with turnouts
     newDirectedEdges.forEach(function(e) {
-      renderTrackGeometryForCurve(e.curve, 0.16, 0.84, true);
+      var isRamaBridge = (
+        e.id === 'J_BKK_ICONSIAM->J_BKK_WESTBANK' ||
+        e.id === 'J_BKK_WESTBANK->J_BKK_ICONSIAM' ||
+        e.id === 'J_BKK_WESTBANK->J_BKK_ANANTARA' ||
+        e.id === 'J_BKK_ANANTARA->J_BKK_WESTBANK'
+      );
+      renderTrackGeometryForCurve(e.curve, 0.14, 0.86, true, isRamaBridge);
     });
+
+    // Seamless brick-and-stone viaduct junction abutment at J_WEST (-235, 11.2, 0)
+    // so the end of the Big Ben brick viaduct (J_SW->J_WEST) and the J_WEST turnouts have zero gap!
+    if (window.nodes['J_WEST'] && window.nodes['J_WEST'].pos) {
+      var jwP = window.nodes['J_WEST'].pos;
+      var jwGroundY = window.getTerrainHeight(jwP.x, jwP.z) - 1.2;
+      var jwH = Math.max(4.0, (jwP.y - 0.38) - jwGroundY);
+      var jwAbutment = new THREE.Mesh(
+        new THREE.CylinderGeometry(11.5, 14.5, jwH, 16),
+        bkkEmbankmentMat
+      );
+      jwAbutment.position.set(jwP.x - 4.0, jwGroundY + jwH * 0.5, jwP.z + 6.0);
+      bkkRootGroup.add(jwAbutment);
+    }
 
     // Build smooth Hermite turnout curves (`window.turnoutCurves`) matching tracks.js schema
     // (`isTurnout: true`, `sourceEdge`, `targetEdge`, `curve`, `parallelCurve`) for J_NW, J_WEST, J_SW, and Bangkok nodes!
+    var renderedBkkTurnoutPairs = {};
     var bkkNodesToConnect = ['J_NW', 'J_WEST', 'J_SW', 'J_BKK_ANANTARA', 'J_BKK_ICONSIAM', 'J_BKK_WESTBANK'];
     bkkNodesToConnect.forEach(function(jId) {
       var incomingList = window.edges.filter(function(e) { return e.to === jId && !e.isTurnout; });
@@ -13724,7 +13959,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         var c3 = p4.clone().addScaledVector(t4, -handleLen);
         var mid = c1.clone().lerp(c3, 0.5).lerp(nodePos, 0.20);
         mid.y = 0.5 * (p0.y + p4.y);
-        return new THREE.CatmullRomCurve3([p0, c1, mid, c3, p4], false);
+        return cacheCurveLength(new THREE.CatmullRomCurve3([p0, c1, mid, c3, p4], false));
       }
 
       incomingList.forEach(function(inEdge) {
@@ -13751,8 +13986,17 @@ window.createDetailedCoach = function(colHex, coachIndex) {
             station: isSubTurn ? (outEdge.isSubway ? outEdge.station : inEdge.station) : null
           };
 
-          // Render physical turnout rails & sleepers
-          renderTrackGeometryForCurve(tCurve, 0.0, 1.0, false);
+          // Deduplicate reverse turnout pair and render physical turnout rails, sleepers AND continuous bridge/embankment deck!
+          var canonA = [inEdge.from, inEdge.to].sort().join('-');
+          var canonB = [outEdge.from, outEdge.to].sort().join('-');
+          var pairKey = [canonA, canonB].sort().join('||');
+          if (!renderedBkkTurnoutPairs[pairKey]) {
+            renderedBkkTurnoutPairs[pairKey] = true;
+            renderTrackGeometryForCurve(tCurve, 0.0, 1.0, true, false);
+            if (!isSubTurn && outEdge.to.indexOf('EXIT_') === -1 && inEdge.from.indexOf('EXIT_') === -1) {
+              renderTrackGeometryForCurve(parCurve, 0.0, 1.0, true, false);
+            }
+          }
         });
       });
     });
@@ -13773,31 +14017,32 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         return null;
       }
 
-      // 1) Coming from Eiffel Tower (`J_NORTH->J_NW`) -> Right branch goes to Anantara & Chao Phraya River!
+      // 1) Coming from Eiffel Tower (`J_NORTH->J_NW`):
+      //    Left = Metro 1->3 (`METRO_J_NW->J_SE`), Straight = Mom's House (`J_NW->J_WEST`), Right = Anantara (`J_NW->J_BKK_ANANTARA`)
       if (baseEdge.id === 'J_NORTH->J_NW') {
         var eMetro = findEdge('METRO_J_NW->J_SE') || res.left;
         var eMom = findEdge('J_NW->J_WEST') || res.straight;
         var eBkk = findEdge('J_NW->J_BKK_ANANTARA') || res.right;
         return { left: eMetro, straight: eMom, right: eBkk };
       }
-      // 2) Coming from Mom's House (`J_WEST->J_NW`) -> Left branch goes to Anantara & Chao Phraya River!
+      // 2) Coming from Mom's House (`J_WEST->J_NW`):
+      //    Left = Anantara (`J_NW->J_BKK_ANANTARA`), Straight = Eiffel Tower (`J_NW->J_NORTH`), Right = Metro 1->3 (`METRO_J_NW->J_SE`)
       if (baseEdge.id === 'J_WEST->J_NW') {
         var eBkk2 = findEdge('J_NW->J_BKK_ANANTARA');
         var eEiffel = findEdge('J_NW->J_NORTH') || res.straight;
         var eMetro2 = findEdge('METRO_J_NW->J_SE') || res.right;
         return { left: eBkk2 || eEiffel, straight: eEiffel, right: eMetro2 };
       }
-      // 3) Returning from Anantara back to J_NW (`J_BKK_ANANTARA->J_NW`) -> Straight continues past Mom's House!
+      // 3) Returning from Anantara back to J_NW (`J_BKK_ANANTARA->J_NW`):
+      //    Geometrically: Left = Eiffel Tower (`J_NW->J_NORTH`), Straight = Metro 1->3 (`METRO_J_NW->J_SE`), Right = Mom's House (`J_NW->J_WEST`)!
       if (baseEdge.id === 'J_BKK_ANANTARA->J_NW') {
         var eEif3 = findEdge('J_NW->J_NORTH');
-        var eMom3 = findEdge('J_NW->J_WEST');
         var eMet3 = findEdge('METRO_J_NW->J_SE');
-        return { left: eEif3 || eMom3, straight: eMom3, right: eMet3 || eMom3 };
+        var eMom3 = findEdge('J_NW->J_WEST');
+        return { left: eEif3 || eMom3, straight: eMet3 || eMom3, right: eMom3 };
       }
       // 4) Coming from Mom's House (`J_NW->J_WEST`) toward Big Ben:
-      //    Left = Fountain Square (`J_WEST->J_CENTER`)
-      //    Straight = Big Ben Viaduct (`J_WEST->J_SW`)
-      //    Right = Behind Big Ben directly to IconSiam (`J_WEST->J_BKK_ICONSIAM`)!
+      //    Left = Fountain Square (`J_WEST->J_CENTER`), Straight = Big Ben (`J_WEST->J_SW`), Right = IconSiam (`J_WEST->J_BKK_ICONSIAM`)
       if (baseEdge.id === 'J_NW->J_WEST') {
         var eFntW = findEdge('J_WEST->J_CENTER') || res.left;
         var eBenW = findEdge('J_WEST->J_SW') || res.straight;
@@ -13805,6 +14050,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         return { left: eFntW, straight: eBenW, right: eIconW };
       }
       // 5) Coming from Fountain Square (`J_CENTER->J_WEST`):
+      //    Left = Big Ben (`J_WEST->J_SW`), Straight = IconSiam (`J_WEST->J_BKK_ICONSIAM`), Right = Mom's House (`J_WEST->J_NW`)
       if (baseEdge.id === 'J_CENTER->J_WEST') {
         var eBenW2 = findEdge('J_WEST->J_SW') || res.left;
         var eIconW2 = findEdge('J_WEST->J_BKK_ICONSIAM') || eBenW2;
@@ -13812,9 +14058,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         return { left: eBenW2, straight: eIconW2, right: eMomW2 };
       }
       // 6) Coming northbound past Big Ben (`J_SW->J_WEST`):
-      //    Left = Branch behind Big Ben to IconSiam (`J_WEST->J_BKK_ICONSIAM`)
-      //    Straight = Mom's House (`J_WEST->J_NW`)
-      //    Right = Fountain Square (`J_WEST->J_CENTER`)
+      //    Left = IconSiam (`J_WEST->J_BKK_ICONSIAM`), Straight = Mom's House (`J_WEST->J_NW`), Right = Fountain Square (`J_WEST->J_CENTER`)
       if (baseEdge.id === 'J_SW->J_WEST') {
         var eIconW3 = findEdge('J_WEST->J_BKK_ICONSIAM');
         var eMomW3 = findEdge('J_WEST->J_NW') || res.straight;
@@ -13822,21 +14066,22 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         return { left: eIconW3 || eMomW3, straight: eMomW3, right: eFntW3 };
       }
       // 7) Returning from IconSiam to J_WEST (`J_BKK_ICONSIAM->J_WEST`):
+      //    Geometrically: Straight ahead = Mom's House (`J_WEST->J_NW`), Right = Fountain Square (`J_WEST->J_CENTER`)
       if (baseEdge.id === 'J_BKK_ICONSIAM->J_WEST') {
         var eMomW4 = findEdge('J_WEST->J_NW');
         var eFntW4 = findEdge('J_WEST->J_CENTER');
-        var eBenW4 = findEdge('J_WEST->J_SW');
-        return { left: eMomW4, straight: eFntW4 || eMomW4, right: eBenW4 || eMomW4 };
+        return { left: eMomW4, straight: eMomW4, right: eFntW4 || eMomW4 };
       }
-      // 8) Riding southbound past Big Ben (`J_WEST->J_SW`) -> Right turn after Big Ben connects directly to IconSiam!
+      // 8) Riding southbound past Big Ben (`J_WEST->J_SW`):
+      //    Geometrically: Left = Metro 4->2 (`METRO_J_SW->J_NE`), Straight = Soccer Stadium (`J_SW->J_SOUTH`), Right = IconSiam (`J_SW->J_BKK_ICONSIAM`)
       if (baseEdge.id === 'J_WEST->J_SW') {
-        var eStadSw = findEdge('J_SW->J_SOUTH') || res.left;
-        var eMetSw = findEdge('METRO_J_SW->J_NE') || res.straight;
+        var eMetSw = findEdge('METRO_J_SW->J_NE') || res.left;
+        var eStadSw = findEdge('J_SW->J_SOUTH') || res.straight;
         var eIconSw = findEdge('J_SW->J_BKK_ICONSIAM') || res.right;
-        return { left: eStadSw, straight: eMetSw || eStadSw, right: eIconSw || eStadSw };
+        return { left: eMetSw || eStadSw, straight: eStadSw, right: eIconSw || eStadSw };
       }
       // 9) Coming from Football Stadium (`J_SOUTH->J_SW`):
-      //    Left = IconSiam (`J_SW->J_BKK_ICONSIAM`), Straight = Big Ben (`J_SW->J_WEST`), Right = Metro 2
+      //    Left = IconSiam (`J_SW->J_BKK_ICONSIAM`), Straight = Big Ben (`J_SW->J_WEST`), Right = Metro 4->2 (`METRO_J_SW->J_NE`)
       if (baseEdge.id === 'J_SOUTH->J_SW') {
         var eIconSw2 = findEdge('J_SW->J_BKK_ICONSIAM');
         var eBenSw2 = findEdge('J_SW->J_WEST') || res.straight;
@@ -13844,55 +14089,52 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         return { left: eIconSw2 || eBenSw2, straight: eBenSw2, right: eMetSw2 };
       }
       // 10) Returning from IconSiam to J_SW (`J_BKK_ICONSIAM->J_SW`):
+      //     Geometrically: Left = Big Ben (`J_SW->J_WEST`), Straight = Metro 4->2 (`METRO_J_SW->J_NE`), Right = Soccer Stadium (`J_SW->J_SOUTH`)
       if (baseEdge.id === 'J_BKK_ICONSIAM->J_SW') {
         var eBenSw3 = findEdge('J_SW->J_WEST');
         var eMetSw3 = findEdge('METRO_J_SW->J_NE');
         var eStadSw3 = findEdge('J_SW->J_SOUTH');
-        return { left: eBenSw3, straight: eStadSw3 || eBenSw3, right: eMetSw3 || eStadSw3 };
+        return { left: eBenSw3, straight: eMetSw3 || eStadSw3, right: eStadSw3 || eBenSw3 };
       }
       // 11) Arriving at IconSiam from Anantara (`J_BKK_ANANTARA->J_BKK_ICONSIAM`):
-      //     Left = Branch to Big Ben (`J_BKK_ICONSIAM->J_SW`)
-      //     Straight = Rama VIII Chao Phraya Bridge (`J_BKK_ICONSIAM->J_BKK_WESTBANK`)
-      //     Right = Scenic Track behind Big Ben to Mom's House (`J_BKK_ICONSIAM->J_WEST`)
+      //     Geometrically: Left = Mom's House (`J_BKK_ICONSIAM->J_WEST`), Straight = Big Ben (`J_BKK_ICONSIAM->J_SW`), Right = Rama VIII Bridge (`J_BKK_ICONSIAM->J_BKK_WESTBANK`)
       if (baseEdge.id === 'J_BKK_ANANTARA->J_BKK_ICONSIAM') {
+        var eToWest = findEdge('J_BKK_ICONSIAM->J_WEST');
         var eToSw = findEdge('J_BKK_ICONSIAM->J_SW');
         var eToBridge = findEdge('J_BKK_ICONSIAM->J_BKK_WESTBANK');
-        var eToWest = findEdge('J_BKK_ICONSIAM->J_WEST');
-        return { left: eToSw || eToBridge, straight: eToBridge, right: eToWest || eToBridge };
+        return { left: eToWest || eToSw, straight: eToSw || eToBridge, right: eToBridge };
       }
       // 12) Arriving at IconSiam from Big Ben (`J_SW->J_BKK_ICONSIAM` or `J_WEST->J_BKK_ICONSIAM`):
-      //     Left = Rama VIII Chao Phraya Bridge (`J_BKK_ICONSIAM->J_BKK_WESTBANK`)
-      //     Straight = Riverside Track to Anantara Hotel (`J_BKK_ICONSIAM->J_BKK_ANANTARA`)
-      //     Right = Rama VIII Chao Phraya Bridge (`J_BKK_ICONSIAM->J_BKK_WESTBANK`)
+      //     Geometrically: Straight = Rama VIII Chao Phraya Bridge (`J_BKK_ICONSIAM->J_BKK_WESTBANK`), Right = Anantara (`J_BKK_ICONSIAM->J_BKK_ANANTARA`)
       if (baseEdge.id === 'J_SW->J_BKK_ICONSIAM' || baseEdge.id === 'J_WEST->J_BKK_ICONSIAM') {
         var eBrFromBen = findEdge('J_BKK_ICONSIAM->J_BKK_WESTBANK');
         var eAnFromBen = findEdge('J_BKK_ICONSIAM->J_BKK_ANANTARA');
-        return { left: eBrFromBen || eAnFromBen, straight: eAnFromBen, right: eBrFromBen || eAnFromBen };
+        return { left: eBrFromBen || eAnFromBen, straight: eBrFromBen || eAnFromBen, right: eAnFromBen || eBrFromBen };
       }
       // 13) Arriving at IconSiam from the Bridge (`J_BKK_WESTBANK->J_BKK_ICONSIAM`):
+      //     Geometrically: Left = Anantara (`J_BKK_ICONSIAM->J_BKK_ANANTARA`), Straight = Mom's House (`J_BKK_ICONSIAM->J_WEST`), Right = Big Ben (`J_BKK_ICONSIAM->J_SW`)
       if (baseEdge.id === 'J_BKK_WESTBANK->J_BKK_ICONSIAM') {
         var eAnFromBr = findEdge('J_BKK_ICONSIAM->J_BKK_ANANTARA');
-        var eSwFromBr = findEdge('J_BKK_ICONSIAM->J_SW');
         var eWestFromBr = findEdge('J_BKK_ICONSIAM->J_WEST');
-        return { left: eAnFromBr, straight: eAnFromBr, right: eSwFromBr || eWestFromBr || eAnFromBr };
+        var eSwFromBr = findEdge('J_BKK_ICONSIAM->J_SW');
+        return { left: eAnFromBr, straight: eWestFromBr || eAnFromBr, right: eSwFromBr || eWestFromBr || eAnFromBr };
       }
       // 14) Arriving at Anantara Junction from J_NW (`J_NW->J_BKK_ANANTARA`):
-      //     Straight = 1km Riverside Track to IconSiam (`J_BKK_ANANTARA->J_BKK_ICONSIAM`)
-      //     Right = Northern River Bridge (`J_BKK_ANANTARA->J_BKK_WESTBANK`)
+      //     Geometrically: Straight = Riverside Track to IconSiam (`J_BKK_ANANTARA->J_BKK_ICONSIAM`), Right = Northern River Bridge (`J_BKK_ANANTARA->J_BKK_WESTBANK`)
       if (baseEdge.id === 'J_NW->J_BKK_ANANTARA') {
         var eIcon = findEdge('J_BKK_ANANTARA->J_BKK_ICONSIAM');
         var eWest = findEdge('J_BKK_ANANTARA->J_BKK_WESTBANK');
         return { left: eIcon, straight: eIcon, right: eWest || eIcon };
       }
       // 15) Completing the loop from Opposite Bank (`J_BKK_WESTBANK->J_BKK_ANANTARA`):
-      //     Straight = Return behind Mom's House to main track (`J_BKK_ANANTARA->J_NW`)
-      //     Right = Repeat the riverside loop to IconSiam (`J_BKK_ANANTARA->J_BKK_ICONSIAM`)
+      //     Geometrically: Straight = Return to J_NW (`J_BKK_ANANTARA->J_NW`), Right = Riverside Track to IconSiam (`J_BKK_ANANTARA->J_BKK_ICONSIAM`)
       if (baseEdge.id === 'J_BKK_WESTBANK->J_BKK_ANANTARA') {
         var eRetNw = findEdge('J_BKK_ANANTARA->J_NW');
         var eIcon2 = findEdge('J_BKK_ANANTARA->J_BKK_ICONSIAM');
         return { left: eRetNw, straight: eRetNw, right: eIcon2 || eRetNw };
       }
       // 16) Reverse along East Bank (`J_BKK_ICONSIAM->J_BKK_ANANTARA`):
+      //     Geometrically: Left = Northern River Bridge (`J_BKK_ANANTARA->J_BKK_WESTBANK`), Straight = Return to J_NW (`J_BKK_ANANTARA->J_NW`)
       if (baseEdge.id === 'J_BKK_ICONSIAM->J_BKK_ANANTARA') {
         var eWest2 = findEdge('J_BKK_ANANTARA->J_BKK_WESTBANK');
         var eRetNw2 = findEdge('J_BKK_ANANTARA->J_NW');
@@ -14072,17 +14314,27 @@ window.createDetailedCoach = function(colHex, coachIndex) {
 
         var rows = [];
         var usedIds = {};
-        if (br.left && (!br.straight || br.left.id !== br.straight.id)) {
-          usedIds[br.left.id] = true;
+        var isCenterT = (
+          e.id === 'J_CENTER->J_NORTH' ||
+          e.id === 'J_CENTER->J_EAST' ||
+          e.id === 'J_CENTER->J_SOUTH'
+        );
+        if (isCenterT && br.left && br.right && br.left.id !== br.right.id) {
           rows.push({ dirType: 'left', info: getBkkBranchInfo(br.left) });
-        }
-        if (br.straight && !usedIds[br.straight.id]) {
-          usedIds[br.straight.id] = true;
-          rows.push({ dirType: 'straight', info: getBkkBranchInfo(br.straight) });
-        }
-        if (br.right && !usedIds[br.right.id]) {
-          usedIds[br.right.id] = true;
           rows.push({ dirType: 'right', info: getBkkBranchInfo(br.right) });
+        } else {
+          if (br.left && (!br.straight || br.left.id !== br.straight.id)) {
+            usedIds[br.left.id] = true;
+            rows.push({ dirType: 'left', info: getBkkBranchInfo(br.left) });
+          }
+          if (br.straight && !usedIds[br.straight.id]) {
+            usedIds[br.straight.id] = true;
+            rows.push({ dirType: 'straight', info: getBkkBranchInfo(br.straight) });
+          }
+          if (br.right && !usedIds[br.right.id]) {
+            usedIds[br.right.id] = true;
+            rows.push({ dirType: 'right', info: getBkkBranchInfo(br.right) });
+          }
         }
         if (rows.length < 2) return;
 
@@ -14120,7 +14372,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           }
         }
 
-        var uSign = (e.id === 'J_WEST->J_NW') ? 0.89 : 0.81;
+        var uSign = 0.74;
         var pt = e.curve.getPointAt(uSign);
         var tan = e.curve.getTangentAt(uSign).normalize();
         var rightVec = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
@@ -14128,6 +14380,8 @@ window.createDetailedCoach = function(colHex, coachIndex) {
 
         var signG = new THREE.Group();
         signG.position.copy(signPos);
+        signG.userData.edgeId = e.id;
+        signG.userData.toNode = e.to;
         var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.32, 9.6, 10), postMat);
         pole.position.y = 1.4;
         var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.35, 10), trimMat);
@@ -14677,11 +14931,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       });
     }
 
-    iconsiamFountainLight = new THREE.PointLight(0xfbbf24, 1.4, 95);
-    iconsiamFountainLight.position.set(16.0, 14.0, 0);
-    iconG.add(iconsiamFountainLight);
-    bkkNightLights.push({ light: iconsiamFountainLight, dayInt: 0.6, nightInt: 2.6 });
-
     // Tropical palms along the IconSiam railway avenue
     for (var pi = -3; pi <= 3; pi++) {
       if (pi === 0) continue;
@@ -14745,13 +14994,20 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     bkkNightLights.push({ mat: stayCableMat, dayHex: 0xfef08a, nightHex: 0xfbbf24, dayInt: 0.35, nightInt: 1.15 });
     bkkNightLights.push({ mat: lampGlowMat, dayHex: 0xfef08a, nightHex: 0xfde047, dayInt: 0.35, nightInt: 1.85 });
 
-    // Helper to connect two 3D points with a taut stay cable cylinder
+    var sharedSlabBoxGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+    var sharedLampPostGeo = new THREE.CylinderGeometry(0.09, 0.12, 3.6, 6);
+    var sharedLampBulbGeo = new THREE.SphereGeometry(0.32, 8, 8);
+    var sharedViaductPierGeo = new THREE.CylinderGeometry(1.6, 2.2, 1.0, 12);
+    var sharedCableCylGeo = new THREE.CylinderGeometry(1.0, 1.0, 1.0, 6);
+
+    // Helper to connect two 3D points with a taut stay cable cylinder (shared geometry)
     function addStayCable(pStart, pEnd, radius, mat) {
       var diff = pEnd.clone().sub(pStart);
       var len = diff.length();
       if (len < 0.5) return;
       var mid = pStart.clone().addScaledVector(diff, 0.5);
-      var cable = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 6), mat);
+      var cable = new THREE.Mesh(sharedCableCylGeo, mat);
+      cable.scale.set(radius, len, radius);
       cable.position.copy(mid);
       cable.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), diff.clone().normalize());
       bkkRootGroup.add(cable);
@@ -14761,99 +15017,138 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       var eObj = window.edges.find(function(x) { return x.id === edgeId; });
       if (!eObj) return;
       var curve = eObj.curve;
-      var steps = 36;
+      var curveLen = curve.getLength();
+      var steps = 44;
+      var segLen = (curveLen / steps) * 1.32;
       var deckPoints = [];
 
-      for (var i = 2; i <= steps - 2; i++) {
+      // Render continuous wide bridge deck + side parapets across the ENTIRE bridge [t = 0.0 .. 1.0]
+      // so there is never a missing bridge section at the start/end or between segments!
+      for (var i = 0; i <= steps; i++) {
         var t = i / steps;
         var p = curve.getPointAt(t);
         var tan = curve.getTangentAt(t).normalize();
         var right = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
         var yaw = Math.atan2(tan.x, tan.z);
+        var horizLen = Math.hypot(tan.x, tan.z) || 0.001;
+        var pitch = -Math.atan2(tan.y, horizLen);
 
         // Wide bridge deck slab spanning both tracks + golden-white edge parapets
         var centerPt = p.clone().addScaledVector(right, -2.2);
-        deckPoints.push({ t: t, center: centerPt.clone(), right: right.clone(), yaw: yaw });
+        if (i % 2 === 0) {
+          deckPoints.push({ t: t, center: centerPt.clone(), right: right.clone(), yaw: yaw });
+        }
 
-        var slab = new THREE.Mesh(new THREE.BoxGeometry(11.4, 1.05, 6.4), pierConcreteMat);
-        slab.position.set(centerPt.x, centerPt.y - 0.58, centerPt.z);
+        var slab = new THREE.Mesh(sharedSlabBoxGeo, pierConcreteMat);
+        slab.scale.set(11.6, 1.08, segLen);
+        slab.position.set(centerPt.x, centerPt.y - 0.56, centerPt.z);
+        slab.rotation.order = 'YXZ';
         slab.rotation.y = yaw;
+        slab.rotation.x = pitch;
         bkkRootGroup.add(slab);
 
         // Golden decorative side fascia strip along the deck edge (like the warm lit deck in the photo)
-        [-5.55, 5.55].forEach(function(sideOff) {
-          var rail = new THREE.Mesh(new THREE.BoxGeometry(0.34, 1.35, 6.4), whiteSteelMat);
-          rail.position.set(centerPt.x + right.x * sideOff, centerPt.y + 0.55, centerPt.z + right.z * sideOff);
-          rail.rotation.y = yaw;
-          bkkRootGroup.add(rail);
+        if (i >= 1 && i <= steps - 1) {
+          [-5.55, 5.55].forEach(function(sideOff) {
+            var rail = new THREE.Mesh(sharedSlabBoxGeo, whiteSteelMat);
+            rail.scale.set(0.34, 1.35, segLen);
+            rail.position.set(centerPt.x + right.x * sideOff, centerPt.y + 0.55, centerPt.z + right.z * sideOff);
+            rail.rotation.order = 'YXZ';
+            rail.rotation.y = yaw;
+            rail.rotation.x = pitch;
+            bkkRootGroup.add(rail);
 
-          var goldTrim = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.28, 6.4), stayCableMat);
-          goldTrim.position.set(centerPt.x + right.x * sideOff, centerPt.y - 0.15, centerPt.z + right.z * sideOff);
-          goldTrim.rotation.y = yaw;
-          bkkRootGroup.add(goldTrim);
-        });
+            var goldTrim = new THREE.Mesh(sharedSlabBoxGeo, stayCableMat);
+            goldTrim.scale.set(0.42, 0.28, segLen);
+            goldTrim.position.set(centerPt.x + right.x * sideOff, centerPt.y - 0.15, centerPt.z + right.z * sideOff);
+            goldTrim.rotation.order = 'YXZ';
+            goldTrim.rotation.y = yaw;
+            goldTrim.rotation.x = pitch;
+            bkkRootGroup.add(goldTrim);
+          });
+        }
 
         // Glowing warm street lamps along the bridge deck
-        if (i % 3 === 0) {
+        if (i >= 2 && i <= steps - 2 && i % 4 === 0) {
           [-5.45, 5.45].forEach(function(sideOff) {
-            var post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 3.6, 6), whiteSteelMat);
+            var post = new THREE.Mesh(sharedLampPostGeo, whiteSteelMat);
             post.position.set(centerPt.x + right.x * sideOff, centerPt.y + 1.8, centerPt.z + right.z * sideOff);
             bkkRootGroup.add(post);
 
-            var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 8), lampGlowMat);
+            var bulb = new THREE.Mesh(sharedLampBulbGeo, lampGlowMat);
             bulb.position.set(centerPt.x + right.x * sideOff, centerPt.y + 3.7, centerPt.z + right.z * sideOff);
             bkkRootGroup.add(bulb);
           });
         }
 
-        // Approach viaduct piers outside the main river channel
-        if (i === 5 || i === 25 || i === 30) {
-          var pierH = centerPt.y + 4.5;
-          var pier = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.2, pierH, 12), pierConcreteMat);
+        // Approach viaduct piers outside the main navigable river channel
+        var inDeepRiver = (centerPt.x < -426.0 && centerPt.x > -486.0);
+        if (!inDeepRiver && i % 5 === 0) {
+          var pierH = Math.max(3.5, centerPt.y + 4.5);
+          var pier = new THREE.Mesh(sharedViaductPierGeo, pierConcreteMat);
+          pier.scale.set(1.0, pierH, 1.0);
           pier.position.set(centerPt.x, centerPt.y - pierH * 0.5 - 0.4, centerPt.z);
           bkkRootGroup.add(pier);
         }
       }
 
       // Build the signature Rama VIII Inverted-Y Pylon at `pylonT`
+      // Lower magenta legs rise strictly OUTSIDE the 11.6m-wide bridge deck (`±6.9m` from `pylonCenter`)
+      // up to `portalClearY = deckY + 9.2m` (well above the 4.6m-tall locomotive & coaches!) before angling inward
+      // to `mergeY`, so the train never collides with the purple pylon legs on either track!
       var pPylon = curve.getPointAt(pylonT);
       var tanPylon = curve.getTangentAt(pylonT).normalize();
       var rightPylon = new THREE.Vector3(-tanPylon.z, 0, tanPylon.x).normalize();
       var pylonCenter = pPylon.clone().addScaledVector(rightPylon, -2.2);
       var deckY = pylonCenter.y;
-      var mergeY = deckY + pylonHeight * 0.46;
+      var portalClearY = deckY + 9.2;
+      var mergeY = deckY + pylonHeight * 0.52;
       var topY = deckY + pylonHeight;
+      var pylonYaw = Math.atan2(tanPylon.x, tanPylon.z);
 
-      // Massive octagonal concrete foundation caisson in the river
-      var caisson = new THREE.Mesh(new THREE.CylinderGeometry(7.2, 8.4, (deckY + 3.2), 16), pierConcreteMat);
+      // Massive octagonal concrete foundation caisson in the river supporting the outer pylon legs
+      var caisson = new THREE.Mesh(new THREE.CylinderGeometry(8.6, 9.8, (deckY + 3.2), 16), pierConcreteMat);
       caisson.position.set(pylonCenter.x, (deckY - 1.2) * 0.5 - 1.0, pylonCenter.z);
       bkkRootGroup.add(caisson);
 
-      // Two inclined lower concrete legs straddling the railway deck and merging into the inverted-Y apex (magenta/purple uplighting!)
-      var legSpread = 6.2;
-      var leftLegBase = pylonCenter.clone().addScaledVector(rightPylon, -legSpread);
-      leftLegBase.y = riverWaterY + 0.5;
-      var rightLegBase = pylonCenter.clone().addScaledVector(rightPylon, legSpread);
-      rightLegBase.y = riverWaterY + 0.5;
+      var legSpread = 6.9;
       var apexPt = new THREE.Vector3(pylonCenter.x, mergeY, pylonCenter.z);
 
-      [leftLegBase, rightLegBase].forEach(function(basePt) {
-        var legDiff = apexPt.clone().sub(basePt);
-        var legLen = legDiff.length();
-        var legMid = basePt.clone().addScaledVector(legDiff, 0.5);
-        var legMesh = new THREE.Mesh(new THREE.BoxGeometry(2.1, legLen, 2.6), pylonMagentaMat);
-        legMesh.position.copy(legMid);
-        legMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), legDiff.clone().normalize());
-        legMesh.castShadow = true;
-        bkkRootGroup.add(legMesh);
+      [-legSpread, legSpread].forEach(function(sideOffset) {
+        // 1. Lower outer vertical-ish magenta leg from river caisson up to `portalClearY` (outside the deck & tracks!)
+        var basePt = pylonCenter.clone().addScaledVector(rightPylon, sideOffset * 1.06);
+        basePt.y = riverWaterY + 0.5;
+        var kneePt = pylonCenter.clone().addScaledVector(rightPylon, sideOffset);
+        kneePt.y = portalClearY;
+
+        var lowerDiff = kneePt.clone().sub(basePt);
+        var lowerLen = lowerDiff.length();
+        var lowerMid = basePt.clone().addScaledVector(lowerDiff, 0.5);
+        var lowerLeg = new THREE.Mesh(new THREE.BoxGeometry(2.0, lowerLen, 2.6), pylonMagentaMat);
+        lowerLeg.position.copy(lowerMid);
+        lowerLeg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), lowerDiff.clone().normalize());
+        bkkRootGroup.add(lowerLeg);
+
+        // 2. Upper inclined magenta A-frame leg from `portalClearY` (`deckY + 9.2m`, high above train!) to `apexPt` (`mergeY`)
+        var upperDiff = apexPt.clone().sub(kneePt);
+        var upperLen = upperDiff.length();
+        var upperMid = kneePt.clone().addScaledVector(upperDiff, 0.5);
+        var upperLeg = new THREE.Mesh(new THREE.BoxGeometry(2.0, upperLen, 2.6), pylonMagentaMat);
+        upperLeg.position.copy(upperMid);
+        upperLeg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), upperDiff.clone().normalize());
+        bkkRootGroup.add(upperLeg);
       });
 
-      // Horizontal portal cross-beam at deck level and collar at the inverted-Y merge apex
-      var pylonYaw = Math.atan2(tanPylon.x, tanPylon.z);
-      var deckCrossBeam = new THREE.Mesh(new THREE.BoxGeometry(legSpread * 2.2, 1.8, 3.2), pierConcreteMat);
+      // Horizontal cross-beam under the deck & high portal cross-beam above the train (`portalClearY`)
+      var deckCrossBeam = new THREE.Mesh(new THREE.BoxGeometry(legSpread * 2.25, 1.8, 3.2), pierConcreteMat);
       deckCrossBeam.position.set(pylonCenter.x, deckY - 1.1, pylonCenter.z);
       deckCrossBeam.rotation.y = pylonYaw;
       bkkRootGroup.add(deckCrossBeam);
+
+      var upperPortalBeam = new THREE.Mesh(new THREE.BoxGeometry(legSpread * 2.05, 1.35, 2.7), pylonMagentaMat);
+      upperPortalBeam.position.set(pylonCenter.x, portalClearY, pylonCenter.z);
+      upperPortalBeam.rotation.y = pylonYaw;
+      bkkRootGroup.add(upperPortalBeam);
 
       var apexCollar = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2.4, 3.6), pylonUpperMat);
       apexCollar.position.copy(apexPt);
@@ -14881,17 +15176,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       var lotusSpire = new THREE.Mesh(new THREE.ConeGeometry(0.65, 5.2, 10), goldLotusMat);
       lotusSpire.position.set(pylonCenter.x, topY + 7.4, pylonCenter.z);
       bkkRootGroup.add(lotusSpire);
-
-      // Architectural night uplights on the pylon
-      var pylonGlowLight = new THREE.PointLight(0xd946ef, 1.5, 95);
-      pylonGlowLight.position.set(pylonCenter.x, deckY + 10.0, pylonCenter.z);
-      bkkRootGroup.add(pylonGlowLight);
-      bkkNightLights.push({ light: pylonGlowLight, dayInt: 0.3, nightInt: 2.4 });
-
-      var topGoldLight = new THREE.PointLight(0xfacc15, 1.4, 110);
-      topGoldLight.position.set(pylonCenter.x, topY + 3.5, pylonCenter.z);
-      bkkRootGroup.add(topGoldLight);
-      bkkNightLights.push({ light: topGoldLight, dayInt: 0.4, nightInt: 2.5 });
 
       // Fan-arranged golden stay cables radiating from the upper pylon shaft (`mergeY + 3` to `topY - 0.8`)
       // down to both sides of the bridge deck on the main river span and back span!
@@ -15096,11 +15380,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       var domeLantern = new THREE.Mesh(new THREE.ConeGeometry(1.2, 4.5, 10), goldMat);
       domeLantern.position.set(0, towerH + 14.2, 0);
       lebG.add(domeLantern);
-
-      var domeLight = new THREE.PointLight(0xfacc15, 1.6, 110);
-      domeLight.position.set(0, towerH + 10.0, 0);
-      lebG.add(domeLight);
-      bkkNightLights.push({ light: domeLight, dayInt: 0.5, nightInt: 2.8 });
 
       addHotelRooftopSign(lebG, 'LEBUA STATE TOWER', 'GOLDEN DOME SKY RESORT', towerH + 18.2, 20.0, 4.6, '#422006', '#facc15', '#fef08a');
     })();
@@ -15419,12 +15698,6 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       anantaraBoatGroup.add(passenger);
     }
 
-    // Warm Cabin Lantern Light for Night Cruises
-    var cabinLight = new THREE.PointLight(0xfef08a, 1.1, 28);
-    cabinLight.position.set(0, 3.8, 0);
-    anantaraBoatGroup.add(cabinLight);
-    bkkNightLights.push({ light: cabinLight, dayInt: 0.4, nightInt: 2.0 });
-
     // Trailing White Water Wake Foams behind the boat
     var wakeMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.68, side: THREE.DoubleSide });
     for (var wi = 1; wi <= 4; wi++) {
@@ -15436,13 +15709,57 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     }
   })();
 
+  // Freeze static matrices in `bkkRootGroup` so Three.js does not recalculate 4,000+ static mesh matrices every frame!
+  (function optimizeBangkokStaticSceneGraph() {
+    var dynamicSet = new Set();
+    function markSubtreeDynamic(obj) {
+      if (!obj) return;
+      var cur = obj;
+      while (cur && cur !== bkkRootGroup) {
+        dynamicSet.add(cur);
+        cur = cur.parent;
+      }
+      if (obj.traverse) {
+        obj.traverse(function(ch) { dynamicSet.add(ch); });
+      }
+    }
+    markSubtreeDynamic(anantaraBoatGroup);
+    if (iconsiamFerrisWheelWheel) markSubtreeDynamic(iconsiamFerrisWheelWheel);
+    for (var ri = 0; ri < riverWaveStrips.length; ri++) markSubtreeDynamic(riverWaveStrips[ri].mesh);
+    for (var swi = 0; swi < distantSeaWaveStrips.length; swi++) markSubtreeDynamic(distantSeaWaveStrips[swi].mesh);
+    for (var fi = 0; fi < iconsiamFountainJets.length; fi++) {
+      markSubtreeDynamic(iconsiamFountainJets[fi].meshE);
+      markSubtreeDynamic(iconsiamFountainJets[fi].meshW);
+    }
+    for (var wi = 0; wi < bkkWavingPeople.length; wi++) {
+      markSubtreeDynamic(bkkWavingPeople[wi].armPivot);
+    }
+
+    bkkRootGroup.updateMatrixWorld(true);
+    bkkRootGroup.traverse(function(node) {
+      if (node === bkkRootGroup) return;
+      if (!dynamicSet.has(node)) {
+        node.matrixAutoUpdate = false;
+        node.updateMatrix();
+      }
+    });
+  })();
+
+  // Shared AudioContext getter (reuses game's primary `audioCtx` so no dual-AudioContext thread contention occurs)
+  function getSharedBkkAudioCtx() {
+    if (typeof audioCtx !== 'undefined' && audioCtx) return audioCtx;
+    if (window.audioCtx) return window.audioCtx;
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    if (!window._bkkAudioCtx) window._bkkAudioCtx = new Ctx();
+    return window._bkkAudioCtx;
+  }
+
   // Procedural Web Audio Boat Horn & IconSiam Dancing Fountain Musical Chimes
   function playAnantaraBoatHornSound() {
     try {
-      var Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx) return;
-      if (!window._bkkAudioCtx) window._bkkAudioCtx = new Ctx();
-      var ctx = window._bkkAudioCtx;
+      var ctx = getSharedBkkAudioCtx();
+      if (!ctx) return;
       if (ctx.state === 'suspended') ctx.resume();
 
       var now = ctx.currentTime;
@@ -15457,6 +15774,9 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
         osc.connect(gain);
         gain.connect(ctx.destination);
+        osc.onended = function() {
+          try { osc.disconnect(); gain.disconnect(); } catch (e) {}
+        };
         osc.start(now);
         osc.stop(now + 0.88);
       });
@@ -15475,11 +15795,8 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     lastFountainNoteMs = nowMs;
 
     try {
-      var Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx) return;
-      if (!window._bkkAudioCtx) window._bkkAudioCtx = new Ctx();
-      var ctx = window._bkkAudioCtx;
-      if (ctx.state === 'suspended') return;
+      var ctx = getSharedBkkAudioCtx();
+      if (!ctx || ctx.state === 'suspended') return;
 
       var prox = Math.max(0.0, 1.0 - distToIconSiam / 92.0);
       var vol = prox * (isEveningShow ? 0.065 : 0.035);
@@ -15497,6 +15814,9 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.36);
       osc.connect(gain);
       gain.connect(ctx.destination);
+      osc.onended = function() {
+        try { osc.disconnect(); gain.disconnect(); } catch (e) {}
+      };
       osc.start(now);
       osc.stop(now + 0.38);
     } catch (e) {}
@@ -15513,17 +15833,26 @@ window.createDetailedCoach = function(colHex, coachIndex) {
   window.appendBangkokCameraCandidates = function(candidates, buildLargeLandmarkCandidate) {
     if (!Array.isArray(candidates) || typeof buildLargeLandmarkCandidate !== 'function') return;
 
-    var curEdgeId = (window.pState && window.pState.edge) ? window.pState.edge.id : '';
+    var rawEdge = (window.pState && window.pState.edge) ? window.pState.edge : null;
+    var baseEdge = (rawEdge && rawEdge.isTurnout && rawEdge.targetEdge) ? rawEdge.targetEdge : rawEdge;
+    var curEdgeId = baseEdge ? baseEdge.id : '';
     var curT = (window.pState && typeof window.pState.t === 'number') ? window.pState.t : 0.0;
     var nowMs = performance.now();
+
+    // Check if train is currently riding ON the Southern Rama VIII Bridge (`J_BKK_ICONSIAM<->J_BKK_WESTBANK`)
+    // or Northern Bridge (`J_BKK_WESTBANK<->J_BKK_ANANTARA`)
+    var onSouthernRamaBridge = (
+      curEdgeId === 'J_BKK_ICONSIAM->J_BKK_WESTBANK' ||
+      curEdgeId === 'J_BKK_WESTBANK->J_BKK_ICONSIAM'
+    );
 
     // Detect when the train rides from the bridge with the Chao Phraya River on its RIGHT side:
     // - Case 1: Riding North from the Southern Rama VIII Bridge along `J_BKK_WESTBANK->J_BKK_ANANTARA` (`curT` in 0.02..0.52),
     //   where the river (`+X`) and Anantara Hotel (`-396, 2.2, -42`) are on the train's right side across the water!
     // - Case 2: Riding South from the Northern Bridge / Anantara Junction along `J_BKK_ANANTARA->J_BKK_ICONSIAM` (`curT` in 0.04..0.46),
     //   where the river (`-X`) and Anantara Hotel (`-396, 2.2, -42`) are on the train's right side!
-    var inWestbankRightRiverZone = (curEdgeId === 'J_BKK_WESTBANK->J_BKK_ANANTARA' && curT >= 0.02 && curT <= 0.52);
-    var inEastbankRightRiverZone = (curEdgeId === 'J_BKK_ANANTARA->J_BKK_ICONSIAM' && curT >= 0.04 && curT <= 0.46);
+    var inWestbankRightRiverZone = (!rawEdge.isTurnout && curEdgeId === 'J_BKK_WESTBANK->J_BKK_ANANTARA' && curT >= 0.02 && curT <= 0.52);
+    var inEastbankRightRiverZone = (!rawEdge.isTurnout && curEdgeId === 'J_BKK_ANANTARA->J_BKK_ICONSIAM' && curT >= 0.04 && curT <= 0.46);
 
     if (inWestbankRightRiverZone || inEastbankRightRiverZone) {
       var zoneKey = curEdgeId;
@@ -15537,6 +15866,41 @@ window.createDetailedCoach = function(colHex, coachIndex) {
 
     var elapsedPanSec = (nowMs - anantaraRiverPanState.activeStartMs) * 0.001;
     var isThreeSecondAnantaraPanActive = (elapsedPanSec >= 0.0 && elapsedPanSec <= 3.35) && (inWestbankRightRiverZone || inEastbankRightRiverZone);
+
+    // When riding across the Rama VIII Bridge (`onSouthernRamaBridge`), provide a rock-steady panoramic bridge camera
+    // that stays consistently on the outer side of the bridge looking across the train, pylon, golden stay cables, and river
+    // without `sideSign` flipping from +1 to -1 or competing with other POIs!
+    if (onSouthernRamaBridge && window.playerLoco && window._smoothTrainDir) {
+      var tPos = window.playerLoco.position;
+      var fDir = window._smoothTrainDir;
+      var tRight = new THREE.Vector3(-fDir.z, 0.0, fDir.x).normalize();
+      // Outer side of the curved bridge (+Z / North-West side) looking inward toward the pylon, cables, river & IconSiam
+      var sideSignBr = (curEdgeId === 'J_BKK_ICONSIAM->J_BKK_WESTBANK') ? 1.0 : -1.0;
+      var brCamPos = new THREE.Vector3(
+        tPos.x - fDir.x * 52.0 + tRight.x * (sideSignBr * 22.0),
+        tPos.y + 16.5,
+        tPos.z - fDir.z * 52.0 + tRight.z * (sideSignBr * 22.0)
+      );
+      var pylonFocus = new THREE.Vector3(-468.0, 22.0, 242.0);
+      var trainAheadFocus = new THREE.Vector3(
+        tPos.x + fDir.x * 24.0,
+        tPos.y + 5.5,
+        tPos.z + fDir.z * 24.0
+      );
+      var brCamLook = trainAheadFocus.lerp(pylonFocus, 0.38);
+
+      candidates.push({
+        id: 'bkk_bridge',
+        narrationId: 'bkk_bridge',
+        category: 'large',
+        weight: 0.92,
+        priority: 1.45,
+        camPos: brCamPos,
+        camLook: brCamLook,
+        targetFov: 48.0
+      });
+      return;
+    }
 
     // 1) Anantara Riverside Bangkok Resort & Boat Pier (with 3-second priority camera rotation when riding from the bridge with river on right!)
     var anantaraCand = buildLargeLandmarkCandidate({
@@ -15609,55 +15973,10 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       priority: 1.18
     });
     if (iconsiamCand) candidates.push(iconsiamCand);
-
-    // 3) Grand Rama VIII Cable-Stayed Railway Bridge (+ Synchronized Anantara Boat on the River!)
-    var bridgeCand = buildLargeLandmarkCandidate({
-      id: 'bkk_bridge',
-      narrationId: 'bkk_bridge',
-      center: new THREE.Vector3(-472.0, 16.5, 250.0),
-      baseY: 0.0,
-      height: 46.0,
-      radius: 52.0,
-      approachDist: 118.0,
-      peakAheadDist: 28.0,
-      peakBehindDist: -18.0,
-      departDist: 56.0,
-      maxPerpDist: 102.0,
-      camBack: 66.0,
-      camOppositeSide: 28.0,
-      camHeight: 22.0,
-      lookShare: 0.56,
-      targetFov: 50.5,
-      priority: 1.16
-    });
-    if (bridgeCand) candidates.push(bridgeCand);
-
-    // 4) Anantara Shuttle Boat (when sailing along the open river between Anantara & IconSiam)
-    if (window.anantaraBoatGroup) {
-      var boatCand = buildLargeLandmarkCandidate({
-        id: 'anantara_boat',
-        narrationId: 'anantara_boat',
-        center: window.anantaraBoatGroup.position.clone().add(new THREE.Vector3(0, 3.0, 0)),
-        baseY: riverWaterY,
-        height: 8.0,
-        radius: 14.0,
-        approachDist: 75.0,
-        peakAheadDist: 16.0,
-        peakBehindDist: -10.0,
-        departDist: 38.0,
-        maxPerpDist: 105.0,
-        camBack: 50.0,
-        camOppositeSide: 20.0,
-        camHeight: 15.0,
-        lookShare: 0.48,
-        targetFov: 47.0,
-        priority: isThreeSecondAnantaraPanActive ? 0.75 : 1.02
-      });
-      if (boatCand) candidates.push(boatCand);
-    }
   };
 
   var lastBkkFrameMs = performance.now();
+  var lastEveningOrNightState = null;
 
   function updateBangkokChaoPhrayaWorld() {
     var nowMs = performance.now();
@@ -15668,7 +15987,9 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     var trainPos = (typeof playerLoco !== 'undefined' && playerLoco)
       ? playerLoco.position
       : ((window.playerLoco && window.playerLoco.position) ? window.playerLoco.position : null);
-    var curEdgeId = (window.pState && window.pState.edge) ? window.pState.edge.id : '';
+    var rawEdge = (window.pState && window.pState.edge) ? window.pState.edge : null;
+    var baseEdge = (rawEdge && rawEdge.isTurnout && rawEdge.targetEdge) ? rawEdge.targetEdge : rawEdge;
+    var curEdgeId = baseEdge ? baseEdge.id : '';
     var curT = (window.pState && typeof window.pState.t === 'number') ? window.pState.t : 0.0;
 
     // 1) Animate Chao Phraya River ripples & Distant Sea ocean waves
@@ -15687,19 +16008,22 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       iconsiamFerrisWheelWheel.rotation.x = tSec * 0.28;
     }
 
-    // 3) Day / Sunset / Night Detection for IconSiam Illumination & Dancing Fountains
+    // 3) Day / Sunset / Night Detection for IconSiam Illumination & Dancing Fountains (only update materials when state changes!)
     var gTime = (typeof gameTimeSeconds === 'number')
       ? ((gameTimeSeconds / 300.0) * 24.0)
       : ((typeof window.gameTime === 'number') ? window.gameTime : 12.0);
     var isEveningOrNight = (gTime >= 17.0 || gTime <= 6.5);
 
-    for (var ni = 0; ni < bkkNightLights.length; ni++) {
-      var nl = bkkNightLights[ni];
-      if (nl.mat) {
-        nl.mat.emissive.setHex(isEveningOrNight ? nl.nightHex : nl.dayHex);
-        nl.mat.emissiveIntensity = isEveningOrNight ? nl.nightInt : nl.dayInt;
-      } else if (nl.light) {
-        nl.light.intensity = isEveningOrNight ? nl.nightInt : nl.dayInt;
+    if (lastEveningOrNightState !== isEveningOrNight) {
+      lastEveningOrNightState = isEveningOrNight;
+      for (var ni = 0; ni < bkkNightLights.length; ni++) {
+        var nl = bkkNightLights[ni];
+        if (nl.mat) {
+          nl.mat.emissive.setHex(isEveningOrNight ? nl.nightHex : nl.dayHex);
+          nl.mat.emissiveIntensity = isEveningOrNight ? nl.nightInt : nl.dayInt;
+        } else if (nl.light) {
+          nl.light.intensity = isEveningOrNight ? nl.nightInt : nl.dayInt;
+        }
       }
     }
 
