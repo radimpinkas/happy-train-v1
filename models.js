@@ -10,79 +10,109 @@ function terrainY(x, z) {
   return window.getTerrainHeight ? window.getTerrainHeight(x, z) : 0;
 }
 
+// Optimize non-repeating CanvasTextures for Smart TVs: disable NPOT mipmap power-of-two canvas duplication
+window.upgradeCanvasTex = function(canvas) {
+  var tex = new THREE.CanvasTexture(canvas);
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return tex;
+};
+
+var sharedContactShadowGeo = null;
+var sharedContactShadowMat = null;
+
 function addContactShadow(group, width, length, yOffset) {
   if (!window.contactShadowTex) return;
-  var sm = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, length),
-    new THREE.MeshBasicMaterial({
+  if (!sharedContactShadowGeo) {
+    sharedContactShadowGeo = new THREE.PlaneGeometry(1, 1);
+  }
+  if (!sharedContactShadowMat) {
+    sharedContactShadowMat = new THREE.MeshBasicMaterial({
       map: window.contactShadowTex,
       transparent: true,
       depthWrite: false,
       opacity: 0.70
-    })
-  );
+    });
+  }
+  var sm = new THREE.Mesh(sharedContactShadowGeo, sharedContactShadowMat);
+  sm.scale.set(width, length, 1);
   sm.rotation.x = -Math.PI / 2;
   sm.position.y = yOffset !== undefined ? yOffset : 0.06;
   group.add(sm);
 }
 
+var sharedFacePlaneGeo = null;
+var cachedCartoonFaceMats = {};
+
 window.createCartoonFacePlane = function(width, height, bgHex, styleOpt) {
-  var c = document.createElement('canvas');
-  c.width = 256; c.height = 256;
-  var ctx = c.getContext('2d');
-
-  if (bgHex && bgHex !== 'transparent') {
-    ctx.fillStyle = bgHex;
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(6, 6, 244, 244, 36);
-    else ctx.rect(6, 6, 244, 244);
-    ctx.fill();
-    ctx.stroke();
+  if (!sharedFacePlaneGeo) {
+    sharedFacePlaneGeo = new THREE.PlaneGeometry(1, 1);
   }
+  var cacheKey = String(bgHex || 'transparent') + '|' + String(styleOpt || '');
+  if (!cachedCartoonFaceMats[cacheKey]) {
+    var c = document.createElement('canvas');
+    c.width = 256; c.height = 256;
+    var ctx = c.getContext('2d');
 
-  [74, 182].forEach(function(ex) {
+    if (bgHex && bgHex !== 'transparent') {
+      ctx.fillStyle = bgHex;
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(6, 6, 244, 244, 36);
+      else ctx.rect(6, 6, 244, 244);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    [74, 182].forEach(function(ex) {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.ellipse(ex, 92, 34, 43, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 7; ctx.strokeStyle = '#0f172a'; ctx.stroke();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.ellipse(ex + 3, 98, 17, 22, 0, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(ex - 5, 86, 7.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + 9, 108, 3.5, 0, Math.PI * 2); ctx.fill();
+    });
+
+    if (styleOpt === 'mini_grille') {
+      ctx.fillStyle = '#334155';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.ellipse(128, 134, 42, 15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else if (styleOpt === 'bus_grille') {
+      ctx.fillStyle = '#cbd5e1';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 5;
+      ctx.fillRect(88, 114, 80, 34);
+      ctx.strokeRect(88, 114, 80, 34);
+    }
+
     ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.ellipse(ex, 92, 34, 43, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.lineWidth = 7; ctx.strokeStyle = '#0f172a'; ctx.stroke();
-
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath(); ctx.ellipse(ex + 3, 98, 17, 22, 0, 0, Math.PI * 2); ctx.fill();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.arc(ex - 5, 86, 7.5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(ex + 9, 108, 3.5, 0, Math.PI * 2); ctx.fill();
-  });
-
-  if (styleOpt === 'mini_grille') {
-    ctx.fillStyle = '#334155';
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 5;
     ctx.beginPath();
-    ctx.ellipse(128, 134, 42, 15, 0, 0, Math.PI * 2);
+    ctx.arc(128, 162, 52, 0.08 * Math.PI, 0.92 * Math.PI, false);
+    ctx.closePath();
     ctx.fill();
-    ctx.stroke();
-  } else if (styleOpt === 'bus_grille') {
-    ctx.fillStyle = '#cbd5e1';
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 5;
-    ctx.fillRect(88, 114, 80, 34);
-    ctx.strokeRect(88, 114, 80, 34);
+    ctx.lineWidth = 6; ctx.strokeStyle = '#0f172a'; ctx.stroke();
+
+    var tex = window.upgradeCanvasTex(c);
+    cachedCartoonFaceMats[cacheKey] = new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      side: THREE.DoubleSide
+    });
   }
-
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(128, 162, 52, 0.08 * Math.PI, 0.92 * Math.PI, false);
-  ctx.closePath();
-  ctx.fill();
-  ctx.lineWidth = 6; ctx.strokeStyle = '#0f172a'; ctx.stroke();
-
-  var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new THREE.CanvasTexture(c);
-  return new THREE.Mesh(
-    new THREE.PlaneGeometry(width, height),
-    new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide })
-  );
+  var faceMesh = new THREE.Mesh(sharedFacePlaneGeo, cachedCartoonFaceMats[cacheKey]);
+  faceMesh.scale.set(width, height, 1);
+  return faceMesh;
 };
 
 // ============================================================================
@@ -2689,11 +2719,17 @@ livingVehicles.push(createLivingRoadVehicle("🚜 Airport Crew Tractor",0x16a34a
 livingVehicles.push(createLivingRoadVehicle("🚙 Holiday Family Car",  0xef4444, 'mini',      2, 0.60));
 livingVehicles.push(createLivingRoadVehicle("🚜 Runway Excavator",    0xf59e0b, 'excavator', 2, 0.84));
 
-// --- FLOWERS, BEES & BUTTERFLIES (Grounded on 3D Terrain!) ---
+// --- FLOWERS, BEES & BUTTERFLIES (Grounded on 3D Terrain! Shared Geometries & Materials) ---
 var flowerPositions = [];
 var petalColors = [0xffffff, 0xf472b6, 0xfacc15, 0x38bdf8, 0xffffff, 0xc084fc];
 var stemMat = new THREE.MeshLambertMaterial({ color: 0x15803d });
 var centerMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+var sharedFlowerStemGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.9, 5);
+var sharedFlowerCenterGeo = new THREE.SphereGeometry(0.32, 6, 6);
+var sharedFlowerPetalGeo = new THREE.SphereGeometry(0.35, 6, 6);
+var sharedPetalMats = petalColors.map(function(colHex) {
+  return new THREE.MeshBasicMaterial({ color: colHex });
+});
 
 for (var fi = 0; fi < 190; fi++) {
   var fx = (Math.random() - 0.5) * 520;
@@ -2702,12 +2738,12 @@ for (var fi = 0; fi < 190; fi++) {
   var fy = terrainY(fx, fz);
   var fg = new THREE.Group();
   fg.position.set(fx, fy, fz);
-  var stem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9, 5), stemMat); stem.position.y = 0.45;
-  var center = new THREE.Mesh(new THREE.SphereGeometry(0.32, 6, 6), centerMat); center.position.y = 0.95;
-  var pMat = new THREE.MeshBasicMaterial({ color: petalColors[fi % petalColors.length] });
+  var stem = new THREE.Mesh(sharedFlowerStemGeo, stemMat); stem.position.y = 0.45;
+  var center = new THREE.Mesh(sharedFlowerCenterGeo, centerMat); center.position.y = 0.95;
+  var pMat = sharedPetalMats[fi % sharedPetalMats.length];
   for (var pi2 = 0; pi2 < 6; pi2++) {
     var pa2 = (pi2 / 6) * Math.PI * 2;
-    var petal = new THREE.Mesh(new THREE.SphereGeometry(0.35, 6, 6), pMat);
+    var petal = new THREE.Mesh(sharedFlowerPetalGeo, pMat);
     petal.scale.set(1, 0.35, 1);
     petal.position.set(Math.cos(pa2) * 0.46, 0.92, Math.sin(pa2) * 0.46);
     fg.add(petal);
@@ -8181,17 +8217,47 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       }
     });
 
+    var sharedUnitBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+    var sharedRoadPierGeo = new THREE.CylinderGeometry(1.1, 1.4, 5.2, 8);
+
     scene.children.forEach(function(obj) {
       if (!obj || obj === window.undergroundWorldGroup || obj === window.grassMesh || obj === window.riverMesh) return;
       if (obj.isMesh && obj.geometry && obj.geometry.parameters) {
         var gp = obj.geometry.parameters;
-        var isRoadPart = (
+        var isRoadBox = (
           (gp.width === 10.0 && gp.height === 0.24) ||
           (gp.width === 8.8 && gp.height === 0.28) ||
           (gp.width === 0.38 && gp.height === 0.32) ||
-          (gp.width === 0.45 && gp.height === 0.85) ||
-          (gp.radiusTop === 1.1 && gp.radiusBottom === 1.4 && gp.height === 5.2)
+          (gp.width === 0.45 && gp.height === 0.85)
         );
+        var isRoadPier = (gp.radiusTop === 1.1 && gp.radiusBottom === 1.4 && gp.height === 5.2);
+        var isRoadPart = Boolean((obj.userData && obj.userData.isRoadPart) || isRoadBox || isRoadPier);
+
+        // Deduplicate & dispose ~3,800 individual road BoxGeometry/CylinderGeometry instances
+        // and ~4,500 track sleeper/ballast/rail BoxGeometry instances to free >25 MB of CPU/GPU VBO memory!
+        if (isRoadBox && obj.geometry !== sharedUnitBoxGeo && obj.scale.x === 1 && obj.scale.y === 1 && obj.scale.z === 1) {
+          var oldRoadGeo = obj.geometry;
+          obj.geometry = sharedUnitBoxGeo;
+          obj.scale.set(gp.width, gp.height, gp.depth);
+          oldRoadGeo.dispose();
+        } else if (isRoadPier && obj.geometry !== sharedRoadPierGeo && obj.scale.x === 1 && obj.scale.y === 1 && obj.scale.z === 1) {
+          var oldPierGeo = obj.geometry;
+          obj.geometry = sharedRoadPierGeo;
+          oldPierGeo.dispose();
+        } else if (
+          obj.geometry.type === 'BoxGeometry' &&
+          obj.geometry !== sharedUnitBoxGeo &&
+          gp.width && gp.height && gp.depth &&
+          !gp.widthSegments && !gp.heightSegments && !gp.depthSegments &&
+          obj.scale.x === 1 && obj.scale.y === 1 && obj.scale.z === 1 &&
+          (gp.height === 0.22 || gp.height === 0.26 || gp.height === 0.32 || gp.height === 0.82 || gp.height === 1.55)
+        ) {
+          var oldTrackGeo = obj.geometry;
+          obj.geometry = sharedUnitBoxGeo;
+          obj.scale.set(gp.width, gp.height, gp.depth);
+          oldTrackGeo.dispose();
+        }
+
         if (isRoadPart) {
           window.surfaceRoadMeshes.push(obj);
           for (var rsi = 0; rsi < metroRampSamplePts.length; rsi++) {
@@ -8383,169 +8449,8 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     });
   })();
 
-  // Rebuild `window.junctionSignsGroup` so all 3D junction signposts reflect the complete 3-way branches
-  if (window.junctionSignsGroup) {
-    while (window.junctionSignsGroup.children.length > 0) {
-      window.junctionSignsGroup.remove(window.junctionSignsGroup.children[0]);
-    }
-
-    function getBranchDestinationInfo(bEdge) {
-      if (!bEdge) return { icon: 'fountain', badgeCol: '#0284c7' };
-      if (bEdge.isSubway) return { icon: 'metro', badgeCol: '#2563eb' };
-      if (bEdge.to === 'EXIT_ALPS') return { icon: 'alps', badgeCol: '#0284c7' };
-      if (bEdge.to === 'EXIT_EGYPT') return { icon: 'egypt', badgeCol: '#ca8a04' };
-      var stIcon = (bEdge.station && bEdge.station.icon) ? bEdge.station.icon : '';
-      var badgeColors = {
-        eiffel: '#b45309',
-        grandma_house: '#be185d',
-        airport: '#0284c7',
-        jewel: '#0d9488',
-        colosseum: '#c2410c',
-        stadium: '#15803d',
-        bigben: '#a16207',
-        mom_house: '#e11d48',
-        skyscraper: '#1d4ed8',
-        fountain: '#0369a1'
-      };
-      if (stIcon && badgeColors[stIcon]) {
-        return { icon: stIcon, badgeCol: badgeColors[stIcon] };
-      }
-      return { icon: 'fountain', badgeCol: '#0284c7' };
-    }
-
-    function drawBigDirectionArrow(ctx, dirType, cx, cy, size) {
-      ctx.save();
-      ctx.translate(cx, cy);
-      if (dirType === 'left') ctx.rotate(-Math.PI * 0.5);
-      else if (dirType === 'right') ctx.rotate(Math.PI * 0.5);
-
-      var s = size * 0.52;
-      ctx.fillStyle = '#fde047';
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 10;
-      ctx.lineJoin = 'round';
-
-      ctx.beginPath();
-      ctx.moveTo(0, -s);
-      ctx.lineTo(s * 0.92, -s * 0.05);
-      ctx.lineTo(s * 0.42, -s * 0.05);
-      ctx.lineTo(s * 0.42, s * 0.92);
-      ctx.lineTo(-s * 0.42, s * 0.92);
-      ctx.lineTo(-s * 0.42, -s * 0.05);
-      ctx.lineTo(-s * 0.92, -s * 0.05);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.strokeStyle = '#fef9c3';
-      ctx.lineWidth = 4;
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    function drawPictogramIcon(ctx, iconType, cx, cy, r) {
-      if (window.drawLandmarkPictogram) {
-        window.drawLandmarkPictogram(ctx, iconType, cx, cy, r);
-        return;
-      }
-      if (iconType === 'metro' && window.drawPragueMetroSymbol) {
-        window.drawPragueMetroSymbol(ctx, cx, cy, r, '#d9261c');
-      }
-    }
-
-    function createJunctionSignCanvas(rows) {
-      var rowH = 168;
-      var padY = 20;
-      var c = document.createElement('canvas');
-      c.width = 520;
-      c.height = padY * 2 + rows.length * rowH;
-      var ctx = c.getContext('2d');
-
-      ctx.fillStyle = '#0f172a';
-      ctx.strokeStyle = '#facc15';
-      ctx.lineWidth = 12;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(8, 8, c.width - 16, c.height - 16, 34);
-      else ctx.rect(8, 8, c.width - 16, c.height - 16);
-      ctx.fill();
-      ctx.stroke();
-
-      for (var i = 0; i < rows.length; i++) {
-        var r = rows[i];
-        var ry = padY + i * rowH;
-        var cardH = rowH - 12;
-        var cy = ry + cardH * 0.5;
-
-        ctx.fillStyle = r.info.badgeCol;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(24, ry + 6, c.width - 48, cardH, 26);
-        else ctx.rect(24, ry + 6, c.width - 48, cardH);
-        ctx.fill();
-        ctx.stroke();
-
-        drawBigDirectionArrow(ctx, r.dirType, 130, cy + 6, 98);
-        drawPictogramIcon(ctx, r.info.icon, 355, cy + 6, 68);
-      }
-      return c;
-    }
-
-    var postMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.5, roughness: 0.4 });
-    var trimMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
-
-    edges.forEach(function(e) {
-      if (e.isSubway || e.isTurnout) return;
-      if (e.to.indexOf('EXIT_') === 0) return;
-
-      var br = window.getBranches(e);
-      if (!br) return;
-
-      var rows = [];
-      var usedIds = {};
-      if (br.left && (!br.straight || br.left.id !== br.straight.id)) {
-        usedIds[br.left.id] = true;
-        rows.push({ dirType: 'left', info: getBranchDestinationInfo(br.left) });
-      }
-      if (br.straight && !usedIds[br.straight.id]) {
-        usedIds[br.straight.id] = true;
-        rows.push({ dirType: 'straight', info: getBranchDestinationInfo(br.straight) });
-      }
-      if (br.right && !usedIds[br.right.id]) {
-        usedIds[br.right.id] = true;
-        rows.push({ dirType: 'right', info: getBranchDestinationInfo(br.right) });
-      }
-      if (rows.length === 0) return;
-
-      var uSign = 0.81;
-      var pt = e.curve.getPointAt(uSign);
-      var tan = e.curve.getTangentAt(uSign).normalize();
-      var rightVec = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
-      var signPos = pt.clone().add(rightVec.clone().multiplyScalar(7.8));
-
-      var signG = new THREE.Group();
-      signG.position.copy(signPos);
-
-      var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.32, 9.6, 10), postMat);
-      pole.position.y = 1.4;
-      var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.35, 10), trimMat);
-      cap.position.y = 6.2;
-      signG.add(pole, cap);
-
-      var signCanvas = createJunctionSignCanvas(rows);
-      var signTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(signCanvas) : new THREE.CanvasTexture(signCanvas);
-      var signSprite = new THREE.Sprite(
-        new THREE.SpriteMaterial({ map: signTex, transparent: true, depthTest: true })
-      );
-      var signH = 2.4 * rows.length;
-      signSprite.scale.set(7.4, signH, 1);
-      signSprite.position.set(0, 6.4 + signH * 0.45, 0);
-      signG.add(signSprite);
-
-      window.junctionSignsGroup.add(signG);
-    });
-  }
-
+  // Signpost meshes in `window.junctionSignsGroup` are built once in `installBangkokRiverCorridorWorld`
+  // after all Bangkok branches are registered (avoiding redundant intermediate CanvasTexture allocations).
   setTimeout(function() {
     if (typeof window.updateHUD === 'function') window.updateHUD();
   }, 30);
@@ -14242,11 +14147,18 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       }
     };
 
-    // Rebuild `window.junctionSignsGroup` so all 3D junction signposts (including J_NW -> Anantara!)
-    // use the unified pictorial arrow+badge sprites
+    // Rebuild `window.junctionSignsGroup` once with proper GPU disposal & shared texture caching!
     if (window.junctionSignsGroup) {
       while (window.junctionSignsGroup.children.length > 0) {
-        window.junctionSignsGroup.remove(window.junctionSignsGroup.children[0]);
+        var oldSignChild = window.junctionSignsGroup.children[0];
+        oldSignChild.traverse(function(node) {
+          if (node.material) {
+            if (node.material.map) node.material.map.dispose();
+            node.material.dispose();
+          }
+          if (node.geometry) node.geometry.dispose();
+        });
+        window.junctionSignsGroup.remove(oldSignChild);
       }
 
       function getBkkBranchInfo(bEdge) {
@@ -14304,6 +14216,9 @@ window.createDetailedCoach = function(colHex, coachIndex) {
 
       var postMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.5, roughness: 0.4 });
       var trimMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
+      var sharedPoleGeo = new THREE.CylinderGeometry(0.24, 0.32, 9.6, 10);
+      var sharedCapGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.35, 10);
+      var cachedSignSpriteMats = {};
 
       window.edges.forEach(function(e) {
         if (e.isSubway || e.isTurnout) return;
@@ -14338,38 +14253,51 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         }
         if (rows.length < 2) return;
 
-        var rowH = 168;
-        var padY = 20;
-        var c = document.createElement('canvas');
-        c.width = 520;
-        c.height = padY * 2 + rows.length * rowH;
-        var ctx = c.getContext('2d');
-        ctx.fillStyle = '#0f172a';
-        ctx.strokeStyle = '#facc15';
-        ctx.lineWidth = 12;
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(8, 8, c.width - 16, c.height - 16, 34);
-        else ctx.rect(8, 8, c.width - 16, c.height - 16);
-        ctx.fill();
-        ctx.stroke();
+        var rowsKey = rows.map(function(r) {
+          return r.dirType + ':' + r.info.icon + ':' + r.info.badgeCol;
+        }).join('|');
 
-        for (var rIdx = 0; rIdx < rows.length; rIdx++) {
-          var r = rows[rIdx];
-          var ry = padY + rIdx * rowH;
-          var cardH = rowH - 12;
-          var cy = ry + cardH * 0.5;
-          ctx.fillStyle = r.info.badgeCol;
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 5;
+        if (!cachedSignSpriteMats[rowsKey]) {
+          var rowH = 168;
+          var padY = 20;
+          var c = document.createElement('canvas');
+          c.width = 520;
+          c.height = padY * 2 + rows.length * rowH;
+          var ctx = c.getContext('2d');
+          ctx.fillStyle = '#0f172a';
+          ctx.strokeStyle = '#facc15';
+          ctx.lineWidth = 12;
           ctx.beginPath();
-          if (ctx.roundRect) ctx.roundRect(24, ry + 6, c.width - 48, cardH, 26);
-          else ctx.rect(24, ry + 6, c.width - 48, cardH);
+          if (ctx.roundRect) ctx.roundRect(8, 8, c.width - 16, c.height - 16, 34);
+          else ctx.rect(8, 8, c.width - 16, c.height - 16);
           ctx.fill();
           ctx.stroke();
-          drawBkkArrow(ctx, r.dirType, 130, cy + 6, 98);
-          if (window.drawLandmarkPictogram) {
-            window.drawLandmarkPictogram(ctx, r.info.icon, 355, cy + 6, 68);
+
+          for (var rIdx = 0; rIdx < rows.length; rIdx++) {
+            var r = rows[rIdx];
+            var ry = padY + rIdx * rowH;
+            var cardH = rowH - 12;
+            var cy = ry + cardH * 0.5;
+            ctx.fillStyle = r.info.badgeCol;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(24, ry + 6, c.width - 48, cardH, 26);
+            else ctx.rect(24, ry + 6, c.width - 48, cardH);
+            ctx.fill();
+            ctx.stroke();
+            drawBkkArrow(ctx, r.dirType, 130, cy + 6, 98);
+            if (window.drawLandmarkPictogram) {
+              window.drawLandmarkPictogram(ctx, r.info.icon, 355, cy + 6, 68);
+            }
           }
+
+          var signTex = window.upgradeCanvasTex(c);
+          cachedSignSpriteMats[rowsKey] = new THREE.SpriteMaterial({
+            map: signTex,
+            transparent: true,
+            depthTest: true
+          });
         }
 
         var uSign = 0.74;
@@ -14382,16 +14310,13 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         signG.position.copy(signPos);
         signG.userData.edgeId = e.id;
         signG.userData.toNode = e.to;
-        var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.32, 9.6, 10), postMat);
+        var pole = new THREE.Mesh(sharedPoleGeo, postMat);
         pole.position.y = 1.4;
-        var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.35, 10), trimMat);
+        var cap = new THREE.Mesh(sharedCapGeo, trimMat);
         cap.position.y = 6.2;
         signG.add(pole, cap);
 
-        var signTex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new THREE.CanvasTexture(c);
-        var signSprite = new THREE.Sprite(
-          new THREE.SpriteMaterial({ map: signTex, transparent: true, depthTest: true })
-        );
+        var signSprite = new THREE.Sprite(cachedSignSpriteMats[rowsKey]);
         var signH = 2.4 * rows.length;
         signSprite.scale.set(7.4, signH, 1);
         signSprite.position.set(0, 6.4 + signH * 0.45, 0);
@@ -15023,7 +14948,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       var deckPoints = [];
 
       // Render continuous wide bridge deck + side parapets across the ENTIRE bridge [t = 0.0 .. 1.0]
-      // so there is never a missing bridge section at the start/end or between segments!
+      // centered on the exact 3D midpoint between `eObj.curve` and `eObj.parallelCurve`!
       for (var i = 0; i <= steps; i++) {
         var t = i / steps;
         var p = curve.getPointAt(t);
@@ -15033,14 +14958,15 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         var horizLen = Math.hypot(tan.x, tan.z) || 0.001;
         var pitch = -Math.atan2(tan.y, horizLen);
 
-        // Wide bridge deck slab spanning both tracks + golden-white edge parapets
-        var centerPt = p.clone().addScaledVector(right, -2.2);
+        // Exact midpoint between the two parallel railway tracks (`curve` at -2.2*right and `parallelCurve` at +2.2*right)
+        var pPar = eObj.parallelCurve ? eObj.parallelCurve.getPointAt(t) : p.clone().addScaledVector(right, 4.4);
+        var centerPt = p.clone().lerp(pPar, 0.5);
         if (i % 2 === 0) {
           deckPoints.push({ t: t, center: centerPt.clone(), right: right.clone(), yaw: yaw });
         }
 
         var slab = new THREE.Mesh(sharedSlabBoxGeo, pierConcreteMat);
-        slab.scale.set(11.6, 1.08, segLen);
+        slab.scale.set(13.6, 1.08, segLen);
         slab.position.set(centerPt.x, centerPt.y - 0.56, centerPt.z);
         slab.rotation.order = 'YXZ';
         slab.rotation.y = yaw;
@@ -15049,7 +14975,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
 
         // Golden decorative side fascia strip along the deck edge (like the warm lit deck in the photo)
         if (i >= 1 && i <= steps - 1) {
-          [-5.55, 5.55].forEach(function(sideOff) {
+          [-6.55, 6.55].forEach(function(sideOff) {
             var rail = new THREE.Mesh(sharedSlabBoxGeo, whiteSteelMat);
             rail.scale.set(0.34, 1.35, segLen);
             rail.position.set(centerPt.x + right.x * sideOff, centerPt.y + 0.55, centerPt.z + right.z * sideOff);
@@ -15070,7 +14996,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
 
         // Glowing warm street lamps along the bridge deck
         if (i >= 2 && i <= steps - 2 && i % 4 === 0) {
-          [-5.45, 5.45].forEach(function(sideOff) {
+          [-6.45, 6.45].forEach(function(sideOff) {
             var post = new THREE.Mesh(sharedLampPostGeo, whiteSteelMat);
             post.position.set(centerPt.x + right.x * sideOff, centerPt.y + 1.8, centerPt.z + right.z * sideOff);
             bkkRootGroup.add(post);
@@ -15093,29 +15019,30 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       }
 
       // Build the signature Rama VIII Inverted-Y Pylon at `pylonT`
-      // Lower magenta legs rise strictly OUTSIDE the 11.6m-wide bridge deck (`±6.9m` from `pylonCenter`)
-      // up to `portalClearY = deckY + 9.2m` (well above the 4.6m-tall locomotive & coaches!) before angling inward
-      // to `mergeY`, so the train never collides with the purple pylon legs on either track!
+      // Centered on the exact midpoint `pylonCenter` between `curve` and `parallelCurve`, with lower magenta legs
+      // rising strictly OUTSIDE the 13.6m-wide bridge deck (`±8.4m` from `pylonCenter`, >4.5m clear of both tracks!)
+      // up to `portalClearY = deckY + 9.6m` before angling inward to `mergeY`.
       var pPylon = curve.getPointAt(pylonT);
       var tanPylon = curve.getTangentAt(pylonT).normalize();
       var rightPylon = new THREE.Vector3(-tanPylon.z, 0, tanPylon.x).normalize();
-      var pylonCenter = pPylon.clone().addScaledVector(rightPylon, -2.2);
+      var pPylonPar = eObj.parallelCurve ? eObj.parallelCurve.getPointAt(pylonT) : pPylon.clone().addScaledVector(rightPylon, 4.4);
+      var pylonCenter = pPylon.clone().lerp(pPylonPar, 0.5);
       var deckY = pylonCenter.y;
-      var portalClearY = deckY + 9.2;
-      var mergeY = deckY + pylonHeight * 0.52;
+      var portalClearY = deckY + 9.6;
+      var mergeY = deckY + pylonHeight * 0.54;
       var topY = deckY + pylonHeight;
       var pylonYaw = Math.atan2(tanPylon.x, tanPylon.z);
 
       // Massive octagonal concrete foundation caisson in the river supporting the outer pylon legs
-      var caisson = new THREE.Mesh(new THREE.CylinderGeometry(8.6, 9.8, (deckY + 3.2), 16), pierConcreteMat);
+      var caisson = new THREE.Mesh(new THREE.CylinderGeometry(10.2, 11.4, (deckY + 3.2), 16), pierConcreteMat);
       caisson.position.set(pylonCenter.x, (deckY - 1.2) * 0.5 - 1.0, pylonCenter.z);
       bkkRootGroup.add(caisson);
 
-      var legSpread = 6.9;
+      var legSpread = 8.4;
       var apexPt = new THREE.Vector3(pylonCenter.x, mergeY, pylonCenter.z);
 
       [-legSpread, legSpread].forEach(function(sideOffset) {
-        // 1. Lower outer vertical-ish magenta leg from river caisson up to `portalClearY` (outside the deck & tracks!)
+        // 1. Lower outer vertical-ish magenta leg from river caisson up to `portalClearY` (outside the 13.6m deck & both tracks!)
         var basePt = pylonCenter.clone().addScaledVector(rightPylon, sideOffset * 1.06);
         basePt.y = riverWaterY + 0.5;
         var kneePt = pylonCenter.clone().addScaledVector(rightPylon, sideOffset);
@@ -15129,7 +15056,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         lowerLeg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), lowerDiff.clone().normalize());
         bkkRootGroup.add(lowerLeg);
 
-        // 2. Upper inclined magenta A-frame leg from `portalClearY` (`deckY + 9.2m`, high above train!) to `apexPt` (`mergeY`)
+        // 2. Upper inclined magenta A-frame leg from `portalClearY` (`deckY + 9.6m`, high above train!) to `apexPt` (`mergeY`)
         var upperDiff = apexPt.clone().sub(kneePt);
         var upperLen = upperDiff.length();
         var upperMid = kneePt.clone().addScaledVector(upperDiff, 0.5);
@@ -15140,7 +15067,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       });
 
       // Horizontal cross-beam under the deck & high portal cross-beam above the train (`portalClearY`)
-      var deckCrossBeam = new THREE.Mesh(new THREE.BoxGeometry(legSpread * 2.25, 1.8, 3.2), pierConcreteMat);
+      var deckCrossBeam = new THREE.Mesh(new THREE.BoxGeometry(legSpread * 2.22, 1.8, 3.2), pierConcreteMat);
       deckCrossBeam.position.set(pylonCenter.x, deckY - 1.1, pylonCenter.z);
       deckCrossBeam.rotation.y = pylonYaw;
       bkkRootGroup.add(deckCrossBeam);
@@ -15187,11 +15114,11 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         var normDist = Math.min(1.0, Math.abs(dtSpan) / (dtSpan > 0 ? 0.44 : 0.26));
         var anchorY = mergeY + 2.4 + normDist * (upperShaftLen - 3.0);
 
-        [-5.25, 5.25].forEach(function(sideOff) {
+        [-6.25, 6.25].forEach(function(sideOff) {
           var towerAnchor = new THREE.Vector3(
-            pylonCenter.x + rightPylon.x * (sideOff * 0.18),
+            pylonCenter.x + rightPylon.x * (sideOff * 0.16),
             anchorY,
-            pylonCenter.z + rightPylon.z * (sideOff * 0.18)
+            pylonCenter.z + rightPylon.z * (sideOff * 0.16)
           );
           var deckAnchor = new THREE.Vector3(
             dp.center.x + dp.right.x * sideOff,
@@ -16146,6 +16073,45 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       }
     }
   }
+
+  // Deduplicate & dispose unscaled BoxGeometry instances inside `bkkRootGroup` (sleepers, rails, ballast, seawalls)
+  // so the entire Bangkok expansion shares a single unit BoxGeometry VBO!
+  (function deduplicateBangkokBoxGeometries() {
+    var bkkUnitBox = new THREE.BoxGeometry(1, 1, 1);
+    bkkRootGroup.traverse(function(node) {
+      if (
+        node && node.isMesh && node.geometry &&
+        node.geometry.type === 'BoxGeometry' &&
+        node.geometry !== bkkUnitBox &&
+        node.geometry.parameters &&
+        node.geometry.parameters.width &&
+        node.geometry.parameters.height &&
+        node.geometry.parameters.depth &&
+        !node.geometry.parameters.widthSegments &&
+        !node.geometry.parameters.heightSegments &&
+        !node.geometry.parameters.depthSegments &&
+        node.scale.x === 1 && node.scale.y === 1 && node.scale.z === 1
+      ) {
+        var gp = node.geometry.parameters;
+        var oldGeo = node.geometry;
+        node.geometry = bkkUnitBox;
+        node.scale.set(gp.width, gp.height, gp.depth);
+        oldGeo.dispose();
+      }
+    });
+  })();
+
+  // Cap WebGL framebuffer resolution to crisp 1080p equivalent on 4K Smart TVs
+  // (avoids allocating a 65 MB 4K framebuffer while keeping 100% Full HD sharpness)
+  function applySmartTvOptimalPixelRatio() {
+    if (typeof renderer !== 'undefined' && renderer && renderer.setPixelRatio) {
+      var maxRatio = Math.min(window.devicePixelRatio || 1, 1.5, 1920 / Math.max(1, window.innerWidth || 1920));
+      renderer.setPixelRatio(Math.max(1.0, maxRatio));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  }
+  applySmartTvOptimalPixelRatio();
+  window.addEventListener('resize', applySmartTvOptimalPixelRatio);
 
   // Hook into `renderer.render` so the Bangkok river, boat, Ferris wheel, and fountains animate every frame
   if (typeof renderer !== 'undefined' && renderer && renderer.render) {

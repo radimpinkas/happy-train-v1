@@ -18,8 +18,12 @@ scene.fog = new THREE.FogExp2(daySkyColor.clone(), 0.00055);
 // Wider 2.5D Storybook Perspective Camera so the whole map layout is clear for children
 var camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 1.5, 2200);
 var renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+function applyOptimalSmartTvPixelRatio() {
+  var maxRatio = Math.min(window.devicePixelRatio || 1, 1.5, 1920 / Math.max(1, window.innerWidth || 1920));
+  renderer.setPixelRatio(Math.max(1.0, maxRatio));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+applyOptimalSmartTvPixelRatio();
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 if (THREE.SRGBColorSpace) {
@@ -34,13 +38,18 @@ document.getElementById('canvas-container').appendChild(renderer.domElement);
 window.maxAniso = renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 4;
 window.upgradeCanvasTex = function(texOrCanvas, repeatX, repeatY) {
   var tex = (texOrCanvas && texOrCanvas.isTexture) ? texOrCanvas : new THREE.CanvasTexture(texOrCanvas);
-  tex.anisotropy = window.maxAniso;
   if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
   else if (THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
   if (repeatX && repeatY) {
+    tex.anisotropy = window.maxAniso;
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(repeatX, repeatY);
+  } else {
+    // Disable mipmap generation & NPOT power-of-two canvas duplication on non-repeating textures
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
   }
   tex.needsUpdate = true;
   return tex;
@@ -49,7 +58,7 @@ window.upgradeCanvasTex = function(texOrCanvas, repeatX, repeatY) {
 window.addEventListener('resize', function() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  applyOptimalSmartTvPixelRatio();
 });
 
 // Warm Golden Storybook Lighting
@@ -896,6 +905,10 @@ function buildCzechLevelCrossing(crossPos, roadAng, trackTan) {
   var dashMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   var railGuardMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.5 });
 
+  // Shared geometries across all 1,500 road segments (~3,800 road meshes -> 2 shared BufferGeometries!)
+  var sharedRoadBoxGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+  var sharedRoadPierGeo = new THREE.CylinderGeometry(1.1, 1.4, 5.2, 10);
+
   window.roadNetworkCurves.forEach(function(rCurve) {
     var rLen = rCurve.getLength();
     var steps = Math.floor(rLen / 2.2);
@@ -918,21 +931,27 @@ function buildCzechLevelCrossing(crossPos, roadAng, trackTan) {
 
       window.roadSamplePoints.push({ x: mid.x, y: mid.y, z: mid.z, ang: ang });
 
-      var curb = new THREE.Mesh(new THREE.BoxGeometry(10.0, 0.24, segLen), curbMat);
+      var curb = new THREE.Mesh(sharedRoadBoxGeo, curbMat);
+      curb.scale.set(10.0, 0.24, segLen);
       curb.position.set(mid.x, mid.y - 0.04, mid.z);
       curb.rotation.order = 'YXZ'; curb.rotation.y = ang; curb.rotation.x = pitch;
+      curb.userData.isRoadPart = true;
       scene.add(curb);
 
-      var asph = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.28, segLen), asphaltMat);
+      var asph = new THREE.Mesh(sharedRoadBoxGeo, asphaltMat);
+      asph.scale.set(8.8, 0.28, segLen);
       asph.position.set(mid.x, mid.y, mid.z);
       asph.rotation.order = 'YXZ'; asph.rotation.y = ang; asph.rotation.x = pitch;
       asph.receiveShadow = true;
+      asph.userData.isRoadPart = true;
       scene.add(asph);
 
       if (i % 2 === 0) {
-        var dash = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.32, segLen * 0.62), dashMat);
+        var dash = new THREE.Mesh(sharedRoadBoxGeo, dashMat);
+        dash.scale.set(0.38, 0.32, segLen * 0.62);
         dash.position.set(mid.x, mid.y + 0.02, mid.z);
         dash.rotation.order = 'YXZ'; dash.rotation.y = ang; dash.rotation.x = pitch;
+        dash.userData.isRoadPart = true;
         scene.add(dash);
       }
 
@@ -953,15 +972,18 @@ function buildCzechLevelCrossing(crossPos, roadAng, trackTan) {
         if (i % 2 === 0) {
           var perpX = Math.cos(ang) * 4.7, perpZ = -Math.sin(ang) * 4.7;
           [-1, 1].forEach(function(side) {
-            var guard = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.85, segLen * 1.05), railGuardMat);
+            var guard = new THREE.Mesh(sharedRoadBoxGeo, railGuardMat);
+            guard.scale.set(0.45, 0.85, segLen * 1.05);
             guard.position.set(mid.x + perpX * side, mid.y + 0.45, mid.z + perpZ * side);
             guard.rotation.order = 'YXZ'; guard.rotation.y = ang; guard.rotation.x = pitch;
+            guard.userData.isRoadPart = true;
             scene.add(guard);
           });
         }
         if (i % 4 === 0) {
-          var rPier = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.4, 5.2, 10), curbMat);
+          var rPier = new THREE.Mesh(sharedRoadPierGeo, curbMat);
           rPier.position.set(mid.x, mid.y - 2.6, mid.z);
+          rPier.userData.isRoadPart = true;
           scene.add(rPier);
         }
       }
@@ -1042,6 +1064,9 @@ var slGeo = new THREE.BoxGeometry(3.2, 0.24, 0.72);
 var slMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.75 });
 var rlGeo = new THREE.BoxGeometry(0.24, 0.28, 2.25);
 var rlMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.65, roughness: 0.3 });
+var sharedBallastSingleGeo = new THREE.BoxGeometry(5.2, 0.28, 2.3);
+var sharedBallastDoubleGeo = new THREE.BoxGeometry(9.6, 0.28, 2.3);
+var sharedEmbankmentCylGeo = new THREE.CylinderGeometry(1.0, 1.15, 1.0, 10);
 var ballastMat = new THREE.MeshStandardMaterial({ color: 0xe7e5e4, roughness: 0.9 });
 var embankmentMat = new THREE.MeshStandardMaterial({ color: 0x34d399, roughness: 0.85 });
 
@@ -1339,8 +1364,8 @@ function renderSingleTrackCurve(curve, isMainTrack, e, uStart, uEnd) {
       var groundY = window.getTerrainHeight(midTrackX, midTrackZ);
       var gapH = p.y - groundY;
 
-      var balW = (e.isTurnout || e.isSubway) ? 5.2 : 9.6;
-      var bal = new THREE.Mesh(new THREE.BoxGeometry(balW, 0.28, 2.3), ballastMat);
+      var balGeo = (e.isTurnout || e.isSubway) ? sharedBallastSingleGeo : sharedBallastDoubleGeo;
+      var bal = new THREE.Mesh(balGeo, ballastMat);
       bal.position.set(midTrackX, p.y - 0.16, midTrackZ);
       bal.rotation.order = 'YXZ'; bal.rotation.y = ang; bal.rotation.x = pitch;
       trackParent.add(bal);
@@ -1353,11 +1378,8 @@ function renderSingleTrackCurve(curve, isMainTrack, e, uStart, uEnd) {
           if (roadInfo.dist > minRoadClearance) {
             var embH = gapH + 1.4;
             var topR = (e.isTurnout || e.isSubway) ? 3.4 : 5.5;
-            var botR = ((e.isTurnout || e.isSubway) ? 3.8 : 6.0) + gapH * 0.65;
-            var emb = new THREE.Mesh(
-              new THREE.CylinderGeometry(topR, botR, embH, 10),
-              embankmentMat
-            );
+            var emb = new THREE.Mesh(sharedEmbankmentCylGeo, embankmentMat);
+            emb.scale.set(topR, embH, topR);
             emb.position.set(midTrackX, p.y - embH * 0.5 - 0.28, midTrackZ);
             scene.add(emb);
           }

@@ -1063,6 +1063,9 @@ window.makeStationSign = function(titleText, iconType, bgHex, w, h) {
   ctx.fillText(cleanLabel, 392, 92);
 
   var tex = window.upgradeCanvasTex ? window.upgradeCanvasTex(c) : new window.THREE.CanvasTexture(c);
+  tex.generateMipmaps = false;
+  tex.minFilter = window.THREE.LinearFilter;
+  tex.magFilter = window.THREE.LinearFilter;
   var sp = new window.THREE.Sprite(
     new window.THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true })
   );
@@ -1079,13 +1082,14 @@ window.makeStationSign = function(titleText, iconType, bgHex, w, h) {
 var sunoTrackGroups = [
   ['song1.mp3'],
   ['song2.mp3'],
-  ['song3.mp3', 'assets/aistudio/Song3_6c8550f2.mp3', '/assets/aistudio/Song3_6c8550f2.mp3'],
-  ['song4.mp3', 'assets/aistudio/Song4_3a5fe458.mp3', '/assets/aistudio/Song4_3a5fe458.mp3']
+  ['song3.mp3'],
+  ['song4.mp3']
 ];
 var currentSongIndex = 0;
 var isMusicPlaying = true;
 var userMusicVolume = 0.45;
 var bgMusicAudio = new Audio();
+bgMusicAudio.preload = 'metadata';
 bgMusicAudio.volume = userMusicVolume;
 
 function syncMusicButtonUI() {
@@ -1116,6 +1120,12 @@ function playCurrentCandidate(fallbackUrlIdx, failedTrackCount) {
 
   var targetSrc = candidates[uIdx];
   if (!bgMusicAudio.src || bgMusicAudio.src.indexOf(targetSrc) === -1) {
+    // Explicitly flush previous track's decoded PCM buffer on Smart TVs before loading next track
+    try {
+      bgMusicAudio.pause();
+      bgMusicAudio.removeAttribute('src');
+      bgMusicAudio.load();
+    } catch (e) {}
     bgMusicAudio.src = targetSrc;
   }
   var playPromise = bgMusicAudio.play();
@@ -1717,14 +1727,35 @@ function parsePcm16WavToAudioBuffer(ctx, arrayBuffer) {
   }
 }
 
+var decodedVoiceLruKeys = [];
+var MAX_DECODED_VOICE_BUFFERS = 10;
+
+function cacheDecodedVoiceBuffer(clipKey, pcmBuf) {
+  if (!clipKey || !pcmBuf) return;
+  delete rawWavArrayBuffers[clipKey];
+  var existingIdx = decodedVoiceLruKeys.indexOf(clipKey);
+  if (existingIdx !== -1) {
+    decodedVoiceLruKeys.splice(existingIdx, 1);
+  }
+  decodedVoiceLruKeys.push(clipKey);
+  decodedVoiceBuffers[clipKey] = pcmBuf;
+  while (decodedVoiceLruKeys.length > MAX_DECODED_VOICE_BUFFERS) {
+    var evictKey = decodedVoiceLruKeys.shift();
+    if (evictKey && evictKey !== activeVoiceKey) {
+      delete decodedVoiceBuffers[evictKey];
+    }
+  }
+}
+
 function fetchVoiceWavBuffer(clipKey) {
   if (decodedVoiceBuffers[clipKey] && audioCtx) {
+    cacheDecodedVoiceBuffer(clipKey, decodedVoiceBuffers[clipKey]);
     return Promise.resolve(decodedVoiceBuffers[clipKey]);
   }
   if (rawWavArrayBuffers[clipKey] && audioCtx) {
     var syncBuf = parsePcm16WavToAudioBuffer(audioCtx, rawWavArrayBuffers[clipKey]);
     if (syncBuf) {
-      decodedVoiceBuffers[clipKey] = syncBuf;
+      cacheDecodedVoiceBuffer(clipKey, syncBuf);
       return Promise.resolve(syncBuf);
     }
   }
@@ -1757,16 +1788,19 @@ function fetchVoiceWavBuffer(clipKey) {
         return resp.arrayBuffer();
       }).then(function(arrBuf) {
         if (!arrBuf || arrBuf.byteLength < 100) throw new Error('Empty TTS WAV');
-        rawWavArrayBuffers[clipKey] = arrBuf;
         if (audioCtx) {
           var pcmBuf = parsePcm16WavToAudioBuffer(audioCtx, arrBuf);
           if (pcmBuf) {
-            decodedVoiceBuffers[clipKey] = pcmBuf;
+            cacheDecodedVoiceBuffer(clipKey, pcmBuf);
+            delete loadingVoicePromises[clipKey];
             return pcmBuf;
           }
         }
+        rawWavArrayBuffers[clipKey] = arrBuf;
+        delete loadingVoicePromises[clipKey];
         return null;
       }).catch(function(err) {
+        delete loadingVoicePromises[clipKey];
         if (entry.fallbackClip && entry.fallbackClip !== clipKey) {
           return fetchVoiceWavBuffer(entry.fallbackClip);
         }
@@ -1779,14 +1813,16 @@ function fetchVoiceWavBuffer(clipKey) {
       return resp.arrayBuffer();
     }).then(function(arrBuf) {
       if (!arrBuf || arrBuf.byteLength < 100) throw new Error('Empty WAV');
-      rawWavArrayBuffers[clipKey] = arrBuf;
       if (audioCtx) {
         var pcmBuf = parsePcm16WavToAudioBuffer(audioCtx, arrBuf);
         if (pcmBuf) {
-          decodedVoiceBuffers[clipKey] = pcmBuf;
+          cacheDecodedVoiceBuffer(clipKey, pcmBuf);
+          delete loadingVoicePromises[clipKey];
           return pcmBuf;
         }
       }
+      rawWavArrayBuffers[clipKey] = arrBuf;
+      delete loadingVoicePromises[clipKey];
       return null;
     }).catch(function() {
       return tryFetchIdx(idx + 1);
@@ -1800,12 +1836,14 @@ function fetchVoiceWavBuffer(clipKey) {
   return loadingVoicePromises[clipKey];
 }
 
-(function preloadAllVoiceWavs() {
-  var keys = Object.keys(window.VOICE_PACK);
-  keys.forEach(function(k, idx) {
+// Preload only the 3 initial launch greetings at startup instead of all 33 WAVs at once
+// so Smart TVs save ~27 MB of decoded Float32 PCM + raw ArrayBuffer RAM!
+(function preloadInitialVoiceWavs() {
+  var initialKeys = ['danicek-ready', 'storyteller-hello', 'mom-house-hello'];
+  initialKeys.forEach(function(k, idx) {
     setTimeout(function() {
       fetchVoiceWavBuffer(k).catch(function() {});
-    }, idx * 45);
+    }, 300 + idx * 120);
   });
 })();
 
