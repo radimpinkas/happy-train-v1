@@ -36,6 +36,7 @@ var weatherMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: tru
 for (var wi = 0; wi < 180; wi++) {
   var wp = new THREE.Mesh(weatherGeo, weatherMat);
   wp.position.set((Math.random() - 0.5) * 160, Math.random() * 60, (Math.random() - 0.5) * 160);
+  wp.visible = false; // Hidden when weather is 'clear' to save 180 transparent draw calls per frame
   scene.add(wp);
   weatherParticles.push(wp);
 }
@@ -43,6 +44,10 @@ for (var wi = 0; wi < 180; wi++) {
 window.cycleWeather = function() {
   currentWeatherIdx = (currentWeatherIdx + 1) % weatherTypes.length;
   var mode = weatherTypes[currentWeatherIdx];
+  var showParticles = (mode !== 'clear');
+  for (var wpi = 0; wpi < weatherParticles.length; wpi++) {
+    weatherParticles[wpi].visible = showParticles;
+  }
   var btn = document.getElementById('weather-btn');
   if (mode === 'clear') {
     btn.textContent = '☀️ Weather: Clear (W)';
@@ -134,23 +139,21 @@ var colHemiCavernSky = new THREE.Color(0xe9d5ff), colHemiCavernGnd = new THREE.C
 
 // 5-Minute Day/Night Analog Clock + Colorful Sunrise/Sunset & Dark Night / Tunnel / Metro Controller
 var gameTimeSeconds = 125; // Starts around 10:00 AM bright sunny storybook morning
+var lastClockText = '';
+var lastIsDeepInsideMetro = null;
+var lastHideSurfaceGround = null;
+var lastActiveMetroOffsetZ = undefined;
+var shadowMapFrameTick = 0;
+if (renderer && renderer.shadowMap) {
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
+}
+
 function updateClockAndLighting(dt) {
   gameTimeSeconds = (gameTimeSeconds + dt) % 300;
   var hoursFloat = (gameTimeSeconds / 300) * 24;
   var hr = Math.floor(hoursFloat);
   var min = Math.floor((hoursFloat - hr) * 60);
-
-  var c = document.getElementById('analog-clock');
-  if (c) {
-    var ctx = c.getContext('2d');
-    ctx.clearRect(0, 0, 42, 42);
-    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5;
-    var hAngle = ((hr % 12) + min / 60) * (Math.PI / 6) - Math.PI / 2;
-    ctx.beginPath(); ctx.moveTo(21, 21); ctx.lineTo(21 + Math.cos(hAngle) * 11, 21 + Math.sin(hAngle) * 11); ctx.stroke();
-    var mAngle = (min / 60) * (Math.PI * 2) - Math.PI / 2;
-    ctx.lineWidth = 1.8;
-    ctx.beginPath(); ctx.moveTo(21, 21); ctx.lineTo(21 + Math.cos(mAngle) * 16, 21 + Math.sin(mAngle) * 16); ctx.stroke();
-  }
 
   var isNight = (hoursFloat >= 20.0 || hoursFloat < 5.5);
   var isSunrise = (hoursFloat >= 5.5 && hoursFloat < 8.0);
@@ -159,12 +162,37 @@ function updateClockAndLighting(dt) {
   var phaseIcon = isNight ? '🌙' : (isSunrise ? '🌅' : (isSunset ? '🌇' : '☀️'));
   var phaseName = isNight ? 'Night' : (isSunrise ? 'Sunrise' : (isSunset ? 'Sunset' : 'Day'));
   var padMin = min < 10 ? '0' + min : min;
-  document.getElementById('time-phase-label').textContent = phaseIcon + ' ' + hr + ':' + padMin + ' ' + phaseName;
+  var newClockText = phaseIcon + ' ' + hr + ':' + padMin + ' ' + phaseName;
+  if (newClockText !== lastClockText) {
+    lastClockText = newClockText;
+    document.getElementById('time-phase-label').textContent = newClockText;
+    var c = document.getElementById('analog-clock');
+    if (c) {
+      var ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, 42, 42);
+      ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5;
+      var hAngle = ((hr % 12) + min / 60) * (Math.PI / 6) - Math.PI / 2;
+      ctx.beginPath(); ctx.moveTo(21, 21); ctx.lineTo(21 + Math.cos(hAngle) * 11, 21 + Math.sin(hAngle) * 11); ctx.stroke();
+      var mAngle = (min / 60) * (Math.PI * 2) - Math.PI / 2;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(21, 21); ctx.lineTo(21 + Math.cos(mAngle) * 16, 21 + Math.sin(mAngle) * 16); ctx.stroke();
+    }
+  }
 
   var inDarkTunnel = window.isPlayerInDarkTunnel ? window.isPlayerInDarkTunnel(pState.edge, pState.t) : false;
   var uSubEntry = (pState.edge && pState.edge.uPortalEntry) ? pState.edge.uPortalEntry : 0.195;
   var uSubExit  = (pState.edge && pState.edge.uPortalExit)  ? pState.edge.uPortalExit  : 0.805;
   var isUndergroundMetro = Boolean(pState.edge.isSubway && pState.t >= uSubEntry && pState.t <= uSubExit);
+
+  // Smart Shadow Map Management: disable sun shadow pass at night, in tunnels, and in Metro;
+  // throttle daytime shadow map regeneration to once every 4 frames on Smart TVs!
+  var shouldCastSunShadows = !(isUndergroundMetro || inDarkTunnel || isNight);
+  if (sunLight.castShadow !== shouldCastSunShadows) {
+    sunLight.castShadow = shouldCastSunShadows;
+    if (renderer && renderer.shadowMap) renderer.shadowMap.needsUpdate = true;
+  } else if (shouldCastSunShadows && (++shadowMapFrameTick % 4 === 0)) {
+    if (renderer && renderer.shadowMap) renderer.shadowMap.needsUpdate = true;
+  }
 
   if (isUndergroundMetro && !pState.inSubway) {
     pState.inSubway = true;
@@ -184,50 +212,61 @@ function updateClockAndLighting(dt) {
 
   // Unified threshold: switch from Surface World to Underground World inside the covered
   // Metro Station stone tunnel sleeve (`uSubEntry + 0.012 .. uSubExit - 0.010`), and toggle
-  // the dark tunnel depth blockers (`metroPortalBlockerMeshes`) so the tunnel is 100% continuous!
+  // the dark tunnel depth blockers (`metroPortalBlockerMeshes`) ONLY when state changes!
   var isDeepInsideMetro = Boolean(pState.edge && pState.edge.isSubway && pState.t >= uSubEntry + 0.012 && pState.t <= uSubExit - 0.010);
-  if (window.undergroundWorldGroup) {
-    window.undergroundWorldGroup.visible = isDeepInsideMetro;
-  }
-  if (window.metroPortalBlockerMeshes) {
-    for (var mbIdx = 0; mbIdx < window.metroPortalBlockerMeshes.length; mbIdx++) {
-      if (window.metroPortalBlockerMeshes[mbIdx]) {
-        window.metroPortalBlockerMeshes[mbIdx].visible = !isDeepInsideMetro;
+  if (isDeepInsideMetro !== lastIsDeepInsideMetro) {
+    lastIsDeepInsideMetro = isDeepInsideMetro;
+    if (window.undergroundWorldGroup) {
+      window.undergroundWorldGroup.visible = isDeepInsideMetro;
+    }
+    if (window.metroPortalBlockerMeshes) {
+      for (var mbIdx = 0; mbIdx < window.metroPortalBlockerMeshes.length; mbIdx++) {
+        if (window.metroPortalBlockerMeshes[mbIdx]) {
+          window.metroPortalBlockerMeshes[mbIdx].visible = !isDeepInsideMetro;
+        }
       }
     }
   }
+
   var hideSurfaceGround = Boolean(pState.edge && pState.edge.isSubway && pState.t >= uSubEntry + 0.012 && pState.t <= uSubExit - 0.032);
-  if (window.grassMesh) window.grassMesh.visible = !hideSurfaceGround;
-  if (window.riverMesh) window.riverMesh.visible = !hideSurfaceGround;
-  if (window.tracksRiverMesh) window.tracksRiverMesh.visible = !hideSurfaceGround;
-  if (window.junctionSignsGroup) window.junctionSignsGroup.visible = !hideSurfaceGround;
-  if (window.boats) {
-    for (var bIdx = 0; bIdx < window.boats.length; bIdx++) {
-      if (window.boats[bIdx] && window.boats[bIdx].mesh) {
-        window.boats[bIdx].mesh.visible = !hideSurfaceGround;
+  if (hideSurfaceGround !== lastHideSurfaceGround) {
+    lastHideSurfaceGround = hideSurfaceGround;
+    if (window.grassMesh) window.grassMesh.visible = !hideSurfaceGround;
+    if (window.riverMesh) window.riverMesh.visible = !hideSurfaceGround;
+    if (window.tracksRiverMesh) window.tracksRiverMesh.visible = !hideSurfaceGround;
+    if (window.junctionSignsGroup) window.junctionSignsGroup.visible = !hideSurfaceGround;
+    if (window.boats) {
+      for (var bIdx = 0; bIdx < window.boats.length; bIdx++) {
+        if (window.boats[bIdx] && window.boats[bIdx].mesh) {
+          window.boats[bIdx].mesh.visible = !hideSurfaceGround;
+        }
+      }
+    }
+    if (window.surfaceHousesList) {
+      for (var hIdx = 0; hIdx < window.surfaceHousesList.length; hIdx++) {
+        if (window.surfaceHousesList[hIdx]) {
+          window.surfaceHousesList[hIdx].visible = !hideSurfaceGround;
+        }
+      }
+    }
+    if (window.allSurfaceSigns) {
+      for (var sgIdx = 0; sgIdx < window.allSurfaceSigns.length; sgIdx++) {
+        if (window.allSurfaceSigns[sgIdx]) {
+          window.allSurfaceSigns[sgIdx].visible = !hideSurfaceGround;
+        }
       }
     }
   }
-  if (window.surfaceHousesList) {
-    for (var hIdx = 0; hIdx < window.surfaceHousesList.length; hIdx++) {
-      if (window.surfaceHousesList[hIdx]) {
-        window.surfaceHousesList[hIdx].visible = !hideSurfaceGround;
-      }
-    }
-  }
-  if (window.allSurfaceSigns) {
-    for (var sgIdx = 0; sgIdx < window.allSurfaceSigns.length; sgIdx++) {
-      if (window.allSurfaceSigns[sgIdx]) {
-        window.allSurfaceSigns[sgIdx].visible = !hideSurfaceGround;
-      }
-    }
-  }
+
   if (window.subwayEdges) {
     var activeMetroOffsetZ = (pState.edge && pState.edge.isSubway) ? pState.edge.cavernOffsetZ : null;
-    for (var sIdx = 0; sIdx < window.subwayEdges.length; sIdx++) {
-      var seItem = window.subwayEdges[sIdx];
-      if (seItem.rampTunnelGroup) {
-        seItem.rampTunnelGroup.visible = (activeMetroOffsetZ === null || seItem.cavernOffsetZ === activeMetroOffsetZ);
+    if (activeMetroOffsetZ !== lastActiveMetroOffsetZ) {
+      lastActiveMetroOffsetZ = activeMetroOffsetZ;
+      for (var sIdx = 0; sIdx < window.subwayEdges.length; sIdx++) {
+        var seItem = window.subwayEdges[sIdx];
+        if (seItem.rampTunnelGroup) {
+          seItem.rampTunnelGroup.visible = (activeMetroOffsetZ === null || seItem.cavernOffsetZ === activeMetroOffsetZ);
+        }
       }
     }
   }
@@ -689,89 +728,93 @@ function animate() {
   // 1. Update 5-Minute Day/Night Clock, Colorful Sunrise/Sunset, Tunnel Darkness & Cavern Lighting
   updateClockAndLighting(0.016);
 
-  // 2. Animate Grand Central Water Fountain, Underground Gnomes, Color-Changing Mushrooms, Waterfalls & Minecarts
-  fountainDrops.forEach(function(fd) {
-    fd.progress = (fd.progress + 0.022) % 1.0;
-    var arcY = 3.0 + Math.sin(fd.progress * Math.PI) * 8.5;
-    var rad = fd.progress * 7.5;
-    fd.mesh.position.set(Math.cos(fd.angle) * rad, arcY, Math.sin(fd.angle) * rad);
-  });
-
-  if (window.subwayGnomes) {
-    window.subwayGnomes.forEach(function(gn) {
-      gn.mesh.position.y = gn.baseY + Math.abs(Math.sin(time * 3.2 + gn.phase)) * 0.42;
-      if (gn.mesh.userData && gn.mesh.userData.armPivot) {
-        gn.mesh.userData.armPivot.rotation.x = Math.sin(time * 5.5 + gn.phase) * 0.68;
-      }
+  // 2. Animate Grand Central Water Fountain (only when on the surface!) & Underground Cavern (only when visible!)
+  if (!pState.inSubway) {
+    fountainDrops.forEach(function(fd) {
+      fd.progress = (fd.progress + 0.022) % 1.0;
+      var arcY = 3.0 + Math.sin(fd.progress * Math.PI) * 8.5;
+      var rad = fd.progress * 7.5;
+      fd.mesh.position.set(Math.cos(fd.angle) * rad, arcY, Math.sin(fd.angle) * rad);
     });
   }
 
-  if (window.magicMushrooms) {
-    window.magicMushrooms.forEach(function(m) {
-      var hue = (time * 0.075 + m.phase * 0.15) % 1.0;
-      m.capMat.color.setHSL(hue, 0.92, 0.56);
-      if (m.gillMat) {
-        m.gillMat.color.setHSL((hue + 0.28) % 1.0, 0.95, 0.68);
-      }
-      var pulse = 1.0 + Math.sin(time * 2.2 + m.phase) * 0.05;
-      var mGroup = m.group || m.mesh;
-      if (mGroup) {
-        mGroup.scale.set(m.baseScale * pulse, m.baseScale * (1.0 + (1.0 - pulse) * 0.6), m.baseScale * pulse);
-      }
-    });
-  }
+  if (window.undergroundWorldGroup && window.undergroundWorldGroup.visible) {
+    if (window.subwayGnomes) {
+      window.subwayGnomes.forEach(function(gn) {
+        gn.mesh.position.y = gn.baseY + Math.abs(Math.sin(time * 3.2 + gn.phase)) * 0.42;
+        if (gn.mesh.userData && gn.mesh.userData.armPivot) {
+          gn.mesh.userData.armPivot.rotation.x = Math.sin(time * 5.5 + gn.phase) * 0.68;
+        }
+      });
+    }
 
-  if (window.waterfallTextures) {
-    window.waterfallTextures.forEach(function(wt) {
-      wt.offset.y = (wt.offset.y + 0.025) % 1.0;
-    });
-  }
+    if (window.magicMushrooms) {
+      window.magicMushrooms.forEach(function(m) {
+        var hue = (time * 0.075 + m.phase * 0.15) % 1.0;
+        m.capMat.color.setHSL(hue, 0.92, 0.56);
+        if (m.gillMat) {
+          m.gillMat.color.setHSL((hue + 0.28) % 1.0, 0.95, 0.68);
+        }
+        var pulse = 1.0 + Math.sin(time * 2.2 + m.phase) * 0.05;
+        var mGroup = m.group || m.mesh;
+        if (mGroup) {
+          mGroup.scale.set(m.baseScale * pulse, m.baseScale * (1.0 + (1.0 - pulse) * 0.6), m.baseScale * pulse);
+        }
+      });
+    }
 
-  if (window.undergroundWaterfalls) {
-    window.undergroundWaterfalls.forEach(function(wf) {
-      wf.drops.forEach(function(d) {
-        d.progress = (d.progress + d.speed) % 1.0;
-        d.mesh.position.set(
-          d.xOff,
-          26.0 * (1.0 - d.progress),
-          -1.2 + d.progress * 4.5
+    if (window.waterfallTextures) {
+      window.waterfallTextures.forEach(function(wt) {
+        wt.offset.y = (wt.offset.y + 0.025) % 1.0;
+      });
+    }
+
+    if (window.undergroundWaterfalls) {
+      window.undergroundWaterfalls.forEach(function(wf) {
+        wf.drops.forEach(function(d) {
+          d.progress = (d.progress + d.speed) % 1.0;
+          d.mesh.position.set(
+            d.xOff,
+            26.0 * (1.0 - d.progress),
+            -1.2 + d.progress * 4.5
+          );
+        });
+        var poolMesh = wf.pool || wf.splash;
+        if (poolMesh) {
+          var sp = 1.0 + Math.sin(time * 4.5 + (wf.phase || 0)) * 0.10;
+          poolMesh.scale.set(sp, 1.0, sp);
+        }
+      });
+    }
+
+    if (window.goldMinecarts) {
+      window.goldMinecarts.forEach(function(mc) {
+        var off = Math.sin(time * 1.5 + mc.phase) * 3.8;
+        mc.mesh.position.set(
+          mc.basePos.x + mc.dir.x * off,
+          mc.basePos.y,
+          mc.basePos.z + mc.dir.z * off
         );
       });
-      var poolMesh = wf.pool || wf.splash;
-      if (poolMesh) {
-        var sp = 1.0 + Math.sin(time * 4.5 + (wf.phase || 0)) * 0.10;
-        poolMesh.scale.set(sp, 1.0, sp);
-      }
-    });
-  }
+    }
 
-  if (window.goldMinecarts) {
-    window.goldMinecarts.forEach(function(mc) {
-      var off = Math.sin(time * 1.5 + mc.phase) * 3.8;
-      mc.mesh.position.set(
-        mc.basePos.x + mc.dir.x * off,
-        mc.basePos.y,
-        mc.basePos.z + mc.dir.z * off
-      );
-    });
-  }
-
-  // 2A-2. Animate Multi-Plane Illustrated Parallax Layers & Bioluminescent Cavern Spores!
-  if (window.undergroundParallaxLayers) {
-    var clampedTrainX = Math.max(-56, Math.min(56, playerLoco.position.x));
-    window.undergroundParallaxLayers.forEach(function(pl) {
-      pl.mesh.position.x = pl.baseX + clampedTrainX * pl.parallaxFactor;
-    });
-  }
-  if (window.cavernFireflies) {
-    window.cavernFireflies.forEach(function(ff) {
-      var ft = time * ff.speed + ff.phase;
-      ff.mesh.position.set(
-        ff.baseX + Math.sin(ft) * 2.4,
-        ff.baseY + Math.cos(ft * 1.3) * 1.6,
-        ff.baseZ + Math.sin(ft * 0.8) * 2.0
-      );
-    });
+    // 2A-2. Animate Multi-Plane Illustrated Parallax Layers & Bioluminescent Cavern Spores!
+    if (window.undergroundParallaxLayers) {
+      var clampedTrainX = Math.max(-56, Math.min(56, playerLoco.position.x));
+      window.undergroundParallaxLayers.forEach(function(pl) {
+        pl.mesh.position.x = pl.baseX + clampedTrainX * pl.parallaxFactor;
+      });
+    }
+    if (window.cavernFireflies) {
+      window.cavernFireflies.forEach(function(ff) {
+        var ft = time * ff.speed + ff.phase;
+        ff.mesh.position.set(
+          ff.baseX + Math.sin(ft) * 2.4,
+          ff.baseY + Math.cos(ft * 1.3) * 1.6,
+          ff.baseZ + Math.sin(ft * 0.8) * 2.0
+        );
+      });
+    }
   }
 
   // 2B. Animate Czech Railway Level Crossings (České železniční přejezdy AŽD se závorami a cinkáním!)

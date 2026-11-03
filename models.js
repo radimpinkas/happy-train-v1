@@ -15909,6 +15909,8 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     var nowMs = performance.now();
     var dt = Math.min(0.08, Math.max(0.001, (nowMs - lastBkkFrameMs) * 0.001));
     lastBkkFrameMs = nowMs;
+    // Skip surface Bangkok river/sea/fountain/boat animations when player is underground in the Metro
+    if (window.pState && window.pState.inSubway) return;
     var tSec = nowMs * 0.001;
 
     var trainPos = (typeof playerLoco !== 'undefined' && playerLoco)
@@ -16099,6 +16101,147 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         oldGeo.dispose();
       }
     });
+  })();
+
+  // Batch ~15,000+ repeated static railway sleepers, steel rails, ballast beds, embankments,
+  // and road segments into `THREE.InstancedMesh` and freeze static transformation matrices (`matrixAutoUpdate = false`)
+  // to eliminate ~14,000 WebGL draw calls per frame and save ~18 MB of JS heap RAM on Smart TVs!
+  (function batchStaticTracksAndRoadsAndFreezeMatrices() {
+    if (typeof THREE === 'undefined' || !THREE.InstancedMesh || typeof scene === 'undefined' || !scene) return;
+
+    var excludedMeshes = new Set();
+    if (window.metroRampIntersectingMeshes) {
+      window.metroRampIntersectingMeshes.forEach(function(m) { if (m) excludedMeshes.add(m); });
+    }
+    if (window.metroPortalBlockerMeshes) {
+      window.metroPortalBlockerMeshes.forEach(function(m) { if (m) excludedMeshes.add(m); });
+    }
+    if (window.highlightDots) {
+      window.highlightDots.forEach(function(d) { if (d && d.mesh) excludedMeshes.add(d.mesh); });
+    }
+    if (riverWaveStrips) {
+      riverWaveStrips.forEach(function(rw) { if (rw && rw.mesh) excludedMeshes.add(rw.mesh); });
+    }
+    if (distantSeaWaveStrips) {
+      distantSeaWaveStrips.forEach(function(sw) { if (sw && sw.mesh) excludedMeshes.add(sw.mesh); });
+    }
+    if (iconsiamFountainJets) {
+      iconsiamFountainJets.forEach(function(fj) {
+        if (fj && fj.meshE) excludedMeshes.add(fj.meshE);
+        if (fj && fj.meshW) excludedMeshes.add(fj.meshW);
+      });
+    }
+
+    var trackGeos = new Set();
+    if (typeof slGeo !== 'undefined' && slGeo) trackGeos.add(slGeo);
+    if (typeof rlGeo !== 'undefined' && rlGeo) trackGeos.add(rlGeo);
+    if (typeof sharedBallastSingleGeo !== 'undefined' && sharedBallastSingleGeo) trackGeos.add(sharedBallastSingleGeo);
+    if (typeof sharedBallastDoubleGeo !== 'undefined' && sharedBallastDoubleGeo) trackGeos.add(sharedBallastDoubleGeo);
+    if (typeof sharedEmbankmentCylGeo !== 'undefined' && sharedEmbankmentCylGeo) trackGeos.add(sharedEmbankmentCylGeo);
+
+    var removedRoadMeshes = new Set();
+
+    function batchChildrenOfContainer(container, allowAnyRepeatedLeafMesh) {
+      if (!container || !container.children) return;
+      var buckets = {};
+      for (var i = 0; i < container.children.length; i++) {
+        var child = container.children[i];
+        if (!child || !child.isMesh || child.isInstancedMesh) continue;
+        if (child.children && child.children.length > 0) continue;
+        if (!child.visible || excludedMeshes.has(child)) continue;
+        if (!child.geometry || !child.material || Array.isArray(child.material)) continue;
+
+        var isRoad = Boolean(child.userData && child.userData.isRoadPart);
+        var isTrack = trackGeos.has(child.geometry);
+        if (!isRoad && !isTrack && !allowAnyRepeatedLeafMesh) continue;
+
+        var key = child.geometry.uuid + '|' + child.material.uuid + '|' +
+          (isRoad ? '1' : '0') + '|' +
+          (child.receiveShadow ? '1' : '0') + '|' +
+          (child.castShadow ? '1' : '0');
+        if (!buckets[key]) buckets[key] = [];
+        buckets[key].push(child);
+      }
+
+      var keys = Object.keys(buckets);
+      for (var k = 0; k < keys.length; k++) {
+        var list = buckets[keys[k]];
+        if (!list || list.length < 20) continue;
+        var sample = list[0];
+        var inst = new THREE.InstancedMesh(sample.geometry, sample.material, list.length);
+        inst.receiveShadow = Boolean(sample.receiveShadow);
+        inst.castShadow = Boolean(sample.castShadow);
+        inst.frustumCulled = false;
+
+        var isRoadBatch = Boolean(sample.userData && sample.userData.isRoadPart);
+        if (isRoadBatch) {
+          inst.userData = { isRoadPart: true };
+          if (window.surfaceRoadMeshes) {
+            window.surfaceRoadMeshes.push(inst);
+          }
+        }
+
+        for (var idx = 0; idx < list.length; idx++) {
+          var m = list[idx];
+          m.updateMatrix();
+          inst.setMatrixAt(idx, m.matrix);
+          container.remove(m);
+          if (isRoadBatch) removedRoadMeshes.add(m);
+        }
+
+        inst.instanceMatrix.needsUpdate = true;
+        inst.updateMatrix();
+        inst.matrixAutoUpdate = false;
+        container.add(inst);
+      }
+    }
+
+    // 1. Batch all surface tracks & roads in `scene` and Bangkok tracks/decks/cables in `bkkRootGroup`
+    batchChildrenOfContainer(scene, false);
+    batchChildrenOfContainer(bkkRootGroup, true);
+
+    if (window.surfaceRoadMeshes && removedRoadMeshes.size > 0) {
+      window.surfaceRoadMeshes = window.surfaceRoadMeshes.filter(function(m) {
+        return !removedRoadMeshes.has(m);
+      });
+    }
+
+    // 2. Compute world matrices once and freeze `matrixAutoUpdate = false` on remaining static track/road/Bangkok meshes
+    scene.updateMatrixWorld(true);
+
+    var animatedBkkObjects = new Set();
+    if (anantaraBoatGroup) {
+      anantaraBoatGroup.traverse(function(n) { animatedBkkObjects.add(n); });
+    }
+    if (iconsiamFerrisWheelWheel) {
+      iconsiamFerrisWheelWheel.traverse(function(n) { animatedBkkObjects.add(n); });
+    }
+    if (bkkWavingPeople) {
+      bkkWavingPeople.forEach(function(wp) {
+        if (wp && wp.armPivot) {
+          wp.armPivot.traverse(function(n) { animatedBkkObjects.add(n); });
+        }
+      });
+    }
+    if (boatWakeMeshes) {
+      boatWakeMeshes.forEach(function(wm) { if (wm && wm.mesh) animatedBkkObjects.add(wm.mesh); });
+    }
+
+    bkkRootGroup.traverse(function(node) {
+      if (!node || node === bkkRootGroup) return;
+      if (excludedMeshes.has(node) || animatedBkkObjects.has(node)) return;
+      node.updateMatrix();
+      node.matrixAutoUpdate = false;
+    });
+
+    for (var si = 0; si < scene.children.length; si++) {
+      var sc = scene.children[si];
+      if (!sc || !sc.isMesh) continue;
+      if ((sc.userData && sc.userData.isRoadPart) || trackGeos.has(sc.geometry)) {
+        sc.updateMatrix();
+        sc.matrixAutoUpdate = false;
+      }
+    }
   })();
 
   // Cap WebGL framebuffer resolution to crisp 1080p equivalent on 4K Smart TVs

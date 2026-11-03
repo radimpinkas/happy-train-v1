@@ -1233,7 +1233,7 @@ window.AI_STUDIO_VOICE_PROFILES = {
 window.VOICE_PACK = {
   // --- Rabbit & Cars (Aoede: Vocal Smile, Rapid Fire, Neutral) ---
   'rabbit-hello': {
-    file: 'voices/rabbit-hello.wav',
+    file: 'voices/rabbit-hello.mp3',
     fallbackClip: 'danicek-ready',
     role: 'friend',
     speakerType: 'rabbit',
@@ -1242,7 +1242,7 @@ window.VOICE_PACK = {
     text: 'Hop, hop, hello Train Dan! Look how high I can jump!'
   },
   'car-hello': {
-    file: 'voices/car-hello.wav',
+    file: 'voices/car-hello.mp3',
     fallbackClip: 'danicek-reverse',
     role: 'friend',
     speakerType: 'car',
@@ -1253,7 +1253,7 @@ window.VOICE_PACK = {
 
   // --- Owl & Grandma (Gacrux: Empathetic, Staccato, Neutral) ---
   'owl-hello': {
-    file: 'voices/owl-hello.wav',
+    file: 'voices/owl-hello.mp3',
     fallbackClip: 'storyteller-discovery',
     role: 'friend',
     speakerType: 'owl',
@@ -1262,7 +1262,7 @@ window.VOICE_PACK = {
     text: 'Hoo-hoo! Hello Train Dan! Wise owl is waving from the tree branch!'
   },
   'grandma-hello': {
-    file: 'voices/grandma-hello.wav',
+    file: 'voices/grandma-hello.mp3',
     fallbackClip: 'storyteller-praise',
     role: 'mom',
     speakerType: 'grandma',
@@ -1273,7 +1273,7 @@ window.VOICE_PACK = {
 
   // --- Dad & Grandpa (Achird: Empathetic, Rapid Fire, Neutral) ---
   'dad-hello': {
-    file: 'voices/dad-hello.wav',
+    file: 'voices/dad-hello.mp3',
     fallbackClip: 'charlie-takeoff',
     role: 'friend',
     speakerType: 'dad',
@@ -1282,7 +1282,7 @@ window.VOICE_PACK = {
     text: 'Hey buddy Dan! Dad is waving to you by the swimming pool! Have a great ride!'
   },
   'grandpa-hello': {
-    file: 'voices/grandpa-hello.wav',
+    file: 'voices/grandpa-hello.mp3',
     fallbackClip: 'charlie-explore',
     role: 'friend',
     speakerType: 'grandpa',
@@ -1293,7 +1293,7 @@ window.VOICE_PACK = {
 
   // --- Squirrel & AI Trains (Callirrhoe: Empathetic, Staccato, Neutral) ---
   'squirrel-hello': {
-    file: 'voices/squirrel-hello.wav',
+    file: 'voices/squirrel-hello.mp3',
     fallbackClip: 'danicek-crystals',
     role: 'friend',
     speakerType: 'squirrel',
@@ -1302,7 +1302,7 @@ window.VOICE_PACK = {
     text: 'Wheee! Hi Train Dan! Watch me spin and jump up onto the tree branch!'
   },
   'aitrain-hello': {
-    file: 'voices/aitrain-hello.wav',
+    file: 'voices/aitrain-hello.mp3',
     fallbackClip: 'danicek-speed-up',
     role: 'friend',
     speakerType: 'ai_train',
@@ -1311,7 +1311,7 @@ window.VOICE_PACK = {
     text: 'Toot, toot! Hello friend Dan! Passing you safely on the second track!'
   },
   'aitrain-yield': {
-    file: 'voices/aitrain-yield.wav',
+    file: 'voices/aitrain-yield.mp3',
     fallbackClip: 'danicek-slow-down',
     role: 'friend',
     speakerType: 'ai_train',
@@ -1322,7 +1322,7 @@ window.VOICE_PACK = {
 
   // --- Cow & Sheep (Leda: Vocal Smile, Natural, Neutral) ---
   'cow-hello': {
-    file: 'voices/cow-hello.wav',
+    file: 'voices/cow-hello.mp3',
     fallbackClip: 'storyteller-sunny',
     role: 'friend',
     speakerType: 'cow',
@@ -1331,7 +1331,7 @@ window.VOICE_PACK = {
     text: 'Mooo! Hello Train Dan! Daisy the cow wishes you a happy journey!'
   },
   'sheep-hello': {
-    file: 'voices/sheep-hello.wav',
+    file: 'voices/sheep-hello.mp3',
     fallbackClip: 'storyteller-sheep',
     role: 'friend',
     speakerType: 'sheep',
@@ -1342,7 +1342,7 @@ window.VOICE_PACK = {
 
   // --- Track Monsters (Puck: Promo/Hype, Staccato, Neutral) ---
   'monster-help': {
-    file: 'voices/monster-help.wav',
+    file: 'voices/monster-help.mp3',
     fallbackClip: 'charlie-overview',
     role: 'friend',
     speakerType: 'monster',
@@ -1351,7 +1351,7 @@ window.VOICE_PACK = {
     text: 'Oh no, here comes the train! Help! Let us hide behind the tree!'
   },
   'monster-bleh': {
-    file: 'voices/monster-bleh.wav',
+    file: 'voices/monster-bleh.mp3',
     fallbackClip: 'charlie-explore',
     role: 'friend',
     speakerType: 'monster',
@@ -1362,7 +1362,7 @@ window.VOICE_PACK = {
 
   // --- Mom at Mom's House & Mom Narrator (Achernar: Empathetic, Natural, Neutral) ---
   'mom-house-hello': {
-    file: 'voices/mom-house-hello.wav',
+    file: 'voices/mom-house-hello.mp3',
     fallbackClip: 'storyteller-hello',
     role: 'mom',
     speakerType: 'mom',
@@ -1371,7 +1371,7 @@ window.VOICE_PACK = {
     text: 'Hello sweetie! Mommy is waving to you from our house and garden!'
   },
   'mom-night': {
-    file: 'voices/mom-night.wav',
+    file: 'voices/mom-night.mp3',
     fallbackClip: 'storyteller-discovery',
     role: 'mom',
     speakerType: 'mom',
@@ -1380,7 +1380,7 @@ window.VOICE_PACK = {
     text: 'Good evening! Night is falling and all the lights are glowing brightly!'
   },
   'mom-anantara': {
-    file: 'voices/mom-anantara.wav',
+    file: 'voices/mom-anantara.mp3',
     fallbackClip: 'storyteller-turn-right',
     role: 'mom',
     speakerType: 'mom',
@@ -1389,7 +1389,7 @@ window.VOICE_PACK = {
     text: 'Now you are heading to the beautiful Anantara Hotel by the river in Bangkok!'
   },
   'mom-iconsiam': {
-    file: 'voices/mom-iconsiam.wav',
+    file: 'voices/mom-iconsiam.mp3',
     fallbackClip: 'storyteller-praise',
     role: 'mom',
     speakerType: 'mom',
@@ -1398,7 +1398,7 @@ window.VOICE_PACK = {
     text: 'Look, now we are riding past IconSiam and the dancing fountains in Bangkok!'
   },
   'storyteller-hello': {
-    file: 'voices/storyteller-hello.wav',
+    file: 'voices/storyteller-hello.mp3',
     role: 'mom',
     speakerType: 'mom',
     voiceName: 'Achernar',
@@ -1406,7 +1406,7 @@ window.VOICE_PACK = {
     text: 'Hello, little explorer! Are you ready for an adventure?'
   },
   'storyteller-discovery': {
-    file: 'voices/storyteller-discovery.wav',
+    file: 'voices/storyteller-discovery.mp3',
     role: 'mom',
     speakerType: 'mom',
     voiceName: 'Achernar',
@@ -1414,7 +1414,7 @@ window.VOICE_PACK = {
     text: 'Look ahead. A magical world is waiting for us.'
   },
   'storyteller-praise': {
-    file: 'voices/storyteller-praise.wav',
+    file: 'voices/storyteller-praise.mp3',
     role: 'mom',
     speakerType: 'mom',
     voiceName: 'Achernar',
@@ -1422,7 +1422,7 @@ window.VOICE_PACK = {
     text: 'Wonderful! You found something new.'
   },
   'storyteller-turn-left': {
-    file: 'voices/storyteller-turn-left.wav',
+    file: 'voices/storyteller-turn-left.mp3',
     role: 'mom',
     speakerType: 'mom',
     voiceName: 'Achernar',
@@ -1430,7 +1430,7 @@ window.VOICE_PACK = {
     text: "Let's turn left and see where the tracks take us."
   },
   'storyteller-turn-right': {
-    file: 'voices/storyteller-turn-right.wav',
+    file: 'voices/storyteller-turn-right.mp3',
     role: 'mom',
     speakerType: 'mom',
     voiceName: 'Achernar',
@@ -1438,7 +1438,7 @@ window.VOICE_PACK = {
     text: "Let's turn right toward a new adventure."
   },
   'storyteller-go-straight': {
-    file: 'voices/storyteller-go-straight.wav',
+    file: 'voices/storyteller-go-straight.mp3',
     role: 'mom',
     speakerType: 'mom',
     voiceName: 'Achernar',
@@ -1446,7 +1446,7 @@ window.VOICE_PACK = {
     text: 'Going straight ahead along the railway line.'
   },
   'storyteller-station': {
-    file: 'voices/storyteller-station.wav',
+    file: 'voices/storyteller-station.mp3',
     role: 'mom',
     speakerType: 'mom',
     voiceName: 'Achernar',
@@ -1454,7 +1454,7 @@ window.VOICE_PACK = {
     text: 'Here we are at the station! Watch the happy passengers step aboard our train.'
   },
   'storyteller-sheep': {
-    file: 'voices/storyteller-sheep.wav',
+    file: 'voices/storyteller-sheep.mp3',
     role: 'mom',
     speakerType: 'mom',
     voiceName: 'Achernar',
@@ -1462,7 +1462,7 @@ window.VOICE_PACK = {
     text: "Oh look, fluffy white sheep are on the track! Let's honk gently so they step onto the grass."
   },
   'storyteller-sunny': {
-    file: 'voices/storyteller-sunny.wav',
+    file: 'voices/storyteller-sunny.mp3',
     role: 'mom',
     speakerType: 'mom',
     voiceName: 'Achernar',
@@ -1472,7 +1472,7 @@ window.VOICE_PACK = {
 
   // --- Little Train Daníček (Sulafat: Vocal Smile, Natural, Neutral) ---
   'danicek-ready': {
-    file: 'voices/danicek-ready.wav',
+    file: 'voices/danicek-ready.mp3',
     role: 'train',
     speakerType: 'train',
     voiceName: 'Sulafat',
@@ -1480,7 +1480,7 @@ window.VOICE_PACK = {
     text: "Hi, buddy! I'm ready to explore!"
   },
   'danicek-crystals': {
-    file: 'voices/danicek-crystals.wav',
+    file: 'voices/danicek-crystals.mp3',
     role: 'train',
     speakerType: 'train',
     voiceName: 'Sulafat',
@@ -1488,7 +1488,7 @@ window.VOICE_PACK = {
     text: 'Wow! Look at those beautiful crystals!'
   },
   'danicek-next-stop': {
-    file: 'voices/danicek-next-stop.wav',
+    file: 'voices/danicek-next-stop.mp3',
     role: 'train',
     speakerType: 'train',
     voiceName: 'Sulafat',
@@ -1496,7 +1496,7 @@ window.VOICE_PACK = {
     text: 'Where shall we go next?'
   },
   'danicek-speed-up': {
-    file: 'voices/danicek-speed-up.wav',
+    file: 'voices/danicek-speed-up.mp3',
     role: 'train',
     speakerType: 'train',
     voiceName: 'Sulafat',
@@ -1504,7 +1504,7 @@ window.VOICE_PACK = {
     text: 'Chugga chugga! Going faster! Choo choo!'
   },
   'danicek-slow-down': {
-    file: 'voices/danicek-slow-down.wav',
+    file: 'voices/danicek-slow-down.mp3',
     role: 'train',
     speakerType: 'train',
     voiceName: 'Sulafat',
@@ -1512,7 +1512,7 @@ window.VOICE_PACK = {
     text: 'Slowing down! Easy and steady!'
   },
   'danicek-reverse': {
-    file: 'voices/danicek-reverse.wav',
+    file: 'voices/danicek-reverse.mp3',
     role: 'train',
     speakerType: 'train',
     voiceName: 'Sulafat',
@@ -1520,7 +1520,7 @@ window.VOICE_PACK = {
     text: 'Backing up! Beep beep, watch out behind me!'
   },
   'danicek-tunnel': {
-    file: 'voices/danicek-tunnel.wav',
+    file: 'voices/danicek-tunnel.mp3',
     role: 'train',
     speakerType: 'train',
     voiceName: 'Sulafat',
@@ -1528,7 +1528,7 @@ window.VOICE_PACK = {
     text: 'Whoosh! Entering the dark tunnel! Turning on my bright headlight!'
   },
   'danicek-metro': {
-    file: 'voices/danicek-metro.wav',
+    file: 'voices/danicek-metro.mp3',
     role: 'train',
     speakerType: 'train',
     voiceName: 'Sulafat',
@@ -1536,7 +1536,7 @@ window.VOICE_PACK = {
     text: 'Hooray! Into the underground metro tunnel we go! Look at the gnomes and waterfalls!'
   },
   'danicek-eiffel': {
-    file: 'voices/danicek-eiffel.wav',
+    file: 'voices/danicek-eiffel.mp3',
     fallbackClip: 'danicek-landmarks',
     role: 'train',
     speakerType: 'train',
@@ -1545,7 +1545,7 @@ window.VOICE_PACK = {
     text: 'Look! That is the tall Eiffel Tower!'
   },
   'danicek-colosseum': {
-    file: 'voices/danicek-colosseum.wav',
+    file: 'voices/danicek-colosseum.mp3',
     fallbackClip: 'danicek-landmarks',
     role: 'train',
     speakerType: 'train',
@@ -1554,7 +1554,7 @@ window.VOICE_PACK = {
     text: 'Look! There is the Roman Colosseum!'
   },
   'danicek-airport': {
-    file: 'voices/danicek-airport.wav',
+    file: 'voices/danicek-airport.mp3',
     fallbackClip: 'danicek-landmarks',
     role: 'train',
     speakerType: 'train',
@@ -1563,7 +1563,7 @@ window.VOICE_PACK = {
     text: 'Look at the airplanes at the Airport!'
   },
   'danicek-jewel': {
-    file: 'voices/danicek-jewel.wav',
+    file: 'voices/danicek-jewel.mp3',
     fallbackClip: 'danicek-crystals',
     role: 'train',
     speakerType: 'train',
@@ -1572,7 +1572,7 @@ window.VOICE_PACK = {
     text: 'Wow, look at the big waterfall inside Jewel!'
   },
   'danicek-stadium': {
-    file: 'voices/danicek-stadium.wav',
+    file: 'voices/danicek-stadium.mp3',
     fallbackClip: 'danicek-landmarks',
     role: 'train',
     speakerType: 'train',
@@ -1581,7 +1581,7 @@ window.VOICE_PACK = {
     text: 'Look! They are playing football in the Stadium!'
   },
   'danicek-bigben': {
-    file: 'voices/danicek-bigben.wav',
+    file: 'voices/danicek-bigben.mp3',
     fallbackClip: 'danicek-landmarks',
     role: 'train',
     speakerType: 'train',
@@ -1590,7 +1590,7 @@ window.VOICE_PACK = {
     text: 'Look at Big Ben, the golden clock tower!'
   },
   'danicek-skyscraper': {
-    file: 'voices/danicek-skyscraper.wav',
+    file: 'voices/danicek-skyscraper.mp3',
     fallbackClip: 'danicek-landmarks',
     role: 'train',
     speakerType: 'train',
@@ -1599,7 +1599,7 @@ window.VOICE_PACK = {
     text: 'Wow, look at that tall glass Skyscraper!'
   },
   'danicek-fountain': {
-    file: 'voices/danicek-fountain.wav',
+    file: 'voices/danicek-fountain.mp3',
     fallbackClip: 'danicek-landmarks',
     role: 'train',
     speakerType: 'train',
@@ -1608,7 +1608,7 @@ window.VOICE_PACK = {
     text: 'Look at the sparkling water Fountain!'
   },
   'danicek-boat': {
-    file: 'voices/danicek-boat.wav',
+    file: 'voices/danicek-boat.mp3',
     fallbackClip: 'danicek-landmarks',
     role: 'train',
     speakerType: 'train',
@@ -1617,7 +1617,7 @@ window.VOICE_PACK = {
     text: 'Look at the wooden Anantara boat on the river!'
   },
   'danicek-landmarks': {
-    file: 'voices/danicek-landmarks.wav',
+    file: 'voices/danicek-landmarks.mp3',
     fallbackClip: 'danicek-ready',
     role: 'train',
     speakerType: 'train',
@@ -1628,7 +1628,7 @@ window.VOICE_PACK = {
 
   // --- Charlie the Helicopter (Zephyr: Promo/Hype, Rapid Fire, Neutral) ---
   'charlie-takeoff': {
-    file: 'voices/charlie-takeoff.wav',
+    file: 'voices/charlie-takeoff.mp3',
     role: 'charlie',
     speakerType: 'helicopter',
     voiceName: 'Zephyr',
@@ -1636,7 +1636,7 @@ window.VOICE_PACK = {
     text: 'Hey, adventurers! Charlie is ready for takeoff!'
   },
   'charlie-overview': {
-    file: 'voices/charlie-overview.wav',
+    file: 'voices/charlie-overview.mp3',
     role: 'charlie',
     speakerType: 'helicopter',
     voiceName: 'Zephyr',
@@ -1644,7 +1644,7 @@ window.VOICE_PACK = {
     text: 'I can see something interesting from up here!'
   },
   'charlie-explore': {
-    file: 'voices/charlie-explore.wav',
+    file: 'voices/charlie-explore.mp3',
     role: 'charlie',
     speakerType: 'helicopter',
     voiceName: 'Zephyr',
@@ -1654,7 +1654,7 @@ window.VOICE_PACK = {
 };
 
 // ============================================================================
-// WEB AUDIO CONTEXT & DIRECT PCM WAV BUFFER DECODER (100% Google AI Studio WAVs)
+// WEB AUDIO CONTEXT & HYBRID MP3 / PCM WAV BUFFER DECODER
 // ============================================================================
 var audioCtx = null;
 var hasUserGesture = false;
@@ -1727,6 +1727,27 @@ function parsePcm16WavToAudioBuffer(ctx, arrayBuffer) {
   }
 }
 
+function decodeAudioArrayBuffer(ctx, arrayBuffer) {
+  if (!ctx || !arrayBuffer || arrayBuffer.byteLength < 44) {
+    return Promise.resolve(null);
+  }
+  var syncWav = parsePcm16WavToAudioBuffer(ctx, arrayBuffer);
+  if (syncWav) {
+    return Promise.resolve(syncWav);
+  }
+  return new Promise(function(resolve) {
+    try {
+      ctx.decodeAudioData(
+        arrayBuffer.slice(0),
+        function(decoded) { resolve(decoded || null); },
+        function() { resolve(null); }
+      );
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
+
 var decodedVoiceLruKeys = [];
 var MAX_DECODED_VOICE_BUFFERS = 10;
 
@@ -1753,11 +1774,14 @@ function fetchVoiceWavBuffer(clipKey) {
     return Promise.resolve(decodedVoiceBuffers[clipKey]);
   }
   if (rawWavArrayBuffers[clipKey] && audioCtx) {
-    var syncBuf = parsePcm16WavToAudioBuffer(audioCtx, rawWavArrayBuffers[clipKey]);
-    if (syncBuf) {
-      cacheDecodedVoiceBuffer(clipKey, syncBuf);
-      return Promise.resolve(syncBuf);
-    }
+    var rawBuf = rawWavArrayBuffers[clipKey];
+    delete rawWavArrayBuffers[clipKey];
+    return decodeAudioArrayBuffer(audioCtx, rawBuf).then(function(decodedBuf) {
+      if (decodedBuf) {
+        cacheDecodedVoiceBuffer(clipKey, decodedBuf);
+      }
+      return decodedBuf;
+    });
   }
   if (loadingVoicePromises[clipKey]) {
     return loadingVoicePromises[clipKey];
@@ -1766,10 +1790,14 @@ function fetchVoiceWavBuffer(clipKey) {
   var entry = window.VOICE_PACK[clipKey];
   if (!entry) return Promise.reject(new Error('Unknown clipKey'));
 
+  var mp3Path = entry.file.replace(/\.wav$/i, '.mp3').replace(/^\//, '');
+  var wavPath = entry.file.replace(/\.mp3$/i, '.wav').replace(/^\//, '');
   var candidateUrls = [
-    entry.file,
-    '/' + entry.file.replace(/^\//, ''),
-    'public/' + entry.file.replace(/^\//, '')
+    mp3Path,
+    '/' + mp3Path,
+    'public/' + mp3Path,
+    wavPath,
+    '/' + wavPath
   ];
 
   function tryFetchIdx(idx) {
@@ -1789,12 +1817,16 @@ function fetchVoiceWavBuffer(clipKey) {
       }).then(function(arrBuf) {
         if (!arrBuf || arrBuf.byteLength < 100) throw new Error('Empty TTS WAV');
         if (audioCtx) {
-          var pcmBuf = parsePcm16WavToAudioBuffer(audioCtx, arrBuf);
-          if (pcmBuf) {
-            cacheDecodedVoiceBuffer(clipKey, pcmBuf);
+          return decodeAudioArrayBuffer(audioCtx, arrBuf).then(function(pcmBuf) {
+            if (pcmBuf) {
+              cacheDecodedVoiceBuffer(clipKey, pcmBuf);
+              delete loadingVoicePromises[clipKey];
+              return pcmBuf;
+            }
+            rawWavArrayBuffers[clipKey] = arrBuf;
             delete loadingVoicePromises[clipKey];
-            return pcmBuf;
-          }
+            return null;
+          });
         }
         rawWavArrayBuffers[clipKey] = arrBuf;
         delete loadingVoicePromises[clipKey];
@@ -1812,14 +1844,18 @@ function fetchVoiceWavBuffer(clipKey) {
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       return resp.arrayBuffer();
     }).then(function(arrBuf) {
-      if (!arrBuf || arrBuf.byteLength < 100) throw new Error('Empty WAV');
+      if (!arrBuf || arrBuf.byteLength < 100) throw new Error('Empty audio');
       if (audioCtx) {
-        var pcmBuf = parsePcm16WavToAudioBuffer(audioCtx, arrBuf);
-        if (pcmBuf) {
-          cacheDecodedVoiceBuffer(clipKey, pcmBuf);
+        return decodeAudioArrayBuffer(audioCtx, arrBuf).then(function(pcmBuf) {
+          if (pcmBuf) {
+            cacheDecodedVoiceBuffer(clipKey, pcmBuf);
+            delete loadingVoicePromises[clipKey];
+            return pcmBuf;
+          }
+          rawWavArrayBuffers[clipKey] = arrBuf;
           delete loadingVoicePromises[clipKey];
-          return pcmBuf;
-        }
+          return null;
+        });
       }
       rawWavArrayBuffers[clipKey] = arrBuf;
       delete loadingVoicePromises[clipKey];
@@ -1836,7 +1872,7 @@ function fetchVoiceWavBuffer(clipKey) {
   return loadingVoicePromises[clipKey];
 }
 
-// Preload only the 3 initial launch greetings at startup instead of all 33 WAVs at once
+// Preload only the 3 initial launch greetings at startup instead of all 33 clips at once
 // so Smart TVs save ~27 MB of decoded Float32 PCM + raw ArrayBuffer RAM!
 (function preloadInitialVoiceWavs() {
   var initialKeys = ['danicek-ready', 'storyteller-hello', 'mom-house-hello'];
@@ -1867,7 +1903,7 @@ window.isWorldPosVisibleOnScreen = function(worldPos, maxDistFromTrain) {
 
 // ============================================================================
 // STRICT SINGLE-SPEAKER VOICE ENGINE WITH 5s–10s CADENCE LOCK
-// (100% Google AI Studio WAVs — No Browser SpeechSynthesis, No Text Boxes)
+// (100% Google AI Studio Audio — No Browser SpeechSynthesis, No Text Boxes)
 // ============================================================================
 var MIN_SPEECH_PAUSE_MS = 5000;
 var MAX_SPEECH_PAUSE_MS = 10000;
@@ -1971,19 +2007,13 @@ function startVoiceClipImmediate(clipKey) {
   clearTimeout(activeWatchdogTimer);
   activeWatchdogTimer = setTimeout(onCurrentVoiceFinished, estDurMs + 700);
 
-  if (audioCtx && rawWavArrayBuffers[clipKey] && !decodedVoiceBuffers[clipKey]) {
-    decodedVoiceBuffers[clipKey] = parsePcm16WavToAudioBuffer(audioCtx, rawWavArrayBuffers[clipKey]);
-  }
   if (audioCtx && decodedVoiceBuffers[clipKey]) {
+    cacheDecodedVoiceBuffer(clipKey, decodedVoiceBuffers[clipKey]);
     return playDecodedWebAudioBuffer(decodedVoiceBuffers[clipKey]);
   }
 
   fetchVoiceWavBuffer(clipKey).then(function(buf) {
     if (activeVoiceKey !== clipKey) return;
-    if (audioCtx && !buf && rawWavArrayBuffers[clipKey]) {
-      buf = parsePcm16WavToAudioBuffer(audioCtx, rawWavArrayBuffers[clipKey]);
-      if (buf) decodedVoiceBuffers[clipKey] = buf;
-    }
     if (audioCtx && buf) {
       playDecodedWebAudioBuffer(buf);
     } else {
