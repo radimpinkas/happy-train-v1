@@ -59,13 +59,13 @@
       id: 'SMILEY',
       type: 'minigame',
       minigameId: 'escape_smiley',
-      ready: false,
+      ready: true,
       angle: Math.PI * 0.5, // 90 deg
-      title: '😄 2. Escape the Smiley',
-      subtitle: 'Sbírej hvězdy a ujeď veselému smajlíkovi! (Připravujeme)',
+      title: '😄 2. Hon na smajlíky',
+      subtitle: 'Chytej veselé smajlíky po kolejích celého města!',
       colorHex: 0xec4899,
       accentHex: '#ec4899',
-      buttonLabel: '✨ Brzy otevřeme (OK)'
+      buttonLabel: '😄 Hrát Hon na smajlíky (OK)'
     },
     {
       id: 'ART_STUDIO',
@@ -2122,6 +2122,50 @@
       ctx.lineWidth = 4;
       ctx.fillRect(350, 44, 62, 42);
       ctx.strokeRect(350, 44, 62, 42);
+    } else if (stopDef.id === 'SMILEY') {
+      // Kreslený 2D okruh dřevěných kolejí s mašinkou Tobym a smajlíky na bráně č. 2
+      ctx.strokeStyle = '#f3cfa4';
+      ctx.lineWidth = 22;
+      ctx.beginPath();
+      ctx.ellipse(256, 114, 155, 62, 0, 0, TWO_PI);
+      ctx.stroke();
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.ellipse(256, 114, 150, 57, 0, 0, TWO_PI);
+      ctx.stroke();
+      // Mašinka Toby vlevo na okruhu
+      ctx.fillStyle = '#0d9488';
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 3;
+      ctx.fillRect(112, 92, 58, 34);
+      ctx.strokeRect(112, 92, 58, 34);
+      // 3 barevní smajlíci na kolejích
+      var smCols = [
+        [265, 54, '#facc15'],
+        [388, 108, '#f472b6'],
+        [285, 168, '#38bdf8']
+      ];
+      for (var smi = 0; smi < smCols.length; smi++) {
+        var sc = smCols[smi];
+        ctx.fillStyle = sc[2];
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(sc[0], sc[1], 24, 0, TWO_PI);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(sc[0] - 8, sc[1] - 5, 4, 0, TWO_PI);
+        ctx.arc(sc[0] + 8, sc[1] - 5, 4, 0, TWO_PI);
+        ctx.fill();
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(sc[0], sc[1] + 2, 10, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+      }
     } else {
       ctx.font = '105px sans-serif';
       ctx.textAlign = 'center';

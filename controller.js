@@ -709,6 +709,9 @@
         var kc = e.keyCode || e.which || 0;
         addDiagLog('KEYUP', 'key="' + (e.key || '') + '" keyCode=' + kc);
       }
+      if (window.HappyTrainMinigames && window.HappyTrainMinigames.getActiveId && window.HappyTrainMinigames.getActiveId() === 'train_wash') {
+        window.HappyTrainMinigames.handleAction('KEY_UP', { originalEvent: e });
+      }
     }, true);
 
     // Diagnostika popstate (pokud Samsung TV prohlížeč zkusí krok zpět v historii)
