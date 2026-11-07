@@ -2927,8 +2927,15 @@ window.playCzechCrossingBell = function() {
       return grp;
     }
 
+    window.resetVoiceCoordinatorTimersAfterPause = function() {
+      lastVoiceFinishedTime = Date.now();
+    };
+
     function updateFrameCoordinator() {
       requestAnimationFrame(updateFrameCoordinator);
+      if (window.isMainWorldPaused) {
+        return;
+      }
       if (typeof window.syncCornerSpeedAndSwitchHud === 'function') {
         window.syncCornerSpeedAndSwitchHud(false);
       }

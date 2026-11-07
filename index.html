@@ -235,6 +235,12 @@
     </div>
 
     <div class="hud-box">
+      <button class="pill-btn" id="open-minigame-btn" onclick="if(window.HappyTrainMinigames) window.HappyTrainMinigames.launch('sama_dira', { source: 'topbar' })" style="display:none; background:linear-gradient(135deg,#facc15,#f97316); color:#0f172a; padding:6px 12px; font-size:13px; border:2px solid #fef08a;" title="Spustit minihru Samá díra">
+        🎮 Samá díra
+      </button>
+      <button class="pill-btn" id="open-tv-diag-btn" onclick="if(window.toggleTvDiagnosticsPanel) window.toggleTvDiagnosticsPanel()" style="background:#0284c7; color:#ffffff; padding:6px 10px; font-size:12px; border:2px solid #7dd3fc;" title="Krok 0: Diagnostika ovladače Samsung Smart TV AU8100">
+        🔬 TV Test
+      </button>
       <div class="score-pill">
         <span>❤️💎🦆 <span id="score-val">0</span></span>
         <div class="wagon-bar-wrap"><div id="wagon-bar-fill"></div></div>
@@ -361,5 +367,9 @@
   <script src="tracks.js"></script>
   <script src="models.js"></script>
   <script src="game.js"></script>
+  <script src="controller.js"></script>
+  <script src="minigames.js"></script>
+  <script src="minigame_wash.js"></script>
+  <script src="castle.js"></script>
 </body>
 </html>

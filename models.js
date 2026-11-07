@@ -6993,15 +6993,19 @@ for (var hx = -180; hx <= 180; hx += 64) {
   }
 }
 
-// Sparkling Blue River sitting inside the carved River Valley at z = -85 (stopping before the Airport Apron at x = 232!)
+// Sparkling Blue River sitting inside the carved River Valley at z = -85 (terminating cleanly at the Chao Phraya River x = -455 and stopping before the Airport Apron at x = 232!)
 var river = new THREE.Mesh(
-  new THREE.PlaneGeometry(840, 34),
+  new THREE.PlaneGeometry(685, 34),
   new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.22 })
 );
 river.rotation.x = -Math.PI / 2;
-river.position.set(-190, -0.35, -85);
+river.position.set(-112.5, -0.35, -85);
 scene.add(river);
 window.riverMesh = river;
+if (window.tracksRiverMesh) {
+  window.tracksRiverMesh.scale.x = 690 / 1140;
+  window.tracksRiverMesh.position.x = -110.0;
+}
 
 // UPGRADED 3D FAIRYTALE SAILBOATS ON THE RIVER ("5. Prosím o vylepšení plachetnic, které plavou po řece")
 window.boats = [];
@@ -9026,22 +9030,49 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         cs.reverseBlend = smoothDampScalar(cs.reverseBlend, targetRevBlend, cs, 'reverseVel', 0.62, dtCam, 2.5);
 
         // --------------------------------------------------------------------
-        // 2. NEW WIDE PANORAMIC BASE CAMERA (Section 2 Requirements)
-        //    - Physical Distance: `48.0m` behind locomotive (up to `52.0m` at
-        //      express speed), shrinking the locomotive naturally in 3D space
-        //      to `~10.3%` of screen height (`8–12%` target range).
-        //    - Height: `14.2m` above track (`pos.y + 14.2m`).
-        //    - Look-Ahead Target: `54.0m` ahead of locomotive at height
-        //      `pos.y + 5.4m` -> shallow pitch angle of `-4.93°` (instead of
-        //      the old steep `-18.14°`).
-        //    - Result:
-        //      * Locomotive sits in the lower third (`NDC Y ≈ -0.38`, ~31% from bottom).
-        //      * Horizon sits at `NDC Y ≈ +0.20` (~60% from bottom), leaving ~40%
-        //        of the screen for sky, clouds, horizon hills & distant landmarks!
+        // 2. WIDE PANORAMIC BASE CAMERA + LOW/CLOSE TUNNEL & CASTLE EXIT BLEND
+        //    - When exiting the Metro (`curEdge.isSubway`, `inDarkTunnelNow`, or
+        //      on a Metro portal turnout) or exiting the Castle, smoothly tuck
+        //      the camera closer (`13.5m`–`18.0m` behind) and lower (`5.0m`–`7.4m`
+        //      above the rails) so it stays directly behind the locomotive under
+        //      the tunnel arch / outside the Castle gates and NEVER sits up on
+        //      the tunnel roof or behind the giant [M] portal sign!
         // --------------------------------------------------------------------
-        var baseBackDist = 48.0 + cs.speedBlend * 4.0 + cs.reverseBlend * 6.0;
-        var baseHeight = 14.2 + cs.speedBlend * 0.8 + cs.reverseBlend * 1.8;
-        var baseSideOffset = 3.6 + cs.reverseBlend * 5.2;
+        var inDarkTunnelNow = (typeof window.isPlayerInDarkTunnel === 'function')
+          ? window.isPlayerInDarkTunnel(curEdge, ct)
+          : false;
+        var onMetroRampOrTurnout = Boolean(
+          curEdge.isSubway ||
+          inDarkTunnelNow ||
+          (curEdge.isTurnout && ((curEdge.sourceEdge && curEdge.sourceEdge.isSubway) || (curEdge.targetEdge && curEdge.targetEdge.isSubway)))
+        );
+        if (onMetroRampOrTurnout) {
+          cs.metroExitHoldTimer = 2.4;
+        } else if (typeof cs.metroExitHoldTimer === 'number' && cs.metroExitHoldTimer > 0) {
+          cs.metroExitHoldTimer = Math.max(0.0, cs.metroExitHoldTimer - dtCam);
+        }
+        var metroTightBlend = onMetroRampOrTurnout
+          ? 1.0
+          : smootherstep01(Math.min(1.0, (cs.metroExitHoldTimer || 0.0) / 2.4));
+
+        if (typeof window._castleExitFollowTimer === 'number' && window._castleExitFollowTimer > 0) {
+          window._castleExitFollowTimer = Math.max(0.0, window._castleExitFollowTimer - dtCam);
+        }
+        var castleFollowTimer = (typeof window._castleExitFollowTimer === 'number') ? window._castleExitFollowTimer : 0.0;
+        var castleExitBlend = smootherstep01(Math.min(1.0, castleFollowTimer / 4.5));
+        var tightPortalBlend = Math.max(metroTightBlend, castleExitBlend);
+
+        var openBackDist = 48.0 + cs.speedBlend * 4.0 + cs.reverseBlend * 6.0;
+        var openHeight = 14.2 + cs.speedBlend * 0.8 + cs.reverseBlend * 1.8;
+        var openSideOffset = 3.6 + cs.reverseBlend * 5.2;
+
+        var portalTargetBackDist = (metroTightBlend >= castleExitBlend) ? 13.5 : 17.5;
+        var portalTargetHeight = (metroTightBlend >= castleExitBlend) ? 5.0 : 7.4;
+        var portalTargetSideOffset = (metroTightBlend >= castleExitBlend) ? 1.6 : 3.2;
+
+        var baseBackDist = openBackDist * (1.0 - tightPortalBlend) + portalTargetBackDist * tightPortalBlend;
+        var baseHeight = openHeight * (1.0 - tightPortalBlend) + portalTargetHeight * tightPortalBlend;
+        var baseSideOffset = openSideOffset * (1.0 - tightPortalBlend) + portalTargetSideOffset * tightPortalBlend;
 
         var behindTrainCamPos = new THREE.Vector3(
           pos.x - forwardDir.x * baseBackDist + trackRight.x * baseSideOffset,
@@ -9049,11 +9080,15 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           pos.z - forwardDir.z * baseBackDist + trackRight.z * baseSideOffset
         );
 
-        var forwardLookLead = (54.0 + cs.speedBlend * 6.0) * (1.0 - cs.reverseBlend * 1.25);
+        var openLookLead = (54.0 + cs.speedBlend * 6.0) * (1.0 - cs.reverseBlend * 1.25);
+        var portalLookLead = 20.0 * (1.0 - cs.reverseBlend * 1.25);
+        var forwardLookLead = openLookLead * (1.0 - tightPortalBlend) + portalLookLead * tightPortalBlend;
+        var lookHeightOffset = (5.40 * (1.0 - tightPortalBlend) + 2.85 * tightPortalBlend) - cs.reverseBlend * 0.40;
+
         var behindTrainCamLook = new THREE.Vector3(
-          pos.x + forwardDir.x * forwardLookLead + cs.curveLead.x * (1.0 - cs.reverseBlend * 0.5),
-          pos.y + 5.40 - cs.reverseBlend * 0.40,
-          pos.z + forwardDir.z * forwardLookLead + cs.curveLead.z * (1.0 - cs.reverseBlend * 0.5)
+          pos.x + forwardDir.x * forwardLookLead + cs.curveLead.x * (1.0 - cs.reverseBlend * 0.5) * (1.0 - tightPortalBlend * 0.6),
+          pos.y + lookHeightOffset,
+          pos.z + forwardDir.z * forwardLookLead + cs.curveLead.z * (1.0 - cs.reverseBlend * 0.5) * (1.0 - tightPortalBlend * 0.6)
         );
 
         var baseDrivingCamPos = behindTrainCamPos.clone();
@@ -9892,33 +9927,16 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           });
           if (skyCand) candidates.push(skyCand);
 
-          // 10) Central Fountain Plaza (`fountain` at 32, fy, 6)
-          var fntY = (typeof window.getTerrainHeight === 'function') ? window.getTerrainHeight(32, 6) : 0.0;
-          var fntCand = buildLargeLandmarkCandidate({
-            id: 'fountain',
-            narrationId: 'fountain',
-            center: new THREE.Vector3(32, fntY, 6),
-            baseY: fntY,
-            height: 15.0,
-            radius: 20.0,
-            approachDist: 78.0,
-            peakAheadDist: 18.0,
-            peakBehindDist: -8.0,
-            departDist: 38.0,
-            maxPerpDist: 74.0,
-            camBack: 48.0,
-            camOppositeSide: 16.0,
-            camHeight: 14.5,
-            lookShare: 0.52,
-            targetFov: 46.5,
-            priority: 0.99
-          });
-          if (fntCand) candidates.push(fntCand);
-
           // 11) Bangkok Chao Phraya River Adventure POIs (Anantara Resort, Anantara Boat, IconSiam, Railway Bridge)
           if (typeof window.appendBangkokCameraCandidates === 'function') {
             window.appendBangkokCameraCandidates(candidates, buildLargeLandmarkCandidate);
           }
+        }
+
+        // Suppress any aerial POI showcase sweeps while exiting a Metro/tunnel portal or exiting the Castle
+        if (tightPortalBlend > 0.02) {
+          candidates.length = 0;
+          cs.activePoiId = null;
         }
 
         // --------------------------------------------------------------------
@@ -10097,10 +10115,12 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         // 8. TERRAIN & BUILDING COLLISION AVOIDANCE + FINAL STEADICAM DAMPING
         // --------------------------------------------------------------------
         if (!window.pState.inSubway) {
-          var finalTargetCam = baseDrivingCamPos.clone().addScaledVector(cs.poiOffsetPos, cs.poiWeight);
-          var finalTargetLook = baseDrivingCamLook.clone().lerp(cs.poiLookPoint, cs.poiWeight);
+          var finalTargetCam = baseDrivingCamPos.clone().addScaledVector(cs.poiOffsetPos, cs.poiWeight * (1.0 - tightPortalBlend));
+          var finalTargetLook = baseDrivingCamLook.clone().lerp(cs.poiLookPoint, cs.poiWeight * (1.0 - tightPortalBlend));
 
-          if (typeof window.getTerrainHeight === 'function') {
+          // Only apply terrain surface elevation push when NOT inside/exiting a tunnel or Castle portal
+          // (otherwise getTerrainHeight above a tunnel portal lifts the camera onto the tunnel roof!)
+          if (tightPortalBlend < 0.15 && typeof window.getTerrainHeight === 'function') {
             var terrAtCam = window.getTerrainHeight(finalTargetCam.x, finalTargetCam.z);
             var midX = 0.5 * (finalTargetCam.x + pos.x);
             var midZ = 0.5 * (finalTargetCam.z + pos.z);
@@ -13297,18 +13317,18 @@ window.createDetailedCoach = function(colHex, coachIndex) {
 
     var riverCenterX = getChaoPhrayaCenterX(z);
     var distFromRiver = Math.abs(x - riverCenterX);
-    var riverHalfWidth = 57.0;
+    var riverHalfWidth = 38.0;
 
-    var targetBkkH = 2.2;
-    if (distFromRiver < riverHalfWidth - 5.0) {
+    var targetBkkH = 2.25;
+    if (distFromRiver < riverHalfWidth - 4.0) {
       targetBkkH = -4.2; // Deep riverbed under the Chao Phraya water surface (y = -1.35)
-    } else if (distFromRiver < riverHalfWidth + 6.0) {
-      var bankT = (distFromRiver - (riverHalfWidth - 5.0)) / 11.0;
+    } else if (distFromRiver < riverHalfWidth + 4.0) {
+      var bankT = (distFromRiver - (riverHalfWidth - 4.0)) / 8.0;
       bankT = bankT * bankT * (3.0 - 2.0 * bankT);
-      targetBkkH = -4.2 + bankT * 6.4; // Smooth embankment rise to y = +2.2m
+      targetBkkH = -4.2 + bankT * 6.45; // Smooth embankment rise to y = +2.25m
     } else {
-      // Gentle tropical coastal plain on both banks
-      targetBkkH = 2.2 + Math.sin(x * 0.02 + z * 0.015) * 0.35;
+      // Solid elevated coastal plain on both banks
+      targetBkkH = 2.25 + Math.sin(x * 0.02 + z * 0.015) * 0.22;
     }
 
     return baseH * (1.0 - blend) + targetBkkH * blend;
@@ -13328,7 +13348,83 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     grass.geometry.computeVertexNormals();
   }
 
-  // Build the wide tropical Chao Phraya River water surface & embankments
+  // Shared 6-color glowing night window materials for all Bangkok hotels (batched into 1 draw call per color!)
+  var bkkColorWinMats = [
+    { day: 0x38bdf8, night: 0xfde047 }, // Teplá zlatá
+    { day: 0x0284c7, night: 0x38bdf8 }, // Zářivá azurová
+    { day: 0x60a5fa, night: 0xf472b6 }, // Pohádková růžová / magenta
+    { day: 0x22d3ee, night: 0x4ade80 }, // Smaragdově zelená
+    { day: 0x818cf8, night: 0xc084fc }, // Královská fialová
+    { day: 0xfbbf24, night: 0xfb923c }  // Korálově oranžová
+  ].map(function(spec) {
+    var m = new THREE.MeshStandardMaterial({
+      color: spec.day,
+      roughness: 0.18,
+      metalness: 0.45,
+      emissive: spec.day,
+      emissiveIntensity: 0.26
+    });
+    bkkNightLights.push({ mat: m, dayHex: spec.day, nightHex: spec.night, dayInt: 0.24, nightInt: 1.55 });
+    return m;
+  });
+
+  // Helper to populate a hotel building volume with colorful glowing night windows on all 4 facades
+  function addBangkokHotelColorfulWindows(parentG, cx, cy, cz, w, h, d, floors, colsZ, colsX, seedOffset) {
+    var padY = h * 0.10;
+    var usableH = h - padY * 2.0;
+    var stepY = usableH / Math.max(1, floors);
+    var winH = Math.min(2.1, stepY * 0.58);
+
+    // East (+X) and West (-X) facades along Z
+    if (colsZ > 0) {
+      var usableZ = d * 0.82;
+      var stepZ = usableZ / colsZ;
+      var winW = Math.min(2.4, stepZ * 0.62);
+      var paneGeoX = new THREE.BoxGeometry(0.28, winH, winW);
+      for (var r = 0; r < floors; r++) {
+        var wy = cy - h * 0.5 + padY + (r + 0.5) * stepY;
+        for (var c = 0; c < colsZ; c++) {
+          var wz = cz - usableZ * 0.5 + (c + 0.5) * stepZ;
+          var matE = bkkColorWinMats[(r * 7 + c * 3 + (seedOffset || 0)) % bkkColorWinMats.length];
+          var matW = bkkColorWinMats[(r * 5 + c * 11 + (seedOffset || 0) + 2) % bkkColorWinMats.length];
+
+          var pE = new THREE.Mesh(paneGeoX, matE);
+          pE.position.set(cx + w * 0.5 + 0.14, wy, wz);
+          parentG.add(pE);
+
+          var pW = new THREE.Mesh(paneGeoX, matW);
+          pW.position.set(cx - w * 0.5 - 0.14, wy, wz);
+          parentG.add(pW);
+        }
+      }
+    }
+
+    // North (-Z) and South (+Z) facades along X
+    if (colsX > 0) {
+      var usableX = w * 0.78;
+      var stepX = usableX / colsX;
+      var winWX = Math.min(2.4, stepX * 0.62);
+      var paneGeoZ = new THREE.BoxGeometry(winWX, winH, 0.28);
+      for (var r2 = 0; r2 < floors; r2++) {
+        var wy2 = cy - h * 0.5 + padY + (r2 + 0.5) * stepY;
+        for (var c2 = 0; c2 < colsX; c2++) {
+          var wx2 = cx - usableX * 0.5 + (c2 + 0.5) * stepX;
+          var matS = bkkColorWinMats[(r2 * 9 + c2 * 5 + (seedOffset || 0) + 1) % bkkColorWinMats.length];
+          var matN = bkkColorWinMats[(r2 * 3 + c2 * 7 + (seedOffset || 0) + 4) % bkkColorWinMats.length];
+
+          var pS = new THREE.Mesh(paneGeoZ, matS);
+          pS.position.set(wx2, wy2, cz + d * 0.5 + 0.14);
+          parentG.add(pS);
+
+          var pN = new THREE.Mesh(paneGeoZ, matN);
+          pN.position.set(wx2, wy2, cz - d * 0.5 - 0.14);
+          parentG.add(pN);
+        }
+      }
+    }
+  }
+
+  // Build the Chao Phraya River water surface, stone seawalls & solid green dry land embankments (`pevnina`)
   var riverWaterY = -1.35;
   var riverWaveStrips = [];
   (function buildChaoPhrayaRiverAndPromenades() {
@@ -13339,7 +13435,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     var zEnd = 345;
     var zSteps = 60;
     var dz = (zEnd - zStart) / zSteps;
-    var halfW = 57.5;
+    var halfW = 38.0;
 
     var waterMat = new THREE.MeshStandardMaterial({
       color: 0x0e7490,
@@ -13350,6 +13446,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     });
     var seawallMat = new THREE.MeshStandardMaterial({ color: 0xd6d3d1, roughness: 0.75 });
     var promenadeMat = new THREE.MeshStandardMaterial({ color: 0xe7e5e4, roughness: 0.65 });
+    var dryLandGrassMat = new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.82 });
     var goldBollardMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.35, metalness: 0.6 });
 
     for (var s = 0; s < zSteps; s++) {
@@ -13367,31 +13464,45 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       wSeg.receiveShadow = true;
       riverGroup.add(wSeg);
 
-      // East & West stone seawalls + waterfront promenades
+      // East & West stone seawalls + waterfront promenades + solid green land terraces (`pevnina`)
       var eastBankX = cx + halfW;
       var westBankX = cx - halfW;
 
-      var eastWall = new THREE.Mesh(new THREE.BoxGeometry(2.6, 4.4, segLen), seawallMat);
-      eastWall.position.set(eastBankX + 1.0, 0.1, zMid);
+      var eastWall = new THREE.Mesh(new THREE.BoxGeometry(2.8, 4.5, segLen), seawallMat);
+      eastWall.position.set(eastBankX + 1.2, 0.1, zMid);
       eastWall.rotation.y = yaw;
       riverGroup.add(eastWall);
 
-      var eastWalk = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.36, segLen), promenadeMat);
-      eastWalk.position.set(eastBankX + 5.2, 2.25, zMid);
+      var eastWalk = new THREE.Mesh(new THREE.BoxGeometry(9.5, 0.38, segLen), promenadeMat);
+      eastWalk.position.set(eastBankX + 5.6, 2.24, zMid);
       eastWalk.rotation.y = yaw;
       eastWalk.receiveShadow = true;
       riverGroup.add(eastWalk);
 
-      var westWall = new THREE.Mesh(new THREE.BoxGeometry(2.6, 4.4, segLen), seawallMat);
-      westWall.position.set(westBankX - 1.0, 0.1, zMid);
+      // Solid East Bank dry land foundation terrace so Anantara, IconSiam & all East Bank palms sit on solid land
+      var eastLandPad = new THREE.Mesh(new THREE.BoxGeometry(92.0, 2.6, segLen + 0.6), dryLandGrassMat);
+      eastLandPad.position.set(eastBankX + 48.0, 0.92, zMid);
+      eastLandPad.rotation.y = yaw;
+      eastLandPad.receiveShadow = true;
+      riverGroup.add(eastLandPad);
+
+      var westWall = new THREE.Mesh(new THREE.BoxGeometry(2.8, 4.5, segLen), seawallMat);
+      westWall.position.set(westBankX - 1.2, 0.1, zMid);
       westWall.rotation.y = yaw;
       riverGroup.add(westWall);
 
-      var westWalk = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.36, segLen), promenadeMat);
-      westWalk.position.set(westBankX - 4.2, 2.25, zMid);
+      var westWalk = new THREE.Mesh(new THREE.BoxGeometry(9.5, 0.38, segLen), promenadeMat);
+      westWalk.position.set(westBankX - 5.6, 2.24, zMid);
       westWalk.rotation.y = yaw;
       westWalk.receiveShadow = true;
       riverGroup.add(westWalk);
+
+      // Solid West Bank dry land foundation peninsula so all West Bank luxury hotels & palms sit on solid land
+      var westLandPad = new THREE.Mesh(new THREE.BoxGeometry(118.0, 2.6, segLen + 0.6), dryLandGrassMat);
+      westLandPad.position.set(westBankX - 60.0, 0.92, zMid);
+      westLandPad.rotation.y = yaw;
+      westLandPad.receiveShadow = true;
+      riverGroup.add(westLandPad);
 
       // Animated shimmering water ripple strips
       if (s % 2 === 0) {
@@ -13400,31 +13511,37 @@ window.createDetailedCoach = function(colHex, coachIndex) {
           transparent: true,
           opacity: 0.35
         });
-        var ripple = new THREE.Mesh(new THREE.PlaneGeometry(18 + (s % 3) * 8, 1.6), rippleMat);
+        var ripple = new THREE.Mesh(new THREE.PlaneGeometry(14 + (s % 3) * 6, 1.6), rippleMat);
         ripple.rotation.x = -Math.PI / 2;
-        ripple.position.set(cx + ((s % 5) - 2) * 14, riverWaterY + 0.05, zMid);
+        ripple.position.set(cx + ((s % 5) - 2) * 9, riverWaterY + 0.05, zMid);
         riverGroup.add(ripple);
         riverWaveStrips.push({ mesh: ripple, baseX: ripple.position.x, baseZ: zMid, phase: s * 0.7 });
       }
 
-      // Golden Thai riverfront bollards & tropical palms along the promenade
+      // Golden Thai riverfront bollards along the promenade
       if (s % 3 === 0 && zMid > -200 && zMid < 290) {
         var bolE = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 1.1, 8), goldBollardMat);
-        bolE.position.set(eastBankX + 1.3, 2.8, zMid);
+        bolE.position.set(eastBankX + 1.4, 2.8, zMid);
         riverGroup.add(bolE);
 
         var bolW = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 1.1, 8), goldBollardMat);
-        bolW.position.set(westBankX - 1.3, 2.8, zMid);
+        bolW.position.set(westBankX - 1.4, 2.8, zMid);
         riverGroup.add(bolW);
       }
     }
   })();
 
-  // Helper to build lush tropical coconut palms
+  // Helper to build lush tropical coconut palms (guaranteed to stand on dry land outside the river channel!)
   function createBangkokPalmTree(x, y, z, scale) {
     var s = scale || 1.0;
+    var riverCx = getChaoPhrayaCenterX(z);
+    var safeX = x;
+    if (Math.abs(safeX - riverCx) < 42.0) {
+      safeX = (safeX >= riverCx) ? (riverCx + 43.5) : (riverCx - 43.5);
+    }
+    var safeY = Math.max(2.24, y || 2.24);
     var pg = new THREE.Group();
-    pg.position.set(x, y, z);
+    pg.position.set(safeX, safeY, z);
     var trunkMat = new THREE.MeshStandardMaterial({ color: 0x78553a, roughness: 0.85 });
     var frondMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.55, side: THREE.DoubleSide });
     var cocoMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.7 });
@@ -14427,8 +14544,24 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     bkkNightLights.push({ mat: winGlassMat, dayHex: 0x22d3ee, nightHex: 0xfef08a, dayInt: 0.18, nightInt: 1.15 });
     bkkNightLights.push({ mat: goldTrimMat, dayHex: 0x78350f, nightHex: 0xf59e0b, dayInt: 0.2, nightInt: 0.85 });
 
-    // Helper to build a multi-story Thai resort wing with balconies & tiered Thai gable roof
-    function buildThaiResortWing(wx, wz, widthX, lengthZ, floors, rotY) {
+    // Manicured Anantara Resort Tropical Garden Foundation Pad on solid East Bank land (`pevnina`)
+    var resortLawnPad = new THREE.Mesh(
+      new THREE.BoxGeometry(62.0, 0.45, 76.0),
+      new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.75 })
+    );
+    resortLawnPad.position.set(6.0, 0.05, 0);
+    resortLawnPad.receiveShadow = true;
+    hotelG.add(resortLawnPad);
+
+    var resortStoneBorder = new THREE.Mesh(
+      new THREE.BoxGeometry(63.6, 0.32, 77.6),
+      new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.6 })
+    );
+    resortStoneBorder.position.set(6.0, -0.05, 0);
+    hotelG.add(resortStoneBorder);
+
+    // Helper to build a multi-story Thai resort wing with balconies, colorful night windows & tiered Thai gable roof
+    function buildThaiResortWing(wx, wz, widthX, lengthZ, floors, rotY, seedIdx) {
       var wg = new THREE.Group();
       wg.position.set(wx, 0, wz);
       wg.rotation.y = rotY || 0;
@@ -14442,7 +14575,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       core.receiveShadow = true;
       wg.add(core);
 
-      // Balconies & illuminated windows on every floor (both East railway side & West river side)
+      // Balconies & colorful glowing night windows on every floor (both East railway side & West river side)
       for (var f = 0; f < floors; f++) {
         var fy = f * floorH + 0.2;
         var slab = new THREE.Mesh(new THREE.BoxGeometry(widthX + 1.4, 0.28, lengthZ + 1.4), teakWoodMat);
@@ -14452,11 +14585,21 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         var rail = new THREE.Mesh(new THREE.BoxGeometry(widthX + 1.5, 0.42, lengthZ + 1.5), goldTrimMat);
         rail.position.y = fy + 0.55;
         wg.add(rail);
-
-        var winBand = new THREE.Mesh(new THREE.BoxGeometry(widthX + 0.15, floorH * 0.58, lengthZ * 0.88), winGlassMat);
-        winBand.position.y = fy + floorH * 0.52;
-        wg.add(winBand);
       }
+
+      addBangkokHotelColorfulWindows(
+        wg,
+        0,
+        totalH * 0.5,
+        0,
+        widthX,
+        totalH,
+        lengthZ,
+        floors,
+        Math.max(3, Math.floor(lengthZ / 3.8)),
+        Math.max(2, Math.floor(widthX / 4.2)),
+        seedIdx || 0
+      );
 
       // Two-tiered Thai pitched roof with golden ridge & chofah finials
       for (var tier = 0; tier < 2; tier++) {
@@ -14489,11 +14632,11 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     }
 
     // Main Central Grand Pavilion + North & South Courtyards (visible from both river and railway!)
-    buildThaiResortWing(0, 0, 14.0, 28.0, 5, 0);
-    buildThaiResortWing(4.0, -22.0, 12.0, 20.0, 4, 0.18);
-    buildThaiResortWing(4.0, 22.0, 12.0, 20.0, 4, -0.18);
-    buildThaiResortWing(12.0, -11.0, 10.0, 16.0, 3, 0);
-    buildThaiResortWing(12.0, 11.0, 10.0, 16.0, 3, 0);
+    buildThaiResortWing(0, 0, 14.0, 28.0, 5, 0, 1);
+    buildThaiResortWing(4.0, -22.0, 12.0, 20.0, 4, 0.18, 2);
+    buildThaiResortWing(4.0, 22.0, 12.0, 20.0, 4, -0.18, 3);
+    buildThaiResortWing(12.0, -11.0, 10.0, 16.0, 3, 0, 4);
+    buildThaiResortWing(12.0, 11.0, 10.0, 16.0, 3, 0, 5);
 
     // Signboard texture with Anantara logo
     var anantaraSignTex = createSignageTexture('ANANTARA', 'RIVERSIDE BANGKOK RESORT', true, '#1c1917', '#fbbf24', '#fde68a');
@@ -14789,11 +14932,11 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       { dx: -2.0, dz: 44.0, w: 13.0, d: 13.0, h: 52.0, col: 0xe2e8f0, win: 0x38bdf8 },
       { dx: 8.0, dz: 58.0, w: 11.5, d: 11.5, h: 42.0, col: 0xfef3c7, win: 0xfde047 },
       { dx: 10.0, dz: -62.0, w: 12.0, d: 12.0, h: 38.0, col: 0xdbeafe, win: 0x60a5fa },
-      { dx: -175.0, dz: -35.0, w: 14.0, d: 14.0, h: 46.0, col: 0xf1f5f9, win: 0x38bdf8 },
-      { dx: -182.0, dz: 25.0, w: 15.0, d: 12.0, h: 54.0, col: 0xfef9c3, win: 0xfbbf24 },
-      { dx: -178.0, dz: 85.0, w: 13.0, d: 13.0, h: 40.0, col: 0xe0f2fe, win: 0x22d3ee }
+      { dx: -140.0, dz: -35.0, w: 14.0, d: 14.0, h: 46.0, col: 0xf1f5f9, win: 0x38bdf8 },
+      { dx: -144.0, dz: 25.0, w: 15.0, d: 12.0, h: 54.0, col: 0xfef9c3, win: 0xfbbf24 },
+      { dx: -142.0, dz: 85.0, w: 13.0, d: 13.0, h: 40.0, col: 0xe0f2fe, win: 0x22d3ee }
     ];
-    towerSpecs.forEach(function(ts) {
+    towerSpecs.forEach(function(ts, tIdx) {
       var tg = new THREE.Group();
       tg.position.set(ts.dx, 0, ts.dz);
       var tBody = new THREE.Mesh(
@@ -14804,21 +14947,33 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       tBody.castShadow = true;
       tg.add(tBody);
 
-      var tWinMat = new THREE.MeshStandardMaterial({
-        color: ts.win,
-        roughness: 0.2,
-        metalness: 0.5,
-        emissive: ts.win,
-        emissiveIntensity: 0.25
-      });
-      bkkNightLights.push({ mat: tWinMat, dayHex: ts.win, nightHex: 0xfef08a, dayInt: 0.2, nightInt: 1.25 });
+      // Multi-colored glowing night windows on all 4 sides + architectural cornice bands
+      addBangkokHotelColorfulWindows(
+        tg,
+        0,
+        ts.h * 0.5,
+        0,
+        ts.w,
+        ts.h,
+        ts.d,
+        Math.floor(ts.h / 3.6),
+        4,
+        4,
+        tIdx + 10
+      );
 
-      var winCore = new THREE.Mesh(new THREE.BoxGeometry(ts.w + 0.16, ts.h * 0.88, ts.d * 0.82), tWinMat);
-      winCore.position.y = ts.h * 0.5;
-      tg.add(winCore);
+      for (var fy = 8.0; fy < ts.h; fy += 9.0) {
+        var cornice = new THREE.Mesh(new THREE.BoxGeometry(ts.w + 0.55, 0.38, ts.d + 0.55), champagneFrameMat);
+        cornice.position.y = fy;
+        tg.add(cornice);
+      }
+
+      var crownRim = new THREE.Mesh(new THREE.BoxGeometry(ts.w + 0.9, 1.2, ts.d + 0.9), champagneFrameMat);
+      crownRim.position.y = ts.h + 0.6;
+      tg.add(crownRim);
 
       var spire = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.9, 6.5, 8), champagneFrameMat);
-      spire.position.y = ts.h + 3.25;
+      spire.position.y = ts.h + 3.85;
       tg.add(spire);
       iconG.add(tg);
     });
@@ -15148,7 +15303,7 @@ window.createDetailedCoach = function(colHex, coachIndex) {
   //       with animated ocean waves, tropical islands, lighthouse, and sailboats!
   // --------------------------------------------------------------------------
   var distantSeaWaveStrips = [];
-  window.bkkLuxuryHotelsWorldCenter = new THREE.Vector3(-525.0, 18.0, -25.0);
+  window.bkkLuxuryHotelsWorldCenter = new THREE.Vector3(-542.0, 18.0, -25.0);
 
   (function buildWestBankLuxuryHotelsAndDistantSea() {
     var luxGroup = new THREE.Group();
@@ -15163,6 +15318,8 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     });
     var pearlWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.35, metalness: 0.15 });
     var warmCreamMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.4, metalness: 0.15 });
+    var slatePilasterMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.42, metalness: 0.35 });
+    var hotelLawnMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.75 });
     var silverGlassMat = new THREE.MeshStandardMaterial({
       color: 0xbae6fd,
       roughness: 0.18,
@@ -15181,10 +15338,15 @@ window.createDetailedCoach = function(colHex, coachIndex) {
     bkkNightLights.push({ mat: amberGlassMat, dayHex: 0xfbbf24, nightHex: 0xfde047, dayInt: 0.28, nightInt: 1.35 });
     bkkNightLights.push({ mat: goldMat, dayHex: 0xb45309, nightHex: 0xf59e0b, dayInt: 0.35, nightInt: 1.4 });
 
+    // Continuous manicured green resort parkway under all 4 West Bank Luxury Hotels (`pevnina`)
+    var westHotelParkway = new THREE.Mesh(new THREE.BoxGeometry(52.0, 0.45, 240.0), hotelLawnMat);
+    westHotelParkway.position.set(-542.0, 2.26, -8.0);
+    westHotelParkway.receiveShadow = true;
+    luxGroup.add(westHotelParkway);
+
     function addHotelRooftopSign(parent, text, subText, yPos, width, height, bgHex, borderHex, textHex) {
       var tex = createSignageTexture(text, subText, false, bgHex, borderHex, textHex);
       var mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-      // Face East (+X toward Anantara & river) and West (-X toward West Bank track)
       [-0.6, 0.6].forEach(function(dx) {
         var board = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
         board.position.set(dx, yPos, 0);
@@ -15193,55 +15355,72 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       });
     }
 
-    // 1. THE MANDARIN ORIENTAL BANGKOK (`x = -522, z = -92`, opposite north wing of Anantara)
+    // 1. THE MANDARIN ORIENTAL BANGKOK (`x = -542, z = -92`, solidly on dry West Bank land opposite Anantara)
     (function buildMandarinOriental() {
       var moG = new THREE.Group();
-      moG.position.set(-522.0, 2.2, -92.0);
+      moG.position.set(-542.0, 2.35, -92.0);
       luxGroup.add(moG);
 
-      // Classic Colonial Authors' Wing Podium with arched veranda & golden Thai roof trim
+      // Classic Colonial Authors' Wing Podium with arched veranda colonnade & golden Thai roof trim
       var podium = new THREE.Mesh(new THREE.BoxGeometry(16.0, 10.5, 32.0), pearlWhiteMat);
-      podium.position.set(4.0, 5.25, 0);
+      podium.position.set(4.5, 5.25, 0);
       podium.castShadow = true;
       moG.add(podium);
+
+      addBangkokHotelColorfulWindows(moG, 4.5, 5.25, 0, 16.0, 9.8, 32.0, 3, 7, 3, 21);
+
+      // Colonial veranda pillars along the East river facade
+      for (var pz = -13.5; pz <= 13.5; pz += 4.5) {
+        var col = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 10.2, 8), goldMat);
+        col.position.set(12.8, 5.1, pz);
+        moG.add(col);
+      }
 
       var podiumRoof = new THREE.Mesh(new THREE.ConeGeometry(18.0, 4.2, 4), goldMat);
       podiumRoof.rotation.y = Math.PI / 4;
       podiumRoof.scale.set(0.65, 1.0, 1.35);
-      podiumRoof.position.set(4.0, 12.4, 0);
+      podiumRoof.position.set(4.5, 12.4, 0);
       moG.add(podiumRoof);
 
-      // Grand River Tower rising behind the Authors' Wing
+      // Grand River Tower rising behind the Authors' Wing with balconies & colorful night windows
       var towerH = 48.0;
       var tower = new THREE.Mesh(new THREE.BoxGeometry(15.0, towerH, 26.0), warmCreamMat);
       tower.position.set(-4.5, towerH * 0.5, 0);
       tower.castShadow = true;
       moG.add(tower);
 
-      var glassFront = new THREE.Mesh(new THREE.BoxGeometry(15.3, towerH * 0.88, 22.5), amberGlassMat);
-      glassFront.position.set(-4.5, towerH * 0.5, 0);
-      moG.add(glassFront);
+      addBangkokHotelColorfulWindows(moG, -4.5, towerH * 0.5, 0, 15.0, towerH, 26.0, 12, 6, 4, 22);
 
-      // Golden fan crest & illuminated rooftop sign
+      for (var by = 6.0; by < towerH; by += 6.0) {
+        var balcBand = new THREE.Mesh(new THREE.BoxGeometry(15.8, 0.36, 26.8), goldMat);
+        balcBand.position.set(-4.5, by, 0);
+        moG.add(balcBand);
+      }
+
+      // Penthouse sky-lounge crown & golden fan crest
+      var penthouse = new THREE.Mesh(new THREE.BoxGeometry(12.0, 3.6, 20.0), pearlWhiteMat);
+      penthouse.position.set(-4.5, towerH + 1.8, 0);
+      moG.add(penthouse);
+
       var fanCrest = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 0.6, 2.8, 12), goldMat);
       fanCrest.rotation.z = Math.PI / 2;
       fanCrest.position.set(3.3, towerH - 2.0, 0);
       moG.add(fanCrest);
 
-      addHotelRooftopSign(moG, 'MANDARIN ORIENTAL', 'FIVE-STAR BANGKOK RESORT', towerH + 3.2, 18.5, 4.4, '#1e1b4b', '#facc15', '#fef08a');
+      addHotelRooftopSign(moG, 'MANDARIN ORIENTAL', 'FIVE-STAR BANGKOK RESORT', towerH + 5.8, 18.5, 4.4, '#1e1b4b', '#facc15', '#fef08a');
     })();
 
-    // 2. THE PENINSULA BANGKOK (`x = -524, z = -38`, directly opposite Anantara Riverside Hotel!)
+    // 2. THE PENINSULA BANGKOK (`x = -544, z = -38`, directly opposite Anantara Riverside Hotel on solid West Bank land!)
     (function buildPeninsulaBangkok() {
       var penG = new THREE.Group();
-      penG.position.set(-524.0, 2.2, -38.0);
+      penG.position.set(-544.0, 2.35, -38.0);
       luxGroup.add(penG);
 
-      // Iconic 3-tiered stepped W-shaped wave tower so every suite overlooks Anantara & the river
+      // Iconic 3-tiered stepped W-shaped wave tower with vertical pilasters & multi-colored night windows
       var tierSpecs = [
-        { x: 4.5, z: -9.5, w: 12.0, d: 12.0, h: 46.0 },
-        { x: 0.0, z: 0.0,  w: 14.5, d: 15.0, h: 58.0 },
-        { x: 4.5, z: 9.5,  w: 12.0, d: 12.0, h: 46.0 }
+        { x: 4.5, z: -9.5, w: 12.0, d: 12.0, h: 46.0, seed: 31 },
+        { x: 0.0, z: 0.0,  w: 14.5, d: 15.0, h: 58.0, seed: 32 },
+        { x: 4.5, z: 9.5,  w: 12.0, d: 12.0, h: 46.0, seed: 33 }
       ];
       tierSpecs.forEach(function(ts) {
         var col = new THREE.Mesh(new THREE.BoxGeometry(ts.w, ts.h, ts.d), pearlWhiteMat);
@@ -15249,30 +15428,48 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         col.castShadow = true;
         penG.add(col);
 
-        var gl = new THREE.Mesh(new THREE.BoxGeometry(ts.w + 0.25, ts.h * 0.90, ts.d * 0.84), silverGlassMat);
-        gl.position.set(ts.x, ts.h * 0.5, ts.z);
-        penG.add(gl);
+        addBangkokHotelColorfulWindows(
+          penG,
+          ts.x,
+          ts.h * 0.5,
+          ts.z,
+          ts.w,
+          ts.h,
+          ts.d,
+          Math.floor(ts.h / 3.8),
+          4,
+          3,
+          ts.seed
+        );
 
-        // Horizontal architectural cornice bands every 8m
-        for (var by = 8.0; by < ts.h; by += 8.0) {
-          var band = new THREE.Mesh(new THREE.BoxGeometry(ts.w + 0.6, 0.45, ts.d + 0.6), goldMat);
+        // Horizontal architectural cornice bands every 6m + corner pilasters
+        for (var by = 6.0; by < ts.h; by += 6.0) {
+          var band = new THREE.Mesh(new THREE.BoxGeometry(ts.w + 0.65, 0.42, ts.d + 0.65), goldMat);
           band.position.set(ts.x, by, ts.z);
           penG.add(band);
         }
+
+        [-1, 1].forEach(function(sx) {
+          [-1, 1].forEach(function(sz) {
+            var pil = new THREE.Mesh(new THREE.BoxGeometry(0.65, ts.h, 0.65), slatePilasterMat);
+            pil.position.set(ts.x + sx * (ts.w * 0.5), ts.h * 0.5, ts.z + sz * (ts.d * 0.5));
+            penG.add(pil);
+          });
+        });
       });
 
       // Rooftop Helipad Pad + Glowing Beacon on top of the central 58m tower
-      var helipad = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.6, 1.2, 16), goldMat);
-      helipad.position.set(0, 58.6, 0);
+      var helipad = new THREE.Mesh(new THREE.CylinderGeometry(5.4, 5.8, 1.4, 16), goldMat);
+      helipad.position.set(0, 58.7, 0);
       penG.add(helipad);
 
-      addHotelRooftopSign(penG, 'THE PENINSULA', 'BANGKOK RIVERSIDE PALACE', 62.2, 19.5, 4.6, '#0f172a', '#38bdf8', '#ffffff');
+      addHotelRooftopSign(penG, 'THE PENINSULA', 'BANGKOK RIVERSIDE PALACE', 62.4, 19.5, 4.6, '#0f172a', '#38bdf8', '#ffffff');
     })();
 
-    // 3. LEBUA AT STATE TOWER — SIROCCO SKY BAR & ICONIC GOLDEN DOME (`x = -526, z = +22`)
+    // 3. LEBUA AT STATE TOWER — SIROCCO SKY BAR & ICONIC GOLDEN DOME (`x = -545, z = +22` on solid West Bank land)
     (function buildLebuaStateTower() {
       var lebG = new THREE.Group();
-      lebG.position.set(-526.0, 2.2, 22.0);
+      lebG.position.set(-545.0, 2.35, 22.0);
       luxGroup.add(lebG);
 
       var towerH = 64.0;
@@ -15281,47 +15478,56 @@ window.createDetailedCoach = function(colHex, coachIndex) {
       mainBody.castShadow = true;
       lebG.add(mainBody);
 
-      var winFace = new THREE.Mesh(new THREE.BoxGeometry(17.8, towerH * 0.88, 20.0), amberGlassMat);
-      winFace.position.set(0, towerH * 0.5, 0);
-      lebG.add(winFace);
+      addBangkokHotelColorfulWindows(lebG, 0, towerH * 0.5, 0, 17.5, towerH, 24.0, 15, 6, 4, 41);
 
-      // Ornate neoclassical curved balconies along the river facade
-      for (var fl = 10.0; fl < towerH - 4.0; fl += 6.5) {
-        var balc = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 0.55, 12), pearlWhiteMat);
-        balc.position.set(8.8, fl, -5.5);
-        lebG.add(balc);
-        var balc2 = balc.clone();
-        balc2.position.set(8.8, fl, 5.5);
-        lebG.add(balc2);
+      // Ornate neoclassical curved balconies along BOTH East & West facades + golden floor cornices
+      for (var fl = 7.0; fl < towerH - 3.0; fl += 5.5) {
+        var cornice = new THREE.Mesh(new THREE.BoxGeometry(18.1, 0.35, 24.6), goldMat);
+        cornice.position.set(0, fl - 0.3, 0);
+        lebG.add(cornice);
+
+        [-6.5, 0.0, 6.5].forEach(function(bz) {
+          var balcE = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 0.55, 12), pearlWhiteMat);
+          balcE.position.set(8.8, fl, bz);
+          lebG.add(balcE);
+
+          var balcW = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 0.55, 12), pearlWhiteMat);
+          balcW.position.set(-8.8, fl, bz);
+          lebG.add(balcW);
+        });
       }
 
-      // World-famous circular rotunda drum + Giant Glowing GOLDEN DOME at the summit!
+      // Sirocco Sky Bar illuminated rooftop terrace + Neoclassical rotunda drum + Giant Glowing GOLDEN DOME!
+      var skyBarDeck = new THREE.Mesh(new THREE.BoxGeometry(19.2, 1.4, 25.6), goldMat);
+      skyBarDeck.position.set(0, towerH + 0.7, 0);
+      lebG.add(skyBarDeck);
+
       var drum = new THREE.Mesh(new THREE.CylinderGeometry(6.4, 6.8, 6.5, 20), pearlWhiteMat);
-      drum.position.set(0, towerH + 3.25, 0);
+      drum.position.set(0, towerH + 3.8, 0);
       lebG.add(drum);
 
-      var goldenDome = new THREE.Mesh(new THREE.SphereGeometry(6.6, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.62), goldMat);
-      goldenDome.position.set(0, towerH + 6.2, 0);
+      var goldenDome = new THREE.Mesh(new THREE.SphereGeometry(6.8, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.62), goldMat);
+      goldenDome.position.set(0, towerH + 6.8, 0);
       lebG.add(goldenDome);
 
-      var domeLantern = new THREE.Mesh(new THREE.ConeGeometry(1.2, 4.5, 10), goldMat);
-      domeLantern.position.set(0, towerH + 14.2, 0);
+      var domeLantern = new THREE.Mesh(new THREE.ConeGeometry(1.3, 4.8, 10), goldMat);
+      domeLantern.position.set(0, towerH + 14.8, 0);
       lebG.add(domeLantern);
 
-      addHotelRooftopSign(lebG, 'LEBUA STATE TOWER', 'GOLDEN DOME SKY RESORT', towerH + 18.2, 20.0, 4.6, '#422006', '#facc15', '#fef08a');
+      addHotelRooftopSign(lebG, 'LEBUA STATE TOWER', 'GOLDEN DOME SKY RESORT', towerH + 18.8, 20.0, 4.6, '#422006', '#facc15', '#fef08a');
     })();
 
-    // 4. FOUR SEASONS & CAPELLA BANGKOK RIVERSIDE RESORT (`x = -520, z = +76`)
+    // 4. FOUR SEASONS & CAPELLA BANGKOK RIVERSIDE RESORT (`x = -540, z = +76` on solid West Bank land)
     (function buildFourSeasonsBangkok() {
       var fsG = new THREE.Group();
-      fsG.position.set(-520.0, 2.2, 76.0);
+      fsG.position.set(-540.0, 2.35, 76.0);
       luxGroup.add(fsG);
 
-      // Stepped modern glass resort terraces & infinity pools facing the river
+      // Stepped modern glass resort terraces, rooftop infinity pools & colorful glowing night windows
       var steps = [
-        { x: 5.0, y: 5.5, w: 12.0, h: 11.0, d: 28.0 },
-        { x: 0.0, y: 12.5, w: 13.0, h: 25.0, d: 24.0 },
-        { x: -5.0, y: 20.0, w: 14.0, h: 40.0, d: 20.0 }
+        { x: 5.0, y: 6.0,  w: 12.0, h: 12.0, d: 28.0, floors: 3, colsZ: 6, seed: 51 },
+        { x: 0.0, y: 13.0, w: 13.0, h: 26.0, d: 24.0, floors: 7, colsZ: 5, seed: 52 },
+        { x: -5.0, y: 20.5, w: 14.0, h: 41.0, d: 20.0, floors: 10, colsZ: 5, seed: 53 }
       ];
       steps.forEach(function(st) {
         var box = new THREE.Mesh(new THREE.BoxGeometry(st.w, st.h, st.d), pearlWhiteMat);
@@ -15329,17 +15535,24 @@ window.createDetailedCoach = function(colHex, coachIndex) {
         box.castShadow = true;
         fsG.add(box);
 
-        var gl = new THREE.Mesh(new THREE.BoxGeometry(st.w + 0.25, st.h * 0.86, st.d * 0.88), silverGlassMat);
-        gl.position.set(st.x, st.y, 0);
-        fsG.add(gl);
+        addBangkokHotelColorfulWindows(fsG, st.x, st.y, 0, st.w, st.h, st.d, st.floors, st.colsZ, 3, st.seed);
+
+        var roofRim = new THREE.Mesh(new THREE.BoxGeometry(st.w + 0.8, 0.55, st.d + 0.8), goldMat);
+        roofRim.position.set(st.x, st.y + st.h * 0.5, 0);
+        fsG.add(roofRim);
+
+        var roofPool = new THREE.Mesh(new THREE.BoxGeometry(st.w * 0.65, 0.25, st.d * 0.72), silverGlassMat);
+        roofPool.position.set(st.x, st.y + st.h * 0.5 + 0.22, 0);
+        fsG.add(roofPool);
       });
 
-      addHotelRooftopSign(fsG, 'FOUR SEASONS', 'CAPELLA RIVERSIDE RESORT', 43.2, 18.5, 4.4, '#0c4a6e', '#38bdf8', '#e0f2fe');
+      addHotelRooftopSign(fsG, 'FOUR SEASONS', 'CAPELLA RIVERSIDE RESORT', 44.2, 18.5, 4.4, '#0c4a6e', '#38bdf8', '#e0f2fe');
     })();
 
-    // Lush coconut palms along the West Bank luxury hotel riverfront promenade
+    // Lush coconut palms along the West Bank luxury hotel riverfront promenade (solidly on dry land!)
     for (var wpz = -110; wpz <= 96; wpz += 16) {
-      createBangkokPalmTree(-494.0, 2.2, wpz, 1.05);
+      var westPromenadeX = getChaoPhrayaCenterX(wpz) - 44.5;
+      createBangkokPalmTree(westPromenadeX, 2.3, wpz, 1.05);
     }
 
     // ------------------------------------------------------------------------

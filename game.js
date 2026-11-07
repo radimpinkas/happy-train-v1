@@ -12,6 +12,10 @@ scene.add(trainHeadLight);
 var coachCols = [0x0d9488, 0x0d9488, 0x0d9488, 0x0d9488, 0x0d9488, 0x0d9488, 0x0d9488, 0x0d9488];
 var playerCoaches = [];
 function addCoach() {
+  if (playerCoaches.length >= 5) {
+    document.getElementById('wagon-val').textContent = playerCoaches.length;
+    return;
+  }
   var cIdx = playerCoaches.length;
   var c = createDetailedCoach(coachCols[cIdx % coachCols.length], cIdx);
   scene.add(c);
@@ -721,8 +725,62 @@ setTimeout(function() {
   }
 }, 60);
 
+window.isMainWorldPaused = false;
+window._savedWorldSnapshot = null;
+
+window.pauseMainWorld = function() {
+  if (window.isMainWorldPaused) return;
+  window._savedWorldSnapshot = {
+    speedStage: pState.speedStage,
+    currentVel: pState.currentVel,
+    switchChoice: pState.switchChoice,
+    edgeId: pState.edge ? pState.edge.id : null,
+    t: pState.t,
+    gameTimeSeconds: window.gameTimeSeconds
+  };
+  window.isMainWorldPaused = true;
+
+  var wheelEl = document.getElementById('remote-wheel-hud');
+  var speedCornerEl = document.getElementById('hud-speed-corner');
+  var switchCornerEl = document.getElementById('hud-switch-corner');
+  if (wheelEl) wheelEl.style.display = 'none';
+  if (speedCornerEl) speedCornerEl.style.display = 'none';
+  if (switchCornerEl) switchCornerEl.style.display = 'none';
+};
+
+window.resumeMainWorld = function() {
+  if (!window.isMainWorldPaused) return;
+  if (window._savedWorldSnapshot) {
+    pState.speedStage = window._savedWorldSnapshot.speedStage;
+    pState.currentVel = window._savedWorldSnapshot.currentVel;
+    pState.switchChoice = window._savedWorldSnapshot.switchChoice || pState.switchChoice;
+  }
+  if (typeof window.resetVoiceCoordinatorTimersAfterPause === 'function') {
+    window.resetVoiceCoordinatorTimersAfterPause();
+  }
+  if (renderer && renderer.shadowMap) {
+    renderer.shadowMap.needsUpdate = true;
+  }
+
+  var wheelEl = document.getElementById('remote-wheel-hud');
+  var speedCornerEl = document.getElementById('hud-speed-corner');
+  var switchCornerEl = document.getElementById('hud-switch-corner');
+  if (wheelEl) wheelEl.style.display = '';
+  if (speedCornerEl) speedCornerEl.style.display = '';
+  if (switchCornerEl) switchCornerEl.style.display = '';
+
+  updateHUD();
+  if (typeof window.syncCornerSpeedAndSwitchHud === 'function') {
+    window.syncCornerSpeedAndSwitchHud(true);
+  }
+  window.isMainWorldPaused = false;
+};
+
 function animate() {
   requestAnimationFrame(animate);
+  if (window.isMainWorldPaused) {
+    return;
+  }
   var time = Date.now() * 0.004;
 
   // 1. Update 5-Minute Day/Night Clock, Colorful Sunrise/Sunset, Tunnel Darkness & Cavern Lighting
@@ -1157,7 +1215,7 @@ function animate() {
       if (pState.itemsCount >= 3) {
         pState.itemsCount = 0;
         document.getElementById('wagon-bar-fill').style.width = '0%';
-        if (playerCoaches.length < 8) {
+        if (playerCoaches.length < 5) {
           addCoach();
           speakCharacter('train', '🚃 Little Train Toby', '#ef4444', 'Yay! We collected 3 treasures and got a new wagon!');
         }
@@ -1198,6 +1256,9 @@ function animate() {
     pState.activeStName = stCfg.name;
     document.getElementById('place-label').textContent = stCfg.name;
     speakCharacter('mom', stCfg.emoji + ' Mom Narrator', '#ec4899', stCfg.voice);
+    if (window.HappyTrainController && typeof window.HappyTrainController.onStationArrival === 'function') {
+      window.HappyTrainController.onStationArrival(stCfg.name);
+    }
   }
 
   if (pState.stationPause > 0) {

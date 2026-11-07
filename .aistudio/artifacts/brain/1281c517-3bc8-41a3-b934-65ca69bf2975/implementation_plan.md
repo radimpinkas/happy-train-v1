@@ -1,91 +1,74 @@
-# Výtvarná přestavba Happy Train: Pohádkový 2.5D svět
+# HAPPY TRAIN: ARCHITEKTONICKÁ ANALÝZA A NÁVRH 5 NOVÝCH MINIHER (REVIZE DLE ZÁVAZNÝCH PRAVIDEL)
 
-Transformace současné hry z jednoduchých geometrických primitiv do bohatě ilustrovaného 2.5D pohádkového světa ve stylu prémiové dětské knížky, plně inspirovaného přiloženou výtvarnou referencí a při zachování veškeré herní logiky, zvuků a ovládání pro Smart TV.
-
-## User Review & Critical Decisions
+Tento dokument obsahuje schválenou **Fázi A (Analýza současného stavu projektu)**, **Fázi B (Návrh 5 nových miniher)** a **zapracování všech 7 závazných pravidel** pro okamžitou realizaci první minihry **Happy Train Wash** (`minigame_wash.js`).
 
 > [!IMPORTANT]
-> Potvrzené volby z úvodní konzultace určují rozsah a způsob realizace první reprezentativní scény:
-
-- **Potvrzené rozhodnutí 1 (2.5D Architektura)**: Kombinace zaoblených vícevrstvých 3D modelů (`ExtrudeGeometry` se zkosenými hranami, `LatheGeometry` pro oblé karoserie a kola, kreslené tmavé obrysové linky) s bohatě ilustrovanými 2D/Canvas texturami a vrstvenými 2.5D billboardy pro stromy, kvetoucí keře, sedmikrásky, obláčky kouře a panoráma města.
-- **Potvrzené rozhodnutí 2 (Hlavní reprezentativní scéna)**: Prioritní zaměření na ikonickou scénu podle referenčního obrázku — roztomilá žluto-červená mašinka Toby s otevřenými vagónky na obloukovém cihlovém viaduktu mezi dvěma kamennými tunely v zelených kopcích, pod nímž vede asfaltová křižovatka se semaforem, zaoblenými autíčky (červené a modré mini autíčko, žlutý školní autobus, bílá dodávka) a nad nímž létá červeno-žlutý vrtulník Charlie.
-- **Potvrzené rozhodnutí 3 (Pracovní postup)**: Nejprve přímá úprava a odladění v živém náhledu AI Studia bez zahlcování chatu kompletními výpisy kódu, s detailním přehledem nových a provizorních prvků po dokončení.
-
----
-
-## 1. Overview & Core Concept
-
-- **Co přestavba přináší**: Proměnu plochého světa ze základních kvádrů a válců na živou pohádkovou ilustraci s výraznou prostorovou hloubkou (popředí se silnicí a kvetoucími stromy, střední plán s cihlovým viaduktem, tunely a vláčkem, pozadí se zvlněnými zelenými kopci a siluetou moderního města).
-- **Cílové publikum**: Děti ve věku 3 až 6 let hrající na televizní obrazovce (Smart TV) nebo počítači z větší pozorovací vzdálenosti.
-- **Hlavní přínos**: Každý objekt má okamžitě čitelnou siluetu, přátelský kreslený výraz (velké lesklé oči posazené na kapotě/světlech a veselý úsměv na nárazníku), měkké zaoblené tvary s jemnými ilustrovanými obrysy a bohatou povrchovou kresbu (jednotlivé cihly na klenbách viaduktu, kamenné kvádry portálů tunelů, dřevěné pražce se štěrkovým ložem, vrstvené koruny smrků a kvetoucích stromů).
-
----
-
-## 2. User Experience & Visual Design
-
-- **Hlavní vizuální vrstvy a kompozice (3 plány hloubky)**:
-  1. **Přední plán (Foreground)**: Dvouproudá šedá asfaltová silnice s bílým přerušovaným značením, přechodovými čarami, žlutým semaforem na sloupku, bílými sedmikráskami v trávě, kvetoucími jabloněmi/sakurami a zaoblenými autíčky s odfukujícími tyrkysovými obláčky.
-  2. **Střední plán (Midground — Hero zóna)**: Mohutný zakřivený viadukt z teplých oranžovo-červených cihel s polokruhovými klenbami, římsou a kamennými portály tunelů zasazenými do svěžích zelených kopců posetých květy. Po viaduktu jede mašinka Toby se třemi červeno-žlutými vagónky a tyrkysovými koly; nad tratí se vznáší zaoblený červeno-žlutý vrtulník Charlie s pruhovaným rotorem.
-  3. **Zadní plán (Background)**: Vrstvené oblé zelené kopce se smrkovými háji, dřevěným obloukovým můstkem a ilustrovaným panoramatem světlých městských mrakodrapů na obzoru pod zlatavoblankytovým nebem.
-
-- **Vizuální identita a barevná paleta**:
-  - *Estetický směr*: Ručně malovaná vektorová/knižní dětská ilustrace převedená do 2.5D prostoru s měkkým cel-shadingovým přechodem a tenkou tmavou konturou.
-  - *Barevné tokeny*:
-    - `--sky-zenith`: `#38bdf8` přecházející do teplého slunečního horizontu `#fef08a`
-    - `--meadow-fresh`: `#4ade80` a `#22c55e` (bohatě stupňované odstíny svěží trávy na kopcích)
-    - `--pine-deep`: `#065f46` a `#047857` (tmavě smaragdové vrstvené smrky s ilustrovaným větvením)
-    - `--viaduct-brick`: `#ea580c`, `#c2410c` a `#9a3412` (teplé pálené cihly s kresbou spár a klenbových klenáků)
-    - `--toby-gold`: `#facc15` (slunečně žlutý kotel mašinky), `--toby-crimson`: `#ef4444` (červená kabina, komín a pluh), `--toby-turquoise`: `#06b6d4` (tyrkysová kopule, přední čelo a kola vagónků)
-  - *Typografie a HUD překryv*: Čisté, zaoblené a z dálky čitelné rozhraní bez rušivého rozmazání (`backdrop-filter` odstraněn pro maximální plynulost WebGL), s výraznou navigační kartou a animovaným portrétem mluvící postavy.
-
-- **Kamerová choreografie a čitelnost na TV**:
-  - Kamera zaujímá mírně zvýšený šikmý 2.5D pohled (`FOV 34°` místo širokoúhlých `42°`), který potlačuje zkreslení okrajů a dává scéně charakter ilustrované dvojstránky z dětské knihy.
-  - Výchozí startovní pozice a hlavní pohled směřují přímo na **reprezentativní scénu s cihlovým viaduktem, dvěma tunely, křižovatkou se semaforem, autíčky a vrtulníkem Charlie**, přičemž kamera plynule sleduje jízdu vláčku kolem celého světa bez prudkých skoků.
+> **Zapracovaná závazná pravidla pro vývoj Happy Train Wash (Fáze C):**
+> 1. **100% bez mluvených a psaných komentářů během hraní:** V minihře nebudou žádné hlasové hlášky (*"Great job!"*, *"Bubble!"* apod.), žádné textové instrukce ani nápisy hodnocení. Dítě (4–6 let) vše pochopí čistě z animací, výrazů obličeje mašinky, pohybových nápověd a přirozených zvuků (šplouchání vody, praskání bublin, smích/zahihňání mašinky, pšiknutí, houkání a oslavná melodie).
+> 2. **Oslava už při vyčištění většiny špíny (~80 %) bez nutnosti 100% dočištění:** Dítě nemusí hledat poslední zapomenutý kousek špíny nebo pěny. Jakmile vyčistí přibližně **80 %** v daném kroku, zbytek drobných nečistot se sám kouzelně dočistí v záblesku hvězdiček a spustí se radostná oslava. Dítě může v mytí a zdobení libovolně pokračovat bez jakékoliv penalizace.
+> 3. **Samolepky a prověření bezpečného přenosu do hlavního 3D světa:**
+>    - **Výsledek technického prověření `models.js` a `game.js`:** Hlavní 3D mašinka v `game.js` (ř. 7: `var playerLoco = createDetailedLocomotive(...)`) je globální `THREE.Group`. Přímá úprava `models.js` by porušila pravidlo nulového zásahu do stávajících modelů.
+>    - **Zvolené 100% bezpečné řešení (bez jediného řádku změny v `models.js` a `game.js`):**
+>      1. **Trvalá paměť v myčce (`localStorage`):** Vybrané samolepky se uloží do `localStorage` (`happyTrain_washStickers`) a zobrazují se na mašince při každé další návštěvě myčky i na živém 3D billboardu nad Bránou č. 4 v Zámku.
+>      2. **Neinvazivní připnutí 3D samolepky z `minigame_wash.js`:** Přímo ze souboru `minigame_wash.js` připojíme na `window.playerLoco` lehkou podskupinu `THREE.Group` (`name: 'washStickerBadges'`) se dvěma malými 2D `CanvasTexture` plackami na bočnicích kabiny (`x = ±2.06, y = 3.45, z = -2.35`). Toto řešení **nemění žádný stávající soubor modelu, materiál ani animaci kol či kouře** a v případě potřeby lze jediným příkazem vypnout.
+> 4. **Maximálně tolerantní ovládání pro Samsung Smart TV ovladač:** Aktivní nástroj (houba, sprcha, leštička) má velký akční poloměr (`~18 %` šířky plátna) a při stisku šipek (`◀ ▶ ▲ ▼`) využívá **inteligentní magnetické přitahování (Soft-Magnet Assist)** k nejbližšímu špinavému nebo namydlenému místu na mašince. Ze vzdálenosti 3 metrů u TV tak dítě nemusí přesně mířit — stačí mačkat šipky nebo `OK / Enter` (které spustí velký plošný šplouch/bublinkovou vlnu).
+> 5. **Kultivované zvuky bez překrývání (Anti-Spam Throttling):** Využijeme výhradně existující `window.audioCtx` a `window.playSound` z `audio.js` (nevytváříme druhý `AudioContext`). Každý typ zvukového efektu v myčce bude mít minimální odstup (`cooldown 180–350 ms`) a sníženou, příjemnou hlasitost, aby při rychlém mačkání tlačítek nebo rychlém tažení prstem nikdy nedošlo k přehlušení nebo vrstvení zvuků.
+> 6. **Bezpečnost změn a záloha:** Před vytvořením `minigame_wash.js` ověříme čistý stav přes `git status` / zálohu změn. Soubor `minigames.js` (hra **Samá díra**), `tracks.js`, `models.js`, `audio.js`, `controller.js` a `game.js` zůstanou bez jakéhokoliv zásahu do herní logiky.
+> 7. **Transparentní testování:** Po dokončení provedeme kontrolu spuštění, ukončení, opakovaného spuštění, návratu do rondelu Zámku i ovládání a v závěrečné zprávě přesně oddělíme, co bylo reálně otestováno v běhovém prostředí a co je ověřeno simulací událostí.
 
 ---
 
-## 3. Key Product Decisions & Trade-Offs
-
-- **Rozhodnutí 1: Vícevrstvé zaoblené 3D siluety (`ExtrudeGeometry` + `LatheGeometry`) místo krabic (`BoxGeometry`)**
-  - *Zvolený přístup*: Karoserie mašinky Toby, otevřené korby vagónků, zaoblené kapoty autíček, školního autobusu, dodávky, trup vrtulníku Charlie a oblouky cihlového viaduktu budou vymodelovány pomocí zaoblených 2D křivek (`THREE.Shape` s `absarc` / `bezierCurveTo`) vytažených přes `ExtrudeGeometry` se zapnutým zkosením (`bevelEnabled: true`) a doplněných o jemné tmavé obrysové hrany a detailní procedurální/vygenerované malované textury.
-  - *Proč*: Běžné `BoxGeometry` a `CylinderGeometry` působí jako levná programátorská primitiva. Zaoblené extrudované profily s ilustrovanými texturami oken, mřížek chladiče, očí v předních světlech a úsměvů na nárazníku věrně reprodukují kresbu z referenčního obrázku.
-
-- **Rozhodnutí 2: Kombinace procedurálních HD malovaných plátnových textur a dedikovaných 2.5D ilustrovaných billboardů**
-  - *Zvolený přístup*: Pro povrch cihlového viaduktu, kamenné klenby tunelů, asfaltovou křižovatku, obličeje vozidel, vrstvené smrky, rozkvetlé stromky (růžový a bílý s kvítky), sedmikrásky, obláčky páry a kulisu velkoměsta v pozadí vytvoříme sjednocený systém vysokorozlišovacích malovaných textur a vrstvených 2.5D prostoro-orientovaných prvků (s nastavením `SRGBColorSpace` a `alphaTest`).
-  - *Proč*: Zajišťuje 100% vizuální jednotu, okamžité načtení bez chybějících externích souborů a vysoký výkon na Smart TV (minimum draw callů, měkké kontaktní stíny pod vozidly místo náročného počítání stínů pro stovky stromů).
-
----
-
-## 4. Technical Architecture & Data Strategy
-
-### Architektura 2.5D Vykreslovacího a Herního Systému
+## FÁZE A — ARCHITEKTURA A NAPOJENÍ DO EXISTUJÍCÍHO SYSTÉMU
 
 ```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                        HAPPY TRAIN 2.5D ART ENGINE                         │
-├───────────────────────┬──────────────────────────┬─────────────────────────┤
-│   VRSTVENÉ PROSTŘEDÍ  │    HRDINOVÉ A VOZIDLA    │  KAMERA, SVĚTLO A HUD   │
-│    (tracks.js +       │       (models.js)        │   (game.js + index.html)│
-│   ilustrované vrstvy) │                          │                         │
-├───────────────────────┼──────────────────────────┼─────────────────────────┤
-│ • Cihlový viadukt se  │ • Mašinka Toby:          │ • 2.5D Knižní kamera    │
-│   skutečnými klenbami │   žlutý kotel, červená   │   (FOV 34°, šikmý nadhled│
-│   a spárovanou cihlou │   kabina s žlutou římsou,│   s plynulým tlumením)  │
-│ • 2 Kamenné portály   │   tyrkysová kopule,      │ • Teplé sluneční světlo │
-│   tunelů v zelených   │   pluh, oči u komínu     │   + tyrkysovo-zelený    │
-│   květinových kopcích │ • 3 Červeno-žluté        │   HemisphereLight       │
-│ • Asfaltová křižovatka│   otevřené vagónky s     │ • Měkké kontaktní stíny │
-│   v popředí + žlutý   │   tyrkysovými koly       │   pod všemi vozidly     │
-│   semafor na sloupku  │ • Vrtulník Charlie:      │ • Zachování ovládání    │
-│ • 2.5D Billboardy:    │   zaoblená kabina, ližiny│   šipkami, Enter, M, W, │
-│   smrky, kvetoucí     │   a pruhovaný rotor      │   5min hodin a dabingu  │
-│   stromy, sedmikrásky,│ • Autíčka: Červené,      │                         │
-│   silueta mrakodrapů  │   Modré, Žlutý autobus,  │                         │
-│   a dřevěný můstek    │   Bílá dodávka s úsměvem │                         │
-└───────────────────────┴──────────────────────────┴─────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       ZÁMEK TISÍCE DOBRODRUŽSTVÍ                        │
+│              castle.js -> CASTLE_STOPS[5] ('train_wash')                │
+└───────────────────────────────────┬─────────────────────────────────────┘
+                                    │ Enter / OK u Brány č. 4
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                  minigames.js (HappyTrainMinigames)                     │
+│  • launch('train_wash') -> window.pauseMainWorld()                      │
+│  • Skryje #minigame-laser-btn (zobrazuje se jen pro 'sama_dira')        │
+│  • Spustí 2D canvas smyčku (#minigame-canvas)                           │
+└─────────────────┬─────────────────────────────────────┬─────────────────┘
+                  │                                     │
+                  ▼                                     ▼
+┌───────────────────────────────────┐ ┌───────────────────────────────────┐
+│   controller.js (Vstupy hráče)    │ │  minigame_wash.js (NOVÝ SOUBOR)   │
+│ • Samsung TV D-Pad (◀ ▶ ▲ ▼, OK)  │ │ • 3 kroky: Houba -> Sprcha -> Lesk│
+│ • Tlačítko BACK (10009 / 461 /Esc)│ │ • Tolerantní magnetický kurzor    │
+│ • Dotyk / Myš (PointerEvents)     │ │ • Automatické dočištění při ~80 % │
+└───────────────────────────────────┘ │ • Samolepky + tiché WebAudio FX   │
+                                      └───────────────────────────────────┘
 ```
 
-### Mapování interakcí a zachování herní funkčnosti
-- **Pohyb a výhybky (`ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`)**: Plně zachována dvoukolejná trať, 5 rychlostních stupňů + zpátečka, světelné naváděcí body na trati a velká směrová karta.
-- **Interakce (`Enter` / `Space`)**: Houkání mašinky, vypouštění malovaných tyrkysových obláčků páry a barevných bublin, vjezd do 4 podzemních stanic metra a rozhovory s kamarády.
-- **Denní cyklus a počasí (`W`, `M`)**: 5minutové analogové hodiny plynule mění atmosféru (Den / Západ slunce / Noc s rozsvícenými okny a kuželem světla mašinky) a přepínání počasí (Jasno / Déšť / Sníh).
+---
+
+## FÁZE B — PŘEHLED 5 NOVÝCH MINIHER A POŘADÍ VÝVOJE
+
+1. **Happy Train Wash (`train_wash` — `minigame_wash.js`) — VYVÍJÍME NYNÍ JAKO PRVNÍ**
+   - **Princip:** Veselá myčka mašinek ve 3 plynulých vizuálních krocích (1. Mýdlová houba a bubliny -> 2. Vodní sprcha -> 3. Hvězdičkové leštění a samolepky).
+   - **Bez textu a bez mluvení:** Ukazovátko (animovaná ruka/šipka) na začátku krátce předvede pohyb houbou. Mašinka reaguje očima, úsměvem, lechtivým smíchem a pšikáním bublinek.
+   - **Práh dokončení ~80 %:** Jakmile je vyčištěna většina skvrn (~80 %), zbytek se sám dočistí, spustí se oslava s konfetami a dítě může lepit samolepky nebo přivolat další vtipně ušpiněnou mašinku.
+2. **Happy Train Music Studio (`music_studio` — `minigame_music.js`)** — *Následuje jako 2. v pořadí*
+3. **Parcel Delivery (`parcel_delivery` — `minigame_parcel.js`)** — *Následuje jako 3. v pořadí*
+4. **Escape the Smiley (`escape_smiley` — `minigame_smiley.js`)** — *Následuje jako 4. v pořadí*
+5. **Happy Train Art Studio (`art_studio` — `minigame_art.js`)** — *Následuje jako 5. v pořadí*
+
+---
+
+## FÁZE C & D — KROKY REALIZACE PRO HAPPY TRAIN WASH (PO POTVRZENÍ PLÁNU)
+
+1. **Záloha a kontrola stavu (`git status`)** pro 100% jistotu okamžitého návratu.
+2. **Vytvoření `minigame_wash.js`**:
+   - Kompletní 2D scéna slunečné myčky s velkou animovanou mašinkou Toby (mrkající oči sledující nástroj, chichotání při lechtání houbou, radostné vyskočení).
+   - 3 velké vizuální nástroje na spodní liště (Žlutá houba, Modrá sprcha, Zlatá hvězdičková leštička) + 4 velké obrázkové samolepky (Hvězda, Srdíčko, Korunka, Duhový blesk).
+   - Tolerantní ovládání pro Samsung TV (velký dosah nástroje + magnetické přitahování k nejbližší špíně šipkami + plošný efekt tlačítkem `OK`).
+   - Kultivované Web Audio zvuky napojené na existující `window.audioCtx` s anti-spam limitem (žádné mluvené komentáře).
+3. **Minimální napojení (3 řádky celkem)**:
+   - `castle.js`: přepnutí `ready: true` u zastávky `train_wash` (Brána č. 4) a vykreslení živého náhledu myčky nad Bránou č. 4.
+   - `minigames.js`: zobrazení `#minigame-laser-btn` pouze pro `sama_dira`.
+   - `index.html`: přidání `<script src="minigame_wash.js"></script>`.
+4. **Otestování a report výsledků.**
